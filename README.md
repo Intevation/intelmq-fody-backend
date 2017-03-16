@@ -1,4 +1,10 @@
 
+# Requirements
+ * hug
+ * psycopg2
+ * intelmq-mailgen
+ * python-dateutil
+
 
 # Run with hug
 ```
