@@ -222,7 +222,7 @@ def query_prepare_export(q):
     Args:
         q: An array of Tuples created with query_build_query
 
-    Returns: A Tuple consisting of a query sting and an array of parameters.
+    Returns: A Tuple consisting of a query string and an array of parameters.
 
     """
     q_string = "SELECT * FROM events"  # TODO maybe events should be a variable...
@@ -291,7 +291,7 @@ def query_prepare_stats(q, interval = 'day'):
 
     """
 
-    if interval not in ('month', 'day', 'hour'):
+    if interval not in ('month', 'week', 'day', 'hour'):
         raise ValueError
 
     trunc = "date_trunc('%s', \"time.observation\")" % (interval,)
@@ -436,7 +436,6 @@ def stats(response, **params):
     WEEK = datetime.timedelta(7,0)
     MONTH = datetime.timedelta(30,0)
 
-
     # The Timebox of the resulting query. For which timeframe should an evaluation take place?
     # based upon this timeframe a good timeresolution will be suggested and used, if
     # no other resolution was provided...
@@ -481,7 +480,6 @@ def stats(response, **params):
         response.status = HTTP_INTERNAL_SERVER_ERROR
         return {"error": "The query could not be processed."}
 
-
     # Read the Timeres parameter or use suggestion
     timeres = params.get("timeres", suggested_timeres)
 
@@ -495,13 +493,11 @@ def stats(response, **params):
         # Default: suggested_timeres is a sane thing.
         timeres = suggested_timeres
 
-
     # remove other time-params which will be in conflict with this query
     if params.get("time-observation_after_encl"):
         del params["time-observation_after_encl"]
     if params.get("time-observation_before_encl"):
         del params["time-observation_before_encl"]
-
 
     for param in params:
         # Test if the parameters are sane....
@@ -516,8 +512,6 @@ def stats(response, **params):
         return {"error": "Queries without parameters are not supported"}
 
     querylist = query_build_query(params)
-
-
 
     prep = query_prepare_stats(querylist, timeres)
 
