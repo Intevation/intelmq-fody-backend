@@ -46,3 +46,7 @@ You might want to use an Apache-Config like:
 </VirtualHost>
 
 ```
+
+## Origin
+Most of the files within this repository originated from:
+https://github.com/Intevation/intelmq-mailgen/tree/master/extras
