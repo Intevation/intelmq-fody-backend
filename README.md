@@ -5,6 +5,10 @@
  * intelmq-mailgen
  * python-dateutil
 
+# License
+This software is available under the terms of the AGPL v3 or later versions of this license.
+See the file `agpl-3.0.txt` or https://www.gnu.org/licenses/agpl-3.0.en.html
+for details.
 
 # Run with hug
 ```
