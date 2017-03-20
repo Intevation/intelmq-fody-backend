@@ -68,6 +68,18 @@ try:
 except ImportError as err:
     log.warning(err)
 
+# if possible add the tickets_api to our endpoints
+try:
+    import tickets_api.tickets_api.serve
+
+    @hug.extend_api()
+    def add_tickets_api():
+        return[tickets_api.tickets_api.serve]
+
+    ENDPOINTS[tickets_api.tickets_api.serve.ENDPOINT_NAME] = tickets_api.tickets_api.serve.ENDPOINT_PREFIX
+
+except ImportError as err:
+    log.warning(err)
 
 # if possible add the checkticket_api to our endpoints
 try:
