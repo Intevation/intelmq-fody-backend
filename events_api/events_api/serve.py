@@ -73,7 +73,7 @@ def read_configuration() -> dict:
         Move this to a lib which can be used as a common function
         for contact_db_api and other extensions.
         Maybe the Endpoint-Prefix can be a parameter for this.
-        or IntelMQ_api....
+        or intelmq_fody_api....
 
     Returns:
         The configuration values, possibly containing more dicts.

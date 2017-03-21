@@ -12,7 +12,7 @@ for details.
 
 # Run with hug
 ```
-hug -f intelmq_api/serve.py -p 8002
+hug -f intelmq_fody_api/serve.py -p 8002
 ```
 
 
@@ -30,13 +30,13 @@ You might want to use an Apache-Config like:
 ```
 <VirtualHost *:8000>
         ServerAdmin webmaster@localhost
-        DocumentRoot /opt/src/intelmq-api/intelmq_api
+        DocumentRoot /opt/src/intelmq-fody-api/intelmq_fody_api
 
         WSGIDaemonProcess fody threads=1 maximum-requests=10000
-        WSGIScriptAlias / /opt/src/intelmq-api/intelmq_api/serve.py
+        WSGIScriptAlias / /opt/src/intelmq-fody-api/intelmq_fody_api/serve.py
         WSGICallableObject __hug_wsgi__
 
-        <Directory /opt/src/intelmq-api/intelmq_api>
+        <Directory /opt/src/intelmq-fody-api/intelmq_fody_api>
             Options FollowSymLinks
             AuthType Basic
             AuthName IntelMQ

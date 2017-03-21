@@ -24,9 +24,9 @@ There is an additional loglevel `DDEBUG`
 for more details than `DEBUG`.
 
 ## Installation
-For a production setup `intelmq_api.py` has to be installed
+For a production setup `intelmq-fody-api` has to be installed
 with a webserver running `wsgi.multithread == False` and will try
 to import the `eventdb\_api` module.
 
 The `eventdb\_api` requires `python-dateutil` which can be installed from pypi.
-`python-dateutil` is already a requirement of IntelMQ 
+`python-dateutil` is already a requirement of IntelMQ.
