@@ -98,9 +98,10 @@ except ImportError as err:
 def setup(api):
     pass
 
-@hug.get("/")
-def get_endpoints():
-    return ENDPOINTS
+# TODO for now show the full api documentation that hug generates
+#@hug.get("/")
+#def get_endpoints():
+#    return ENDPOINTS
 
 
 if __name__ == '__main__':
