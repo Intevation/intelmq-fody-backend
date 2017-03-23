@@ -287,7 +287,7 @@ def query_prepare_stats(q, interval = 'day'):
         q: An array of Tuples created with query_build_query
         interval: 'month, 'day' or 'hour'
 
-    Returns: A Tuple consisting of a query sting and an array of parameters.
+    Returns: A tuple consisting of a query string and an array of parameters.
 
     """
 
@@ -296,8 +296,7 @@ def query_prepare_stats(q, interval = 'day'):
 
     trunc = "date_trunc('%s', \"time.observation\")" % (interval,)
 
-    q_string = "SELECT %s, count(*) " \
-               "FROM events " % (trunc, )  # TODO maybe events should be a variable...
+    q_string = "SELECT {}, count(*) FROM events".format(trunc)
 
     params = []
     # now iterate over q (which had to be created with query_build_query
@@ -312,7 +311,7 @@ def query_prepare_stats(q, interval = 'day'):
             q_string = q_string + " WHERE " + subquerytuple[0]
             params.append(subquerytuple[1])
         counter += 1
-    q_string = q_string + " GROUP BY %s" % (trunc, )
+    q_string = q_string + " GROUP BY %s ORDER BY date_trunc" % (trunc, )
     return q_string, params
 
 def query(prepared_query):
@@ -421,14 +420,12 @@ def search(response, **params):
 @hug.get(ENDPOINT_PREFIX + '/stats', examples="malware-name_is=nymaim&timeres=day")
 # @hug.post(ENDPOINT_PREFIX + '/export')
 def stats(response, **params):
-    """ This interface returns a statistic all events matching the query parameters
+    """Return distribution of events for query parameters.
 
     Args:
-        response: A HUG response object...
         **params: Queries from QUERY_EVENT_SUBQUERY
 
-    Returns: If existing a statiustical view on the amount of events per time-frame
-
+    Returns: The distribution of found events per interval and resolution.
     """
     now = datetime.datetime.now()
 
