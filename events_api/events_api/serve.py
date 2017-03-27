@@ -379,6 +379,11 @@ def getEvent(response, id: int = None):
         response.status = HTTP_INTERNAL_SERVER_ERROR
         return {"error": "The query could not be processed."}
 
+@hug.get(ENDPOINT_PREFIX + '/subqueries')
+def showSubqueries():
+    """Returns the valid subqueries."""
+    return QUERY_EVENT_SUBQUERY
+
 
 @hug.get(ENDPOINT_PREFIX + '/search', examples="time-observation_after=2017-03-01&time-observation_before=2017-03-01")
 # @hug.post(ENDPOINT_PREFIX + '/search')
