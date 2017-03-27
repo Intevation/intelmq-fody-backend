@@ -455,7 +455,7 @@ def search(response, **params):
         return {"error": "The query could not be processed."}
 
 
-@hug.get(ENDPOINT_PREFIX + '/stats', examples="malware-name_is=nymaim&recipient-address_icontains=%telekom%")
+@hug.get(ENDPOINT_PREFIX + '/stats', examples="malware-name_is=nymaim&recipient-address_icontains=%telekom%&timeres=day")
 def stats(response, **params):
     """ This interface returns a statistic of all tickets matching the query parameters
 
@@ -552,12 +552,14 @@ def stats(response, **params):
     prep = query_prepare_stats(querylist, timeres)
 
     try:
-        return query(prep)
+        results = query(prep)
     except psycopg2.Error as e:
         log.error(e)
         __rollback_transaction()
         response.status = HTTP_INTERNAL_SERVER_ERROR
         return {"error": "The query could not be processed."}
+
+    return {'timeres': timeres, 'results': results}
 
 
 def main():
