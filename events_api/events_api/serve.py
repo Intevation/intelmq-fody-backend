@@ -519,11 +519,21 @@ def stats(response, **params):
 
     try:
         results = query(prep)
+        totalcount = 0
+        for v in results:
+            totalcount += v.get('count', 0)
+
     except psycopg2.Error as e:
         log.error(e)
         __rollback_transaction()
         response.status = HTTP_INTERNAL_SERVER_ERROR
         return {"error": "The query could not be processed."}
+
+    except AttributeError as e:
+        log.error(e)
+        __rollback_transaction()
+        response.status = HTTP_INTERNAL_SERVER_ERROR
+        return {"error": "Something went wrong."}
 
     return {'timeres': timeres, 'results': results}
 

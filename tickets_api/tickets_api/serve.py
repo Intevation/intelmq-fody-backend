@@ -776,7 +776,7 @@ def stats(response, **params):
         log.error(e)
         __rollback_transaction()
         response.status = HTTP_INTERNAL_SERVER_ERROR
-        return {"error": "Somthing went wrong whilts creating the Statistics"}
+        return {"error": "Something went wrong."}
 
     return {'timeres': timeres, 'total': totalcount ,'results': results}
 
