@@ -535,7 +535,7 @@ def stats(response, **params):
         response.status = HTTP_INTERNAL_SERVER_ERROR
         return {"error": "Something went wrong."}
 
-    return {'timeres': timeres, 'results': results}
+    return {'timeres': timeres, 'total': totalcount, 'results': results}
 
 
 @hug.get(ENDPOINT_PREFIX + '/export', examples="time-observation_after=2017-03-01&time-observation_before=2017-03-01")
