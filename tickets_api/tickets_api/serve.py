@@ -386,6 +386,7 @@ def query_get_subquery(q: str):
 
     """
     r = QUERY_EVENT_SUBQUERY.get(q, '')
+    s = None
     if r:
         s = r.get('sql', '')
     if s:
