@@ -574,7 +574,7 @@ def search(response, **params):
             query_get_subquery(param)
         except ValueError:
             response.status = HTTP_BAD_REQUEST
-            return {"error": "At least one of the queryparameters is not allowed"}
+            return {"error": "At least one of the queryparameters is not allowed: %s" % (param, )}
 
     if not params:
         response.status = HTTP_BAD_REQUEST
@@ -678,7 +678,7 @@ def stats(response, **params):
             query_get_subquery(param)
         except ValueError:
             response.status = HTTP_BAD_REQUEST
-            return {"error": "At least one of the queryparameters is not allowed"}
+            return {"error": "At least one of the queryparameters is not allowed: %s" % (param, )}
 
     if not params:
         response.status = HTTP_BAD_REQUEST
