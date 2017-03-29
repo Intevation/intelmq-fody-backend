@@ -511,7 +511,7 @@ def query_prepare_stats(q, interval = 'day'):
     if interval not in ('month', 'week', 'day', 'hour'):
         raise ValueError
 
-    trunc = "date_trunc('%s', \"time.observation\")" % (interval,)
+    trunc = "date_trunc('%s', \"sent_at\")" % (interval,)
 
     q_string = "SELECT %s, count(*) " \
                " FROM events " \
