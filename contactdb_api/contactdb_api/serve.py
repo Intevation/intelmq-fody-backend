@@ -238,7 +238,7 @@ def __db_query_org(org_id:int, table_variant:str,
 
     Returns:
         containing the organisation and additional keys
-            'asns' (with 'annotations') and 'contacts'
+            'annotations', 'asns' (with 'annotations') and 'contacts'
     """
 
     operation_str = """
@@ -261,19 +261,6 @@ def __db_query_org(org_id:int, table_variant:str,
         description, results = _db_query(operation_str, (org_id,), False)
         org["asns"] = results
 
-        if table_variant == '':
-            # insert annotations
-            for index, asn in enumerate(org["asns"][:]):
-                operation_str = """
-                    SELECT * from autonomous_system_annotation
-                        WHERE asn = %s
-                """
-                description, results = _db_query(operation_str,
-                                                 (asn["asn"],),
-                                                 end_transaction)
-                if len(results) > 0:
-                    org["asns"][index]["annotaions"] = results
-
         # insert contacts
         operation_str = """
             SELECT * FROM contact{0}
@@ -284,7 +271,32 @@ def __db_query_org(org_id:int, table_variant:str,
                                          end_transaction)
         org["contacts"] = results
 
+        # annotations exist only for manual tables
+        if table_variant == '':
+            # insert annotations for the org
+            operation_str = """
+                SELECT * FROM organisation_annotation
+                    WHERE organisation_id = %s
+                """
+            description, results = _db_query(operation_str, (org_id,),
+                                         end_transaction)
+            if len(results) > 0:
+                org["annotations"] = results
+
+            # insert annotations for each asn
+            for index, asn in enumerate(org["asns"][:]):
+                operation_str = """
+                    SELECT * from autonomous_system_annotation
+                        WHERE asn = %s
+                """
+                description, results = _db_query(operation_str,
+                                                 (asn["asn"],),
+                                                 end_transaction)
+                if len(results) > 0:
+                    org["asns"][index]["annotations"] = results
+
         return org
+
 
 def __db_query_asn(asn:int, table_variant:str,
                    end_transaction:bool=True) -> dict:
