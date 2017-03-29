@@ -45,6 +45,8 @@ import hug
 import psycopg2
 import datetime
 import dateutil.parser
+import copy
+
 from psycopg2.extras import RealDictCursor
 
 log = logging.getLogger(__name__)
@@ -616,7 +618,7 @@ def getTicket(response, id: int = None, ticketnumber: hug.types.length(17, 18) =
 @hug.get(ENDPOINT_PREFIX + '/subqueries')
 def showSubqueries():
     """Returns the valid subqueries."""
-    subquery_copy = QUERY_EVENT_SUBQUERY.copy()
+    subquery_copy = copy.deepcopy(QUERY_EVENT_SUBQUERY)
 
     # Remove the SQL Statement from the SQ Object.
     for k,v in subquery_copy.items():
@@ -645,7 +647,7 @@ def search(response, **params):
             query_get_subquery(param)
         except ValueError:
             response.status = HTTP_BAD_REQUEST
-            return {"error": "At least one of the queryparameters is not allowed"}
+            return {"error": "At least one of the queryparameters is not allowed: %s" % (param, )}
 
     if not params:
         response.status = HTTP_BAD_REQUEST
@@ -750,7 +752,7 @@ def stats(response, **params):
             query_get_subquery(param)
         except ValueError:
             response.status = HTTP_BAD_REQUEST
-            return {"error": "At least one of the queryparameters is not allowed"}
+            return {"error": "At least one of the queryparameters is not allowed: %s" % (param, )}
 
     if not params:
         response.status = HTTP_BAD_REQUEST
