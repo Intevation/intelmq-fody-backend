@@ -44,6 +44,8 @@ import hug
 import psycopg2
 import datetime
 import dateutil.parser
+import copy
+
 from psycopg2.extras import RealDictCursor
 
 
@@ -127,45 +129,201 @@ def __rollback_transaction():
     eventdb_conn.rollback()
 
 QUERY_EVENT_SUBQUERY = {
-    'id': 'id = %s',
+    # queryname: ['sqlstatement', 'description', 'label', 'Expected-Type']
+    'id': {
+        'sql': 'events.id = %s',
+        'description': 'Query for an Event matching this ID.',
+        'label': 'EventID',
+        'exp_type': 'integer'
+    },
     # Time
-    'time-observation_before': '"time.observation" < %s',
-    'time-observation_before_encl': '"time.observation" <= %s',
-    'time-observation_after': '"time.observation" > %s',
-    'time-observation_after_encl': '"time.observation" > %s',
-    'time-source_before': '"time.source" < %s',
-    'time-source_before_encl': '"time.source" <= %s',
-    'time-source_after': '"time.source" > %s',
-    'time-source_after_encl': '"time.source" > %s',
+    'time-observation_before': {
+        'sql': '"time.observation" < %s',
+        'description': '',
+        'label': 'Observation Time before',
+        'exp_type': 'datetime'
+    },
+    'time-observation_before_encl': {
+        'sql': '"time.observation" <= %s',
+        'description': '',
+        'label': 'Observation Time before, including',
+        'exp_type': 'datetime'
+    },
+    'time-observation_after': {
+        'sql': '"time.observation" > %s',
+        'description': '',
+        'label': 'Observation Time after',
+        'exp_type': 'datetime'
+    },
+    'time-observation_after_encl': {
+        'sql': '"time.observation" > %s',
+        'description': '',
+        'label': 'Observation Time after, including',
+        'exp_type': 'datetime'
+    },
+    'time-source_before': {
+        'sql': '"time.source" < %s',
+        'description': '',
+        'label': 'Source Time before',
+        'exp_type': 'datetime'
+    },
+    'time-source_before_encl': {
+        'sql': '"time.source" <= %s',
+        'description': '',
+        'label': 'Source Time before, including',
+        'exp_type': 'datetime'
+    },
+    'time-source_after': {
+        'sql': '"time.source" > %s',
+        'description': '',
+        'label': 'Source Time after',
+        'exp_type': 'datetime'
+    },
+    'time-source_after_encl': {
+        'sql': '"time.source" > %s',
+        'description': '',
+        'label': 'Source Time after, including',
+        'exp_type': 'datetime'
+    },
     # Source
-    'source-ip_in_sn': '"source.ip" <<= %s',
-    'source-ip_is': '"source.ip" = %s',
-    'source-asn_is': '"source.asn" = %s',
-    'source-fqdn_is': '"source.fqdn" = %s',
-    'source-fqdn_icontains': '"source.fqdn" ILIKE %s',
+    'source-ip_in_sn': {
+        'sql': '"source.ip" <<= %s',
+        'description': '',
+        'label': 'Source IP-Network',
+        'exp_type': 'cidr'
+    },
+    'source-ip_is': {
+        'sql': '"source.ip" = %s',
+        'description': '',
+        'label': 'Source IP-Address',
+        'exp_type': 'ip'
+    },
+    'source-asn_is': {
+        'sql': '"source.asn" = %s',
+        'description': '',
+        'label': 'Source ASN',
+        'exp_type': 'integer'
+    },
+    'source-fqdn_is': {
+        'sql': '"source.fqdn" = %s',
+        'description': '',
+        'label': 'Source FQDN',
+        'exp_type': 'string'
+    },
+    'source-fqdn_icontains': {
+        'sql': '"source.fqdn" ILIKE %s',
+        'description': '',
+        'label': 'Source FQDN contains',
+        'exp_type': 'string'
+    },
 
     # Destinations
-    'destination-ip_in_sn': '"destination.ip" <<= %s',
-    'destination-ip_is': '"destination.ip" = %s',
-    'destination-asn_is': '"destination.asn" = %s',
-    'destination-fqdn_is': '"destination.fqdn" = %s',
-    'destination-fqdn_icontains': '"destination.fqdn" ILIKE %s',
+    'destination-ip_in_sn': {
+        'sql': '"destination.ip" <<= %s',
+        'description': '',
+        'label': 'Destination IP-Network',
+        'exp_type': 'cidr'
+    },
+    'destination-ip_is': {
+        'sql': '"destination.ip" = %s',
+        'description': '',
+        'label': 'Destination IP-Address',
+        'exp_type': 'ip'
+    },
+    'destination-asn_is': {
+        'sql': '"destination.asn" = %s',
+        'description': '',
+        'label': 'Destination ASN',
+        'exp_type': 'integer'
+    },
+    'destination-fqdn_is': {
+        'sql': '"destination.fqdn" = %s',
+        'description': '',
+        'label': 'Destination FQDN',
+        'exp_type': 'string'
+    },
+    'destination-fqdn_icontains': {
+        'sql': '"destination.fqdn" ILIKE %s',
+        'description': '',
+        'label': 'Destination FQDN contains',
+        'exp_type': 'string'
+    },
 
     # Classification
-    'classification-taxonomy_is': '"classification.taxonomy" = %s',
-    'classification-taxonomy_icontains': '"classification.taxonomy" ILIKE %s',
-    'classification-type_is': '"classification.type" = %s',
-    'classification-type_icontains': '"classification.type" ILIKE %s',
-    'classification-identifier_is': '"classification.identifier" = %s',
-    'classification-identifier_icontains': '"classification.identifier" ILIKE %s',
-    'malware-name_is': '"malware.name" = %s',
-    'malware-name_icontains': '"malware.name" ILIKE %s',
+    'classification-taxonomy_is': {
+        'sql': '"classification.taxonomy" = %s',
+        'description': '',
+        'label': 'Classification Taxonomy',
+        'exp_type': 'string'
+    },
+    'classification-taxonomy_icontains': {
+        'sql': '"classification.taxonomy" ILIKE %s',
+        'description': '',
+        'label': 'Classification Taxonomy contains',
+        'exp_type': 'string'
+    },
+    'classification-type_is': {
+        'sql': '"classification.type" = %s',
+        'description': '',
+        'label': 'Classification Type',
+        'exp_type': 'string'
+    },
+    'classification-type_icontains': {
+        'sql': '"classification.type" ILIKE %s',
+        'description': '',
+        'label': 'Classification Type contains',
+        'exp_type': 'string'
+    },
+    'classification-identifier_is': {
+        'sql': '"classification.identifier" = %s',
+        'description': '',
+        'label': 'Classification Identifier',
+        'exp_type': 'string'
+    },
+    'classification-identifier_icontains': {
+        'sql': '"classification.identifier" ILIKE %s',
+        'description': '',
+        'label': 'Classification Identifier contains',
+        'exp_type': 'string'
+    },
+    'malware-name_is': {
+        'sql': '"malware.name" = %s',
+        'description': '',
+        'label': 'Malware Name',
+        'exp_type': 'string'
+    },
+    'malware-name_icontains': {
+        'sql': '"malware.name" ILIKE %s',
+        'description': '',
+        'label': 'Malware Name contains',
+        'exp_type': 'string'
+    },
 
     # Feed
-    'feed-provider_is': '"feed.provider" = %s',
-    'feed-provider_icontains': '"feed.provider" ILIKE %s',
-    'feed-name_is': '"feed.name" = %s',
-    'feed-name_icontains': '"feed.name" ILIKE %s',
+    'feed-provider_is': {
+        'sql': '"feed.provider" = %s',
+        'description': '',
+        'label': 'Feed Provider',
+        'exp_type': 'string'
+    },
+    'feed-provider_icontains': {
+        'sql': '"feed.provider" ILIKE %s',
+        'description': '',
+        'label': 'Feed Provider contains',
+        'exp_type': 'string'
+    },
+    'feed-name_is': {
+        'sql': '"feed.name" = %s',
+        'description': '',
+        'label': 'Feed Name',
+        'exp_type': 'string'
+    },
+    'feed-name_icontains': {
+        'sql': '"feed.name" ILIKE %s',
+        'description': '',
+        'label': 'Feed Name contains',
+        'exp_type': 'string'
+    },
 }
 
 
@@ -181,8 +339,11 @@ def query_get_subquery(q: str):
 
     """
     r = QUERY_EVENT_SUBQUERY.get(q, '')
+    s = None
     if r:
-        return r
+        s = r.get('sql', '')
+    if s:
+        return s
     else:
         raise ValueError('The Query-Paramter you asked for is not supported.')
 
@@ -379,10 +540,20 @@ def getEvent(response, id: int = None):
         response.status = HTTP_INTERNAL_SERVER_ERROR
         return {"error": "The query could not be processed."}
 
+
 @hug.get(ENDPOINT_PREFIX + '/subqueries')
 def showSubqueries():
     """Returns the valid subqueries."""
-    return QUERY_EVENT_SUBQUERY
+    subquery_copy = copy.deepcopy(QUERY_EVENT_SUBQUERY)
+
+    # Remove the SQL Statement from the SQ Object.
+    for k,v in subquery_copy.items():
+        try:
+            del(v['sql'])
+        except:
+            pass
+
+    return subquery_copy
 
 
 @hug.get(ENDPOINT_PREFIX + '/search', examples="time-observation_after=2017-03-01&time-observation_before=2017-03-01")
