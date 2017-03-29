@@ -513,10 +513,14 @@ def query_prepare_stats(q, interval = 'day'):
 
     trunc = "date_trunc('%s', \"sent_at\")" % (interval,)
 
-    q_string = "SELECT %s, count(*) " \
+    q_string = "SELECT %s, count(distinct(intelmq_ticket)) " \
                " FROM events " \
                " JOIN directives on directives.events_id = events.id " \
                " JOIN sent on sent.id = directives.sent_id " % (trunc, )
+
+    # SELECT date_trunc('day', sent_at), count(intelmq_ticket) FROM sent GROUP BY date_trunc('day', sent_at);
+    # Would be much faster, but do not just want to count the tickets, but also
+    # might need to filter for certain attributes....
 
     params = []
     # now iterate over q (which had to be created with query_build_query
