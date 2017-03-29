@@ -251,6 +251,10 @@ def __db_query_org(org_id:int, table_variant:str,
             return {}
     else:
         org = results[0]
+        if table_variant != '': # keep the plain id name for all table variants
+            org["organisation_id"] = org.pop(
+                    "organisation{0}_id".format(table_variant)
+                    )
 
         # insert asns
         operation_str = """
@@ -271,7 +275,42 @@ def __db_query_org(org_id:int, table_variant:str,
                                          end_transaction)
         org["contacts"] = results
 
-        # annotations exist only for manual tables
+        # insert national certs
+        operation_str = """
+            SELECT * FROM national_cert{0}
+                WHERE organisation{0}_id = %s
+            """.format(table_variant)
+
+        description, results = _db_query(operation_str, (org_id,),
+                                         end_transaction)
+        org["nationalcerts"] = results
+
+        # insert networks
+        operation_str = """
+            SELECT * FROM network{0} AS n
+                JOIN organisation_to_network{0} AS otn
+                    ON n.network{0}_id = otn.network{0}_id
+                WHERE otn.organisation{0}_id = %s
+            """.format(table_variant)
+
+        description, results = _db_query(operation_str, (org_id,),
+                                         end_transaction)
+        org["networks"] = results
+
+        # insert fqdns
+        operation_str = """
+            SELECT * FROM fqdn{0} AS f
+                JOIN organisation_to_fqdn{0} AS of
+                    ON f.fqdn{0}_id = of.fqdn{0}_id
+                WHERE of.organisation{0}_id = %s
+            """.format(table_variant)
+
+        description, results = _db_query(operation_str, (org_id,),
+                                         end_transaction)
+        org["fqdns"] = results
+
+        # add existing annotations
+        # can only be there for manual tables
         if table_variant == '':
             # insert annotations for the org
             operation_str = """
