@@ -233,18 +233,16 @@ def __db_query_org(org_id:int, table_variant:str,
     """Returns details for an organisaion.
 
     Parameters:
-        org_id:int: the organisation id to be queries
+        org_id:int: the organisation id to be queried
         table_variant: either "" or "_automatic"
 
     Returns:
         containing the organisation and additional keys
-            'asns' (with 'inhibitions') and 'contacts'
+            'asns' (with 'annotations') and 'contacts'
     """
 
     operation_str = """
-        SELECT *
-            FROM organisation{0} AS o
-            WHERE o.id = %s
+        SELECT * FROM organisation{0} WHERE organisation{0}_id = %s
         """.format(table_variant)
 
     description, results = _db_query(operation_str, (org_id,), False)
@@ -254,50 +252,37 @@ def __db_query_org(org_id:int, table_variant:str,
     else:
         org = results[0]
 
+        # insert asns
         operation_str = """
-            SELECT * FROM autonomous_system{0} AS a
-                JOIN organisation_to_asn{0} AS oa
-                    ON oa.asn_id = a.number
-                WHERE oa.organisation_id = %s
+            SELECT * FROM organisation_to_asn{0}
+                WHERE organisation{0}_id = %s
             """.format(table_variant)
 
         description, results = _db_query(operation_str, (org_id,), False)
         org["asns"] = results
 
         if table_variant == '':
-            # insert inhibition information
+            # insert annotations
             for index, asn in enumerate(org["asns"][:]):
                 operation_str = """
-                    SELECT n.address, ct.name AS type,
-                           ci.name AS identifier, i.comment, i.id
-                        FROM inhibition AS i
-                        LEFT OUTER JOIN network AS n
-                            ON i.net_id = n.id
-                        LEFT OUTER JOIN classification_type AS ct
-                            ON i.classification_type_id = ct.id
-                        LEFT OUTER JOIN classification_identifier AS ci
-                            ON i.classification_identifier_id = ci.id
-                        WHERE asn_id = %s
-                    """
+                    SELECT * from autonomous_system_annotation
+                        WHERE asn = %s
+                """
                 description, results = _db_query(operation_str,
-                                                 (asn["number"],),
+                                                 (asn["asn"],),
                                                  end_transaction)
                 if len(results) > 0:
-                    org["asns"][index]["inhibitions"] = results
+                    org["asns"][index]["annotaions"] = results
 
+        # insert contacts
         operation_str = """
-            SELECT * FROM contact{0} AS c
-                JOIN role{0} AS r
-                    ON r.contact_id = c.id
-                WHERE r.organisation_id = %s
+            SELECT * FROM contact{0}
+                WHERE organisation{0}_id = %s
             """.format(table_variant)
 
         description, results = _db_query(operation_str, (org_id,),
                                          end_transaction)
         org["contacts"] = results
-
-
-
 
         return org
 
@@ -916,11 +901,9 @@ def pong():
 @hug.get(ENDPOINT_PREFIX + '/searchasn')
 def searchasn(asn:int):
     return __db_query_organisation_ids("""
-        SELECT DISTINCT array_agg(oa.organisation_id) as organisation_ids
-            FROM autonomous_system{0} AS a
-            JOIN organisation_to_asn{0} AS oa
-                ON oa.asn_id = a.number
-            WHERE number=%s
+        SELECT DISTINCT array_agg(organisation{0}_id) as organisation_ids
+            FROM organisation_to_asn{0}
+            WHERE asn=%s
         """, (asn,))
 
 @hug.get(ENDPOINT_PREFIX + '/searchorg')
@@ -930,7 +913,7 @@ def searchorg(name:str):
     Search is an case-insensitive substring search.
     """
     return __db_query_organisation_ids("""
-        SELECT DISTINCT array_agg(o.id) AS organisation_ids
+        SELECT DISTINCT array_agg(o.organisation{0}_id) AS organisation_ids
             FROM organisation{0} AS o
             WHERE name ILIKE %s
                OR name ILIKE %s
@@ -942,13 +925,11 @@ def searchorg(name:str):
 def searchcontact(email:str):
     """Search for an entry with the given email address.
 
-    Uses an case-insensitive substring search.
+    Uses a case-insensitive substring search.
     """
     return __db_query_organisation_ids("""
-        SELECT DISTINCT array_agg(r.organisation_id) AS organisation_ids
-            FROM role{0} AS r
-            JOIN contact{0} AS c
-                ON c.id = r.contact_id
+        SELECT DISTINCT array_agg(c.organisation{0}_id) AS organisation_ids
+            FROM contact{0} AS c
             WHERE c.email LIKE %s
                OR c.email LIKE %s
                OR c.email LIKE %s
