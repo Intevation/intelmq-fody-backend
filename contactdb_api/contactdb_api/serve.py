@@ -261,7 +261,7 @@ def __db_query_org(org_id: int, table_variant: str,
             return {}
     else:
         org = results[0]
-        if table_variant != '': # keep the plain id name for all table variants
+        if table_variant != '':  # keep plain id name for all table variants
             org["organisation_id"] = org.pop(
                     "organisation{0}_id".format(table_variant)
                     )
@@ -328,7 +328,7 @@ def __db_query_org(org_id: int, table_variant: str,
                     WHERE organisation_id = %s
                 """
             description, results = _db_query(operation_str, (org_id,),
-                                         end_transaction)
+                                             end_transaction)
             if len(results) > 0:
                 org["annotations"] = results
 
@@ -345,7 +345,6 @@ def __db_query_org(org_id: int, table_variant: str,
                     org["asns"][index]["annotations"] = results
 
         return org
-
 
 
 def __db_query_asn(asn: int, table_variant: str,
