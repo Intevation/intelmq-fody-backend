@@ -43,16 +43,19 @@ import json
 import logging
 import os
 import sys
-# FUTURE the typing module is part of Python's standard lib for v>=3.5
-# try:
-#     from typing import Tuple, Union, Sequence, List
-# except:
-#     pass
+from typing import Union
 
 from falcon import HTTP_BAD_REQUEST, HTTP_NOT_FOUND
 import hug
 import psycopg2
 from psycopg2.extras import RealDictCursor
+
+# FUTURE if we are reading to raise the requirements to psycopg2 v>=2.5
+# we could use psycopg2's json support, right now we need to improve, see
+# use of Json() within the module.
+# from psycopg2.extras import Json
+def Json(obj):
+  return json.dumps(obj)
 
 log = logging.getLogger(__name__)
 # adding a custom log level for even more details when diagnosing
@@ -98,7 +101,7 @@ EXAMPLE_CONF_FILE = r"""
     "host=localhost dbname=contactdb user=apiuser password='USER\\'s DB PASSWORD'",
   "logging_level": "INFO"
 }
-""" # noqa
+"""  # noqa
 
 ENDPOINT_PREFIX = '/api/contactdb'
 ENDPOINT_NAME = 'ContactDB'
@@ -301,7 +304,7 @@ def __db_query_org(org_id: int, table_variant: str,
 
         # insert networks
         operation_str = """
-            SELECT * FROM network{0} AS n
+            SELECT address, comment FROM network{0} AS n
                 JOIN organisation_to_network{0} AS otn
                     ON n.network{0}_id = otn.network{0}_id
                 WHERE otn.organisation{0}_id = %s
@@ -313,7 +316,7 @@ def __db_query_org(org_id: int, table_variant: str,
 
         # insert fqdns
         operation_str = """
-            SELECT * FROM fqdn{0} AS f
+            SELECT fqdn, comment FROM fqdn{0} AS f
                 JOIN organisation_to_fqdn{0} AS of
                     ON f.fqdn{0}_id = of.fqdn{0}_id
                 WHERE of.organisation{0}_id = %s
@@ -338,31 +341,45 @@ def __db_query_org(org_id: int, table_variant: str,
 
             # insert annotations for each asn
             for index, asn in enumerate(org["asns"][:]):
-                operation_str = """
-                    SELECT * from autonomous_system_annotation
-                        WHERE asn = %s
-                """
-                description, results = _db_query(operation_str,
-                                                 (asn["asn"],),
-                                                 end_transaction)
-                if len(results) > 0:
-                    org["asns"][index]["annotations"] = \
-                        __db_query_asn_annotations(asn["asn"])
+                org["asns"][index]["annotations"] = \
+                    __db_query_annotations("autonomous_system", "asn",
+                                           asn["asn"], end_transaction)
+
+            # insert annotations for each fqdn
+            for index, fqdn in enumerate(org["fqdns"][:]):
+                org["fdqns"][index]["annotations"] = \
+                    __db_query_annotations("fqdn", "fqdn",
+                                           fqdn["fqdn"], end_transaction)
+
+            # insert annotations for each network
+            for index, network in enumerate(org["networks"][:]):
+                org["networks"][index]["annotations"] = \
+                    __db_query_annotations("network", "address",
+                                           network["address"], end_transaction)
 
         return org
 
 
-def __db_query_asn_annotations(asn: int, end_transaction: bool=True) -> list:
-    """Queries the annotations for an asn.
+def __db_query_annotations(
+        table: str, column_name: str, column_value: Union[str, int],
+        end_transaction: bool=True
+        ) -> list:
+    """Queries annotations.
+
+    Parameters:
+        table: the table name to which `_annotation` is added
+        column_name: which has to match for the WHERE clause
+        column_value: which we want
 
     Returns:
         all annotations, even if one occurs several times
     """
     operation_str = """
-        SELECT array_agg(annotation) FROM autonomous_system_annotation
-            WHERE asn = %s
-    """
-    description, results = _db_query(operation_str, (asn,), end_transaction)
+        SELECT array_agg(annotation) FROM {0}_annotation
+            WHERE {1} = %s
+    """.format(table, column_name)
+    description, results = _db_query(operation_str, (column_value,),
+                                     end_transaction)
     annos = results[0]["array_agg"]
     return annos if annos is not None else []
 
@@ -380,7 +397,8 @@ def __db_query_asn(asn: int, table_variant: str,
     if len(results) > 0:
         if table_variant == '':  # insert annotations for manual tables
             results[0]['annotations'] = \
-                    __db_query_asn_annotations(asn, end_transaction)
+                __db_query_annotations("autonomous_system", "asn", asn,
+                                       end_transaction)
         return results[0]
     else:
         return None
@@ -475,24 +493,25 @@ def __fix_asns_to_org(asns: list, org_id: int) -> None:
         annos_should = asn["annotations"] if "annotations" in asn else []
         log.log(DD, "annos_should = " + repr(annos_should))
 
-        annos_are = __db_query_asn_annotations(asn_id, False)
+        annos_are = __db_query_annotations("autonomous_system", "asn",
+                                           asn_id, False)
         log.log(DD, "annos_are = " + repr(annos_are))
 
         # add missing annotations
         for anno in [a for a in annos_should if a not in annos_are]:
             operation_str = """
                 INSERT INTO autonomous_system_annotation
-                    (asn, annotation) VALUES (%s, %s)
+                    (asn, annotation) VALUES (%s, %s::json)
             """
-            _db_manipulate(operation_str, (asn_id, anno), False)
+            _db_manipulate(operation_str, (asn_id, Json(anno),), False)
 
         # remove superfluous annotations
         for anno in [a for a in annos_are if a not in annos_should]:
             operation_str = """
                 DELETE FROM autonomous_system_annotation
-                    WHERE asn = %s AND annotation = %s
+                    WHERE asn = %s AND annotation::text = %s::text
             """
-            _db_manipulate(operation_str, (asn_id, anno), False)
+            _db_manipulate(operation_str, (asn_id, Json(anno),), False)
 
         # check linking to the org
         operation_str = """
@@ -507,7 +526,7 @@ def __fix_asns_to_org(asns: list, org_id: int) -> None:
                 INSERT INTO organisation_to_asn
                     (organisation_id, asn) VALUES (%s, %s)
                 """
-            _db_manipulate(operation_str, (org_id, asn_id), False)
+            _db_manipulate(operation_str, (org_id, asn_id,), False)
 
     # remove links between asns and org that should not be there anymore
     operation_str = """
@@ -655,6 +674,9 @@ def _create_org(org: dict) -> int:
 
     __fix_asns_to_org(org['asns'], new_org_id)
     __fix_contacts_to_org(org['contacts'], new_org_id)
+    # TODO __fix_fqdns_to_org(org['fqdns'], new_org_id)
+    # TODO __fix_networks_to_org(org['networks'], new_org_id)
+    # TODO __fix_nationalcerts_to_org
 
     return(new_org_id)
 
@@ -710,7 +732,8 @@ def _delete_org(org) -> int:
     """
     log.debug("_delete_org called with " + repr(org))
 
-    org_in_db = __db_query_org(org["id"], "", end_transaction=False)
+    org_in_db = __db_query_org(org["organisation_id"], "",
+                               end_transaction=False)
 
     if not org_in_db == org:
         log.debug("org_in_db = {}; org = {}".format(repr(org_in_db),
