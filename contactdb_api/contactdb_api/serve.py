@@ -248,7 +248,7 @@ def __db_query_org(org_id: int, table_variant: str,
 
     Returns:
         containing the organisation and additional keys
-            'asns' (with 'annotations') and 'contacts'
+            'annotations', 'asns' (with 'annotations') and 'contacts'
     """
 
     operation_str = """
@@ -261,6 +261,10 @@ def __db_query_org(org_id: int, table_variant: str,
             return {}
     else:
         org = results[0]
+        if table_variant != '': # keep the plain id name for all table variants
+            org["organisation_id"] = org.pop(
+                    "organisation{0}_id".format(table_variant)
+                    )
 
         # insert asns
         operation_str = """
@@ -270,19 +274,6 @@ def __db_query_org(org_id: int, table_variant: str,
 
         description, results = _db_query(operation_str, (org_id,), False)
         org["asns"] = results
-
-        if table_variant == '':
-            # insert annotations
-            for index, asn in enumerate(org["asns"][:]):
-                operation_str = """
-                    SELECT * from autonomous_system_annotation
-                        WHERE asn = %s
-                """
-                description, results = _db_query(operation_str,
-                                                 (asn["asn"],),
-                                                 end_transaction)
-                if len(results) > 0:
-                    org["asns"][index]["annotaions"] = results
 
         # insert contacts
         operation_str = """
@@ -294,7 +285,67 @@ def __db_query_org(org_id: int, table_variant: str,
                                          end_transaction)
         org["contacts"] = results
 
+        # insert national certs
+        operation_str = """
+            SELECT * FROM national_cert{0}
+                WHERE organisation{0}_id = %s
+            """.format(table_variant)
+
+        description, results = _db_query(operation_str, (org_id,),
+                                         end_transaction)
+        org["nationalcerts"] = results
+
+        # insert networks
+        operation_str = """
+            SELECT * FROM network{0} AS n
+                JOIN organisation_to_network{0} AS otn
+                    ON n.network{0}_id = otn.network{0}_id
+                WHERE otn.organisation{0}_id = %s
+            """.format(table_variant)
+
+        description, results = _db_query(operation_str, (org_id,),
+                                         end_transaction)
+        org["networks"] = results
+
+        # insert fqdns
+        operation_str = """
+            SELECT * FROM fqdn{0} AS f
+                JOIN organisation_to_fqdn{0} AS of
+                    ON f.fqdn{0}_id = of.fqdn{0}_id
+                WHERE of.organisation{0}_id = %s
+            """.format(table_variant)
+
+        description, results = _db_query(operation_str, (org_id,),
+                                         end_transaction)
+        org["fqdns"] = results
+
+        # add existing annotations
+        # can only be there for manual tables
+        if table_variant == '':
+            # insert annotations for the org
+            operation_str = """
+                SELECT * FROM organisation_annotation
+                    WHERE organisation_id = %s
+                """
+            description, results = _db_query(operation_str, (org_id,),
+                                         end_transaction)
+            if len(results) > 0:
+                org["annotations"] = results
+
+            # insert annotations for each asn
+            for index, asn in enumerate(org["asns"][:]):
+                operation_str = """
+                    SELECT * from autonomous_system_annotation
+                        WHERE asn = %s
+                """
+                description, results = _db_query(operation_str,
+                                                 (asn["asn"],),
+                                                 end_transaction)
+                if len(results) > 0:
+                    org["asns"][index]["annotations"] = results
+
         return org
+
 
 
 def __db_query_asn(asn: int, table_variant: str,
