@@ -25,7 +25,8 @@ Author(s):
 
 
 Design rationale:
-    Our services shall be accessed by https://github.com/Intevation/intelmq-fody
+    Our services shall be accessed by
+    https://github.com/Intevation/intelmq-fody
     so our "endpoints" should be reachable from the same ip:port as
     the checkticket endpoints.
 
@@ -35,30 +36,29 @@ Design rationale:
     This serving part need to access a different database 'contactdb', thus
     we start with our on configuration.
 
-    [1] https://github.com/Intevation/intelmq-mailgen/blob/master/extras/checkticket_api/serve.py
+    [1] https://github.com/Intevation/intelmq-mailgen/blob/master/extras/checkticket_api/serve.py # noqa
 
 """
 import json
 import logging
 import os
 import sys
-#FUTURE the typing module is part of Python's standard lib for v>=3.5
-#try:
-#    from typing import Tuple, Union, Sequence, List
-#except:
-#    pass
+# FUTURE the typing module is part of Python's standard lib for v>=3.5
+# try:
+#     from typing import Tuple, Union, Sequence, List
+# except:
+#     pass
 
 from falcon import HTTP_BAD_REQUEST, HTTP_NOT_FOUND
 import hug
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
-
-
 log = logging.getLogger(__name__)
 # adding a custom log level for even more details when diagnosing
 DD = logging.DEBUG-2
 logging.addLevelName(DD, "DDEBUG")
+
 
 def read_configuration() -> dict:
     """Read configuration file.
@@ -91,40 +91,47 @@ def read_configuration() -> dict:
 
     return config if isinstance(config, dict) else {}
 
+
 EXAMPLE_CONF_FILE = r"""
 {
   "libpg conninfo":
     "host=localhost dbname=contactdb user=apiuser password='USER\\'s DB PASSWORD'",
   "logging_level": "INFO"
 }
-"""
+""" # noqa
 
 ENDPOINT_PREFIX = '/api/contactdb'
 ENDPOINT_NAME = 'ContactDB'
 
+
 class Error(Exception):
     """Base class for exceptions in this module."""
     pass
+
 
 class CommitError(Error):
     """Exception raises if a commit action fails.
     """
     pass
 
+
 # Using a global object for the database connection
 # must be initialised once
 contactdb_conn = None
 
-def open_db_connection(dsn:str):
+
+def open_db_connection(dsn: str):
     global contactdb_conn
 
     contactdb_conn = psycopg2.connect(dsn=dsn)
     return contactdb_conn
 
+
 def __commit_transaction():
     global contactdb_conn
     log.log(DD, "Calling commit()")
     contactdb_conn.commit()
+
 
 def __rollback_transaction():
     global contactdb_conn
@@ -133,9 +140,9 @@ def __rollback_transaction():
 
 
 # FUTURE once typing is available
-#def _db_query(operation:str, parameters:Union[dict, list]=None,
+# def _db_query(operation:str, parameters:Union[dict, list]=None,
 #              end_transaction:bool=True) -> Tuple(list, list):
-def _db_query(operation:str, parameters=None, end_transaction:bool=True):
+def _db_query(operation: str, parameters=None, end_transaction: bool=True):
     """Does an database query.
 
     Creates a cursor from the global database connection, runs
@@ -148,7 +155,8 @@ def _db_query(operation:str, parameters=None, end_transaction:bool=True):
             transaction.
 
     Returns:
-        Tuple[list, List[psycopg2.extras.RealDictRow]]: description and results.
+        Tuple[list, List[psycopg2.extras.RealDictRow]]:
+            description and results.
     """
     global contactdb_conn
 
@@ -170,8 +178,9 @@ def _db_query(operation:str, parameters=None, end_transaction:bool=True):
 
     return (description, results)
 
-def _db_manipulate(operation:str, parameters=None,
-                   end_transaction:bool=True) -> int:
+
+def _db_manipulate(operation: str, parameters=None,
+                   end_transaction: bool=True) -> int:
     """Manipulates the database.
 
     Creates a cursor from the global database connection, runs the command.
@@ -198,7 +207,8 @@ def _db_manipulate(operation:str, parameters=None,
 
     return cur.rowcount
 
-def __db_query_organisation_ids(operation_str:str,  parameters=None):
+
+def __db_query_organisation_ids(operation_str: str,  parameters=None):
     """Inquires organisation_ids for a specific query.
 
     Parameters:
@@ -213,14 +223,14 @@ def __db_query_organisation_ids(operation_str:str,  parameters=None):
     orgs = {}
 
     description, results = _db_query(operation_str.format(""), parameters)
-    if len(results)==1 and results[0]["organisation_ids"] != None:
+    if len(results) == 1 and results[0]["organisation_ids"] is not None:
         orgs["manual"] = results[0]["organisation_ids"]
     else:
         orgs["manual"] = []
 
     description, results = _db_query(operation_str.format("_automatic"),
                                      parameters)
-    if len(results)==1 and results[0]["organisation_ids"] != None:
+    if len(results) == 1 and results[0]["organisation_ids"] is not None:
         orgs["auto"] = results[0]["organisation_ids"]
     else:
         orgs["auto"] = []
@@ -228,8 +238,8 @@ def __db_query_organisation_ids(operation_str:str,  parameters=None):
     return orgs
 
 
-def __db_query_org(org_id:int, table_variant:str,
-                   end_transaction:bool=True) -> dict:
+def __db_query_org(org_id: int, table_variant: str,
+                   end_transaction: bool=True) -> dict:
     """Returns details for an organisaion.
 
     Parameters:
@@ -286,8 +296,9 @@ def __db_query_org(org_id:int, table_variant:str,
 
         return org
 
-def __db_query_asn(asn:int, table_variant:str,
-                   end_transaction:bool=True) -> dict:
+
+def __db_query_asn(asn: int, table_variant: str,
+                   end_transaction: bool=True) -> dict:
     """Returns details for an asn."""
 
     operation_str = """
@@ -302,7 +313,7 @@ def __db_query_asn(asn:int, table_variant:str,
         return None
 
 
-def __remove_inhibitions(inhibitions:list) -> None:
+def __remove_inhibitions(inhibitions: list) -> None:
     """Removes inhibitions and afterwards stale network entries.
 
     Assumes that organisation_to_network is not used.
@@ -310,8 +321,7 @@ def __remove_inhibitions(inhibitions:list) -> None:
     operation_str = """
         DELETE FROM inhibition WHERE id = ANY(%s)
         """
-    affected_rows = _db_manipulate(operation_str,
-                                   ([i["id"] for i in inhibitions],) , False)
+    _db_manipulate(operation_str, ([i["id"] for i in inhibitions],), False)
 
     # remove all manual network entries that are unlinked by inhibition
     operation_str = """
@@ -321,10 +331,10 @@ def __remove_inhibitions(inhibitions:list) -> None:
                     WHERE n.id = i.net_id
                 )
         """
-    affected_rows = _db_manipulate(operation_str, end_transaction=False)
+    _db_manipulate(operation_str, end_transaction=False)
 
 
-def __check_or_create_asns(asns:list) -> list:
+def __check_or_create_asns(asns: list) -> list:
     """Find or creates db entries for asns.
 
     Will append the new comment to the old one, if the asn already exists.
@@ -337,21 +347,21 @@ def __check_or_create_asns(asns:list) -> list:
     """
     new_numbers = []
     for asn in asns:
-        if "ripe_aut_num" in asn and asn["ripe_aut_num"] != None:
+        if "ripe_aut_num" in asn and asn["ripe_aut_num"] is not None:
             raise CommitError("ripe_aut_num is set")
 
-        if asn["comment"] == None:
+        if asn["comment"] is None:
             raise CommitError("comment is not set")
 
         asn_in_db = __db_query_asn(asn["number"], "", False)
 
-        if asn_in_db == None:
+        if asn_in_db is None:
             operation_str = """
                 INSERT INTO autonomous_system
                     (number, comment)
                     VALUES (%(number)s, %(comment)s)
                 """
-            affected_rows = _db_manipulate(operation_str, asn, False)
+            _db_manipulate(operation_str, asn, False)
         elif asn_in_db["comment"] != asn["comment"]:
             # append the new comment part
             new_comment = ' '.join((asn_in_db["comment"],
@@ -367,7 +377,8 @@ def __check_or_create_asns(asns:list) -> list:
 
     return new_numbers
 
-def __remove_or_unlink_asns(asns:list, org_id:int) -> None:
+
+def __remove_or_unlink_asns(asns: list, org_id: int) -> None:
     """Removes or unlinks db entries for asns.
 
     Considers a list of inhibitions in each asn.
@@ -385,11 +396,11 @@ def __remove_or_unlink_asns(asns:list, org_id:int) -> None:
             """
         _db_manipulate(operation_str, (org_id, asn_id), False)
 
-        #how many connections are left to this asn?
+        # how many connections are left to this asn?
         operation_str = """
             SELECT count(*) FROM organisation_to_asn WHERE asn_id = %s
             """
-        description, results = _db_query(operation_str, (asn_id,) , False)
+        description, results = _db_query(operation_str, (asn_id,), False)
 
         if results[0]["count"] == 0:
             # delete asn, because there is no connection anymore
@@ -402,7 +413,7 @@ def __remove_or_unlink_asns(asns:list, org_id:int) -> None:
             del(asn["asn_id"])
             if "inhibitions" in asn:
                 __remove_inhibitions(asn["inhibitions"])
-                del(asn["inhibitions"]) # comes from inserted inhibitions
+                del(asn["inhibitions"])  # comes from inserted inhibitions
 
             if asn_in_db == asn:
                 operation_str = """
@@ -416,7 +427,8 @@ def __remove_or_unlink_asns(asns:list, org_id:int) -> None:
                 raise CommitError("ASN{} to be deleted differs from db entry."
                                   "".format(asn_id))
 
-def __check_or_update_asns(asns:list, org_id:int) -> None:
+
+def __check_or_update_asns(asns: list, org_id: int) -> None:
     """Checks or updates and links as necessary the asns for an org.
 
     Considers that an already existing asn may have inhibitions linked to it.
@@ -444,7 +456,7 @@ def __check_or_update_asns(asns:list, org_id:int) -> None:
         # do we already have an asn that has the necessary values?
         asn_in_db = __db_query_asn(asn_id, "", False)
 
-        if asn_in_db == None:
+        if asn_in_db is None:
             # create
             # TODO join with creation in __check_or_create_asns()
             operation_str = """
@@ -468,7 +480,7 @@ def __check_or_update_asns(asns:list, org_id:int) -> None:
                   AND asn_id = %s
             """
         description, results = _db_query(operation_str,
-                                        (org_id, asn_id,), False)
+                                         (org_id, asn_id,), False)
         if len(results) == 0:
             # add link
             operation_str = """
@@ -476,8 +488,9 @@ def __check_or_update_asns(asns:list, org_id:int) -> None:
                     (organisation_id, asn_id, notification_interval)
                     VALUES (%s, %s, %s)
                 """
-            _db_manipulate(operation_str, (org_id, asn_id,
-                                           asn['notification_interval']), False)
+            _db_manipulate(operation_str,
+                           (org_id, asn_id, asn['notification_interval']),
+                           False)
         elif (results[0]["notification_interval"]
               != asn['notification_interval']):
             # update link to the new notifcation_interval
@@ -531,7 +544,7 @@ def __check_or_update_asns(asns:list, org_id:int) -> None:
             _db_manipulate(operation_str, (stale_asn["id"],), False)
 
 
-def __remove_or_unlink_contacts(contacts:list, org_id:int) -> None:
+def __remove_or_unlink_contacts(contacts: list, org_id: int) -> None:
     """Removes or unlinks db entries for contacts.
 
     Parameter:
@@ -549,7 +562,7 @@ def __remove_or_unlink_contacts(contacts:list, org_id:int) -> None:
 
         # how many connection are left to this contact?
         operation_str = """SELECT count(*) FROM role WHERE contact_id = %s"""
-        description, results = _db_query(operation_str, (contact_id,) , False)
+        description, results = _db_query(operation_str, (contact_id,), False)
 
         if results[0]["count"] == 0:
             # delete contact, because there is no connection anymore
@@ -558,17 +571,17 @@ def __remove_or_unlink_contacts(contacts:list, org_id:int) -> None:
             _db_manipulate(operation_str, (contact_id,), False)
 
 
-def __check_or_create_contacts(contacts:list) -> list:
+def __check_or_create_contacts(contacts: list) -> list:
     new_contact_ids = []
 
     needed_attribs = ['firstname', 'lastname', 'tel', 'openpgp_fpr',
-                     'email', 'format_id', 'comment']
+                      'email', 'format_id', 'comment']
 
     for contact in contacts:
         # we need make sure that all values are there and at least ''
         # as None would be translated to '= NULL' which always fails in SQL
         for attrib in needed_attribs:
-            if (not attrib in contact) or contact[attrib] == None:
+            if (attrib not in contact) or contact[attrib] is None:
                 raise CommitError("{} not set".format(attrib))
         operation_str = """
             SELECT c.id FROM contact AS c
@@ -602,7 +615,8 @@ def __check_or_create_contacts(contacts:list) -> list:
 
     return new_contact_ids
 
-def __check_or_update_contacts(contacts:list, org_id:int) -> None:
+
+def __check_or_update_contacts(contacts: list, org_id: int) -> None:
     """Create or update and then link contact if necessary.
 
     Parameter:
@@ -610,7 +624,7 @@ def __check_or_update_contacts(contacts:list, org_id:int) -> None:
         org_id: from the org to link to
     """
 
-    #TODO refactor with __check_or_create_contacts()
+    # TODO refactor with __check_or_create_contacts()
 
     needed_attribs = ['firstname', 'lastname', 'tel', 'openpgp_fpr',
                       'email', 'format_id', 'comment']
@@ -619,7 +633,7 @@ def __check_or_update_contacts(contacts:list, org_id:int) -> None:
     for contact in contacts:
         # sanity check
         for attrib in needed_attribs:
-            if (not attrib in contact) or contact[attrib] == None:
+            if (attrib not in contact) or contact[attrib] is None:
                 raise CommitError("Updating Org {} contacts: "
                                   "{} not set".format(org_id, attrib))
 
@@ -652,7 +666,7 @@ def __check_or_update_contacts(contacts:list, org_id:int) -> None:
             _db_manipulate(operation_str, contact, False)
             new_contact_id = contact["id"]
         else:
-            #create
+            # create
             # TODO refactor with __check_or_create_contacts()
             operation_str = """
                 INSERT INTO contact
@@ -705,7 +719,7 @@ def __check_or_update_contacts(contacts:list, org_id:int) -> None:
     _db_manipulate(operation_str, end_transaction=False)
 
 
-def _create_org(org:dict) -> int:
+def _create_org(org: dict) -> int:
     """Insert an new contactdb entry.
 
     Makes sure that the contactdb entry expressed by the org dict
@@ -715,8 +729,8 @@ def _create_org(org:dict) -> int:
     Then checks the organisation itself.
     Afterwards checks the n-to-m entries that link the tables.
 
-    By each check queries if an entry with equal values is already in the table.
-    If so, uses the existing entry, otherwise inserts a new entry.
+    Checks for each query if an entry with equal values is already in the
+    table. If so, uses the existing entry, otherwise inserts a new entry.
 
     Returns:
         Database ID of the organisation that has been there or was created.
@@ -733,7 +747,7 @@ def _create_org(org:dict) -> int:
 
     for attrib in needed_attribs:
         if attrib in org:
-            if org[attrib] == None:
+            if org[attrib] is None:
                 org[attrib] = ''
         else:
             raise CommitError("{} not set".format(attrib))
@@ -749,7 +763,7 @@ def _create_org(org:dict) -> int:
               AND o.ti_handle = %(ti_handle)s
               AND o.first_handle = %(first_handle)s
         """
-    if (('sector_id' not in org) or org['sector_id'] == None
+    if (('sector_id' not in org) or org['sector_id'] is None
             or org['sector_id'] == ''):
         operation_str += " AND o.sector_id IS NULL"
         org["sector_id"] = None
@@ -782,8 +796,7 @@ def _create_org(org:dict) -> int:
                   AND notification_interval = %s
             """
         description, results = _db_query(
-            operation_str, (new_org_id, asn, notification_interval), False
-            )
+            operation_str, (new_org_id, asn, notification_interval), False)
         if len(results) < 1:
 
             operation_str = """
@@ -791,10 +804,8 @@ def _create_org(org:dict) -> int:
                     (organisation_id, asn_id, notification_interval)
                     VALUES ( %s, %s, %s )
                 """
-            affected_rows = _db_manipulate(
-                operation_str, (new_org_id, asn, notification_interval),
-                False
-                )
+            _db_manipulate(operation_str,
+                           (new_org_id, asn, notification_interval), False)
 
     for contact_id in new_contact_ids:
         operation_str = """
@@ -810,8 +821,7 @@ def _create_org(org:dict) -> int:
                     (organisation_id, contact_id)
                     VALUES ( %s, %s )
                 """
-            affected_rows = _db_manipulate(operation_str,
-                                           (new_org_id, contact_id), False)
+            _db_manipulate(operation_str, (new_org_id, contact_id), False)
 
     return(new_org_id)
 
@@ -833,7 +843,7 @@ def _update_org(org):
     if ("id" not in org_in_db) or org_in_db["id"] != org_id:
         raise CommitError("Org {} to be updated not in db.".format(org_id))
 
-    if 'name' not in org or org['name'] == None or org['name'] == '':
+    if 'name' not in org or org['name'] is None or org['name'] == '':
         raise CommitError("Name of the organisation must be provided.")
 
     __check_or_update_asns(org["asns"], org_id)
@@ -870,7 +880,8 @@ def _delete_org(org) -> int:
     org_in_db = __db_query_org(org["id"], "", end_transaction=False)
 
     if not org_in_db == org:
-        log.debug("org_in_db = {}; org = {}".format(repr(org_in_db), repr(org)))
+        log.debug("org_in_db = {}; org = {}".format(repr(org_in_db),
+                                                    repr(org)))
         raise CommitError("Org to be deleted differs from db entry.")
 
     __remove_or_unlink_asns(org['asns'], org['id'])
@@ -899,15 +910,16 @@ def pong():
 
 
 @hug.get(ENDPOINT_PREFIX + '/searchasn')
-def searchasn(asn:int):
+def searchasn(asn: int):
     return __db_query_organisation_ids("""
         SELECT DISTINCT array_agg(organisation{0}_id) as organisation_ids
             FROM organisation_to_asn{0}
             WHERE asn=%s
         """, (asn,))
 
+
 @hug.get(ENDPOINT_PREFIX + '/searchorg')
-def searchorg(name:str):
+def searchorg(name: str):
     """Search for an entry with the given name.
 
     Search is an case-insensitive substring search.
@@ -921,8 +933,9 @@ def searchorg(name:str):
                OR name ILIKE %s
         """, (name, "%"+name+"%", "%"+name, name+"%"))
 
+
 @hug.get(ENDPOINT_PREFIX + '/searchcontact')
-def searchcontact(email:str):
+def searchcontact(email: str):
     """Search for an entry with the given email address.
 
     Uses a case-insensitive substring search.
@@ -936,27 +949,31 @@ def searchcontact(email:str):
                OR c.email LIKE %s
         """, (email, "%"+email+"%", "%"+email, email+"%"))
 
+
 @hug.get(ENDPOINT_PREFIX + '/org/manual/{id}')
-def get_manual_org_details(id:int):
-    return __db_query_org(id,"")
+def get_manual_org_details(id: int):
+    return __db_query_org(id, "")
+
 
 @hug.get(ENDPOINT_PREFIX + '/org/auto/{id}')
-def get_auto_org_details(id:int):
-    return __db_query_org(id,"_automatic")
+def get_auto_org_details(id: int):
+    return __db_query_org(id, "_automatic")
+
 
 @hug.get(ENDPOINT_PREFIX + '/asn/manual/{number}')
-def get_manual_asn_details(number:int, response):
+def get_manual_asn_details(number: int, response):
     asn = __db_query_asn(number, "")
 
-    if asn == None:
+    if asn is None:
         response.status = HTTP_NOT_FOUND
         return {"reason": "ASN not found"}
     else:
         return asn
 
+
 # a way to test this is similiar to
 #   import requests
-#   requests.post('http://localhost:8000/api/contactdb/org/manual/commit', json={'one': 'two'}, auth=('user', 'pass')).json()
+#   requests.post('http://localhost:8000/api/contactdb/org/manual/commit', json={'one': 'two'}, auth=('user', 'pass')).json() # noqa
 @hug.post(ENDPOINT_PREFIX + '/org/manual/commit')
 def commit_pending_org_changes(body, response):
 
@@ -971,16 +988,16 @@ def commit_pending_org_changes(body, response):
         return {'reason': "Needs commands and orgs arrays of same length."}
 
     commands = body['commands']
-    orgs =  body['orgs']
+    orgs = body['orgs']
 
-    known_commands = { # list of commands and function table
+    known_commands = {  # list of commands and function table
         'create': _create_org,
         'update': _update_org,
         'delete': _delete_org
         }
 
     for command in commands:
-        if not command in known_commands:
+        if command not in known_commands:
             response.status = HTTP_BAD_REQUEST
             return {'reason':
                     "Unknown command. Not in " + str(known_commands.keys())}
@@ -999,6 +1016,7 @@ def commit_pending_org_changes(body, response):
 
     log.info("Commit successful, results = {}".format(results,))
     return results
+
 
 def main():
     if len(sys.argv) > 1 and sys.argv[1] == '--example-conf':
@@ -1029,4 +1047,4 @@ def main():
         print("count {} = {}".format(count, result))
 
     cur.execute("SELECT count(*) FROM autonomous_system")
-    cur.connection.commit() # end transaction
+    cur.connection.commit()  # end transaction

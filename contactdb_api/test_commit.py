@@ -11,14 +11,14 @@ import os
 import urllib.error
 import urllib.request
 
-BASEURL='http://localhost:' + os.getenv('TESTPORT','8000')
-ENDPOINT='/api/contactdb/org/manual/commit'
+BASEURL = 'http://localhost:' + os.getenv('TESTPORT', '8000')
+ENDPOINT = '/api/contactdb/org/manual/commit'
 
-DATA_BAD=json.dumps({'spam': 1, 'eggs': 2, 'bacon': 0})
+DATA_BAD = json.dumps({'spam': 1, 'eggs': 2, 'bacon': 0})
 
 # ATTENTION, the following testing data contains database IDs
 # which may or may not mak them usable with a different database
-DATA=json.dumps({
+DATA = json.dumps({
     'commands': ['create'],
     'orgs': [{'asns': [{'asn_id': 49234,
                         'comment': '',
@@ -51,7 +51,7 @@ DATA=json.dumps({
               'ti_handle': ''}]}
 )
 
-DATA_UPDATE=json.dumps({
+DATA_UPDATE = json.dumps({
     'commands': ['update'],
     'orgs': [{'asns': [{'asn_id': 49234,
                         'comment': '',
@@ -62,17 +62,17 @@ DATA_UPDATE=json.dumps({
               'comment': 'Example manual contact entry.',
               'contacts': [{'comment': 'This is the same contact as '
                                        'officially given.',
-                           'contact_id': 3580,
-                           'email': 'abuse@bund.de',
-                           'firstname': '',
-                           'format_id': 2,
-                           'id': 3698,
-                           'is_primary_contact': False,
-                           'lastname': '',
-                           'openpgp_fpr': '',
-                           'organisation_id': 3698,
-                           'role_type': 'abuse-c',
-                           'tel': ''}],
+                            'contact_id': 3580,
+                            'email': 'abuse@bund.de',
+                            'firstname': '',
+                            'format_id': 2,
+                            'id': 3698,
+                            'is_primary_contact': False,
+                            'lastname': '',
+                            'openpgp_fpr': '',
+                            'organisation_id': 3698,
+                            'role_type': 'abuse-c',
+                            'tel': ''}],
               'first_handle': '',
               'id': 3698,
               'name': 'Bundesamt fuer Sicherheit in der Informationstechnik',
@@ -110,6 +110,7 @@ DATA_DELETE = json.dumps({
               'sector_id': None,
               'ti_handle': ''}]}
 )
+
 
 def semi_automatic():
     # generic code for an Basic Auth connection
@@ -165,6 +166,7 @@ def semi_automatic():
     # test5 delete
     f = urllib.request.urlopen(request, DATA_DELETE.encode('utf-8'))
     print(f.read().decode('utf-8'))
+
 
 if __name__ == '__main__':
     semi_automatic()
