@@ -1,0 +1,5 @@
+intelmq-fody-api (0.0.1~dev02) testing; urgency=low
+
+  * First release of fody api, replacing intelmq-db-api.
+
+ -- Sascha Wilde <wilde@intevation.de>  Thu, 30 Mar 2017 12:32:03 +0200
