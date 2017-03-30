@@ -332,7 +332,7 @@ QUERY_EVENT_SUBQUERY = {
     'ticketnumber': {
         'sql': 'sent.intelmq_ticket = %s',
         'description': '',
-        'label': 'TIcketnumber',
+        'label': 'Ticketnumber',
         'exp_type': 'string'
     },
     'sent-at_before': {
@@ -787,6 +787,35 @@ def stats(response, **params):
 
     return {'timeres': timeres, 'total': totalcount ,'results': results}
 
+
+@hug.get(ENDPOINT_PREFIX + '/getRecipient')
+def getDirective(response, ticketnumber:hug.types.length(17, 18)):
+
+    result = None
+
+    prep = ("SELECT * "
+            " FROM directives"
+            " JOIN sent ON sent_id = sent.id "
+            " WHERE sent.intelmq_ticket = %s;", (ticketnumber,))
+
+    try:
+        result = query(prep)
+    except psycopg2.Error as e:
+        log.error(e)
+        __rollback_transaction()
+        response.status = HTTP_INTERNAL_SERVER_ERROR
+        return {"error": "The query could not be processed."}
+
+    # Hug cannot serialize datetime.timedelta objects.
+    # Therefor we need to do it on our own...
+    # A issue is open for this see: https://github.com/timothycrosley/hug/issues/468
+    for elem in result:
+        if not elem.get("notification_interval") is None:
+            td = elem.get("notification_interval")
+            if isinstance(td, datetime.timedelta):
+                elem["notification_interval"] = td.total_seconds()
+
+    return result
 
 def main():
     """ Main function of this module
