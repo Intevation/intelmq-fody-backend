@@ -363,7 +363,8 @@ def __db_query_asn_annotations(asn: int, end_transaction: bool=True) -> list:
             WHERE asn = %s
     """
     description, results = _db_query(operation_str, (asn,), end_transaction)
-    return results[0]["array_agg"]
+    annos = results[0]["array_agg"]
+    return annos if annos is not None else []
 
 
 def __db_query_asn(asn: int, table_variant: str,
@@ -471,7 +472,7 @@ def __fix_asns_to_org(asns: list, org_id: int) -> None:
     """
     for asn in asns:
         asn_id = asn["asn"]
-        annos_should = asn["annotations"]
+        annos_should = asn["annotations"] if "annotations" in asn else []
         log.log(DD, "annos_should = " + repr(annos_should))
 
         annos_are = __db_query_asn_annotations(asn_id, False)
@@ -649,6 +650,8 @@ def _create_org(org: dict) -> int:
             """
         description, results = _db_query(operation_str, org, False)
         new_org_id = results[0]["organisation_id"]
+
+    # TODO handle org["annotations"]
 
     __fix_asns_to_org(org['asns'], new_org_id)
     __fix_contacts_to_org(org['contacts'], new_org_id)
