@@ -25,31 +25,9 @@ hug -f intelmq_fody_api/serve.py -p 8002
 apt-get install libapache2-mod-wsgi-py3
 ```
 
-You might want to use an Apache-Config like:
+You might want to use an Apache-Config similar to the example included as 
+[config/apache-example/001-fody.conf](config/apache-example/001-fody.conf)
 
-```
-<VirtualHost *:8000>
-        ServerAdmin webmaster@localhost
-        DocumentRoot /opt/src/intelmq-fody-api/intelmq_fody_api
-
-        WSGIDaemonProcess fody threads=1 maximum-requests=10000
-        WSGIScriptAlias / /opt/src/intelmq-fody-api/intelmq_fody_api/serve.py
-        WSGICallableObject __hug_wsgi__
-
-        <Directory /opt/src/intelmq-fody-api/intelmq_fody_api>
-            Options FollowSymLinks
-            AuthType Basic
-            AuthName IntelMQ
-            AuthBasicProvider file
-            AuthUserFile "/etc/intelmq-manager.htusers"
-            Require valid-user
-        </Directory>
-
-        ErrorLog ${APACHE_LOG_DIR}/fody-error.log
-        CustomLog ${APACHE_LOG_DIR}/fody-access.log combined
-</VirtualHost>
-
-```
 
 ## Origin
 Most of the files within this repository originated from:
