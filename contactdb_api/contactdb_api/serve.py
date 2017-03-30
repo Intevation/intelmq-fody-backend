@@ -266,7 +266,11 @@ def __db_query_org(org_id: int, table_variant: str,
                     "organisation{0}_id".format(table_variant)
                     )
 
-        # insert asns
+        # insert asns.
+        # HINT: we are not using __db_query_asn() because we don't know the
+        #   asns yet, so we'll have to do another query anyway and using
+        #   the function to encapsulate adding of the annotations would make
+        #   the code here less elegant.
         operation_str = """
             SELECT * FROM organisation_to_asn{0}
                 WHERE organisation{0}_id = %s
@@ -324,13 +328,13 @@ def __db_query_org(org_id: int, table_variant: str,
         if table_variant == '':
             # insert annotations for the org
             operation_str = """
-                SELECT * FROM organisation_annotation
+                SELECT array_agg(annotation) AS annotations
+                    FROM organisation_annotation
                     WHERE organisation_id = %s
                 """
             description, results = _db_query(operation_str, (org_id,),
                                              end_transaction)
-            if len(results) > 0:
-                org["annotations"] = results
+            org["annotations"] = results[0]["annotations"]
 
             # insert annotations for each asn
             for index, asn in enumerate(org["asns"][:]):
@@ -342,9 +346,24 @@ def __db_query_org(org_id: int, table_variant: str,
                                                  (asn["asn"],),
                                                  end_transaction)
                 if len(results) > 0:
-                    org["asns"][index]["annotations"] = results
+                    org["asns"][index]["annotations"] = \
+                        __db_query_asn_annotations(asn["asn"])
 
         return org
+
+
+def __db_query_asn_annotations(asn: int, end_transaction: bool=True) -> list:
+    """Queries the annotations for an asn.
+
+    Returns:
+        all annotations, even if one occurs several times
+    """
+    operation_str = """
+        SELECT array_agg(annotation) FROM autonomous_system_annotation
+            WHERE asn = %s
+    """
+    description, results = _db_query(operation_str, (asn,), end_transaction)
+    return results[0]["array_agg"]
 
 
 def __db_query_asn(asn: int, table_variant: str,
@@ -352,12 +371,15 @@ def __db_query_asn(asn: int, table_variant: str,
     """Returns details for an asn."""
 
     operation_str = """
-                SELECT * FROM autonomous_system{0} AS a
-                    WHERE number = %s
+                SELECT * FROM organisation_to_asn{0}
+                    WHERE asn = %s
                 """.format(table_variant)
     description, results = _db_query(operation_str, (asn,), end_transaction)
 
     if len(results) > 0:
+        if table_variant == '':  # insert annotations for manual tables
+            results[0]['annotations'] = \
+                    __db_query_asn_annotations(asn, end_transaction)
         return results[0]
     else:
         return None
@@ -382,50 +404,6 @@ def __remove_inhibitions(inhibitions: list) -> None:
                 )
         """
     _db_manipulate(operation_str, end_transaction=False)
-
-
-def __check_or_create_asns(asns: list) -> list:
-    """Find or creates db entries for asns.
-
-    Will append the new comment to the old one, if the asn already exists.
-
-    Parameter:
-        asns: asns to be found or created
-
-    Returns:
-        List of tuples with asn_id and notification intervall.
-    """
-    new_numbers = []
-    for asn in asns:
-        if "ripe_aut_num" in asn and asn["ripe_aut_num"] is not None:
-            raise CommitError("ripe_aut_num is set")
-
-        if asn["comment"] is None:
-            raise CommitError("comment is not set")
-
-        asn_in_db = __db_query_asn(asn["number"], "", False)
-
-        if asn_in_db is None:
-            operation_str = """
-                INSERT INTO autonomous_system
-                    (number, comment)
-                    VALUES (%(number)s, %(comment)s)
-                """
-            _db_manipulate(operation_str, asn, False)
-        elif asn_in_db["comment"] != asn["comment"]:
-            # append the new comment part
-            new_comment = ' '.join((asn_in_db["comment"],
-                                    asn["comment"])).strip()
-            operation_str = """
-                UPDATE autonomous_system
-                    SET comment = %s
-                    WHERE number = %s
-                """
-            _db_manipulate(operation_str, (new_comment, asn["number"]), False)
-
-        new_numbers.append((asn["number"], asn['notification_interval']))
-
-    return new_numbers
 
 
 def __remove_or_unlink_asns(asns: list, org_id: int) -> None:
@@ -478,56 +456,47 @@ def __remove_or_unlink_asns(asns: list, org_id: int) -> None:
                                   "".format(asn_id))
 
 
-def __check_or_update_asns(asns: list, org_id: int) -> None:
-    """Checks or updates and links as necessary the asns for an org.
-
-    Considers that an already existing asn may have inhibitions linked to it.
-    Does not create or update inhibitions, but removes stale when removing
-    and asn.
-
-    Considers the notification interval in the organisation_to_asn table.
+def __fix_asns_to_org(asns: list, org_id: int) -> None:
+    """Make sure that asns with annotations exits and are linked.
 
     For each asn:
-        Reuse and update
-        or create
+        Add missing annotations
+        Remove superfluous ones
 
-        Fix links
+        Check the link to the org and create if necessary
 
-        Remove asns which are not linked to from anywhere.
-
-    Parameter:
-        asns: to be worked on
-        org_id: the org to link to
+    Parameters:
+        asns: that should be exist afterwards
+        org_id: the org for the asns
     """
-    new_asn_ids = []
     for asn in asns:
-        asn_id = asn["number"]
+        asn_id = asn["asn"]
+        annos_should = asn["annotations"]
+        log.log(DD, "annos_should = " + repr(annos_should))
 
-        # do we already have an asn that has the necessary values?
-        asn_in_db = __db_query_asn(asn_id, "", False)
+        annos_are = __db_query_asn_annotations(asn_id, False)
+        log.log(DD, "annos_are = " + repr(annos_are))
 
-        if asn_in_db is None:
-            # create
-            # TODO join with creation in __check_or_create_asns()
+        # add missing annotations
+        for anno in [a for a in annos_should if a not in annos_are]:
             operation_str = """
-                INSERT INTO autonomous_system
-                    (number, comment) VALUES (%(number)s, %(comment)s)
-                """
-            _db_manipulate(operation_str, asn, False)
-        elif asn_in_db["comment"] != asn["comment"]:
-            # update comment (the only field changeable)
-            operation_str = """
-                UPDATE autonomous_system
-                    SET comment = %(comment)s
-                    WHERE number = %(number)s
-                """
-            _db_manipulate(operation_str, asn, False)
+                INSERT INTO autonomous_system_annotation
+                    (asn, annotation) VALUES (%s, %s)
+            """
+            _db_manipulate(operation_str, (asn_id, anno), False)
 
-        # check the linking
+        # remove superfluous annotations
+        for anno in [a for a in annos_are if a not in annos_should]:
+            operation_str = """
+                DELETE FROM autonomous_system_annotation
+                    WHERE asn = %s AND annotation = %s
+            """
+            _db_manipulate(operation_str, (asn_id, anno), False)
+
+        # check linking to the org
         operation_str = """
             SELECT * FROM organisation_to_asn
-                WHERE organisation_id = %s
-                  AND asn_id = %s
+                WHERE organisation_id = %s AND asn = %s
             """
         description, results = _db_query(operation_str,
                                          (org_id, asn_id,), False)
@@ -535,63 +504,25 @@ def __check_or_update_asns(asns: list, org_id: int) -> None:
             # add link
             operation_str = """
                 INSERT INTO organisation_to_asn
-                    (organisation_id, asn_id, notification_interval)
-                    VALUES (%s, %s, %s)
+                    (organisation_id, asn) VALUES (%s, %s)
                 """
-            _db_manipulate(operation_str,
-                           (org_id, asn_id, asn['notification_interval']),
-                           False)
-        elif (results[0]["notification_interval"]
-              != asn['notification_interval']):
-            # update link to the new notifcation_interval
-            operation_str = """
-                UPDATE organisation_to_asn
-                    SET notification_interval = %s
-                    WHERE organisation_id = %s
-                      AND asn_id = %s
-                """
-            _db_manipulate(operation_str,
-                           (asn['notification_interval'], org_id, asn_id),
-                           False)
+            _db_manipulate(operation_str, (org_id, asn_id), False)
 
-        new_asn_ids.append(asn_id)
-
-    # remove all links that should not be there
+    # remove links between asns and org that should not be there anymore
     operation_str = """
         DELETE FROM organisation_to_asn
             WHERE organisation_id = %s
-              AND asn_id != ALL(%s)
-        """
-    _db_manipulate(operation_str, (org_id, new_asn_ids), False)
+            AND asn != ALL(%s)
+    """
+    _db_manipulate(operation_str, (org_id, [asn["asn"] for asn in asns]),
+                   end_transaction=False)
 
-    # remove all manual asns that are unlinked
-    # first find all asns that are not linked from any organisation anymore
+    # remove all annotations that are not linked to anymore
     operation_str = """
-        SELECT a.number AS id FROM autonomous_system AS a
-            WHERE a.number NOT IN (
-                SELECT oa.asn_id FROM organisation_to_asn AS oa
-                WHERE oa.asn_id = a.number
-                )
+        DELETE FROM autonomous_system_annotation as asa
+            WHERE asa.asn NOT IN (SELECT asn FROM organisation_to_asn)
         """
-    description, results = _db_query(operation_str, end_transaction=False)
-
-    if len(results) > 0:
-        stale_asns = results
-
-        for stale_asn in stale_asns:
-            # then deal with inhibitions
-            operation_str = """
-                SELECT id FROM inhibition
-                    WHERE asn_id = %s
-                """
-            description, results = _db_query(operation_str, (stale_asn["id"],),
-                                             end_transaction=False)
-            if len(results) > 0:
-                __remove_inhibitions(results)
-
-            # finally remove the asn
-            operation_str = "DELETE FROM autonomous_system WHERE number = %s"
-            _db_manipulate(operation_str, (stale_asn["id"],), False)
+    _db_manipulate(operation_str, end_transaction=False)
 
 
 def __remove_or_unlink_contacts(contacts: list, org_id: int) -> None:
@@ -621,152 +552,38 @@ def __remove_or_unlink_contacts(contacts: list, org_id: int) -> None:
             _db_manipulate(operation_str, (contact_id,), False)
 
 
-def __check_or_create_contacts(contacts: list) -> list:
-    new_contact_ids = []
-
+def __fix_contacts_to_org(contacts: list, org_id: int) -> None:
+    """Make sure that contacts exist and link to the org.
+    """
     needed_attribs = ['firstname', 'lastname', 'tel', 'openpgp_fpr',
-                      'email', 'format_id', 'comment']
+                      'email', 'comment']
 
+    # first delete all contacts for the org
+    operation_str = """
+        DELETE FROM contact
+            WHERE organisation_id = %s
+        """
+    _db_manipulate(operation_str, (org_id,), False)
+
+    # then recreate all that we want to have now
     for contact in contacts:
         # we need make sure that all values are there and at least ''
         # as None would be translated to '= NULL' which always fails in SQL
         for attrib in needed_attribs:
             if (attrib not in contact) or contact[attrib] is None:
                 raise CommitError("{} not set".format(attrib))
-        operation_str = """
-            SELECT c.id FROM contact AS c
-                WHERE c.firstname = %(firstname)s
-                  AND c.lastname = %(lastname)s
-                  AND c.tel = %(tel)s
-                  AND c.openpgp_fpr = %(openpgp_fpr)s
-                  AND c.email = %(email)s
-                  AND c.format_id = %(format_id)s
-                  AND c.comment = %(comment)s
-            """
-        description, results = _db_query(operation_str, contact, False)
 
-        if len(results) > 1:
-            raise CommitError("More than one contact "
-                              "with {} in the db".format(contact))
-        elif len(results) == 1:
-            new_contact_ids.append(results[0]["id"])
-        else:
-            operation_str = """
-                INSERT INTO contact
-                    (firstname, lastname, tel,
-                     openpgp_fpr, email, format_id, comment)
-                    VALUES (%(firstname)s, %(lastname)s, %(tel)s,
-                            %(openpgp_fpr)s, %(email)s, %(format_id)s,
-                            %(comment)s)
-                    RETURNING id
-                """
-            description, results = _db_query(operation_str, contact, False)
-            new_contact_ids.append(results[0]["id"])
-
-    return new_contact_ids
-
-
-def __check_or_update_contacts(contacts: list, org_id: int) -> None:
-    """Create or update and then link contact if necessary.
-
-    Parameter:
-        contacts: to be updated or created and linked
-        org_id: from the org to link to
-    """
-
-    # TODO refactor with __check_or_create_contacts()
-
-    needed_attribs = ['firstname', 'lastname', 'tel', 'openpgp_fpr',
-                      'email', 'format_id', 'comment']
-
-    new_contact_ids = []
-    for contact in contacts:
-        # sanity check
-        for attrib in needed_attribs:
-            if (attrib not in contact) or contact[attrib] is None:
-                raise CommitError("Updating Org {} contacts: "
-                                  "{} not set".format(org_id, attrib))
+        contact["organisation_id"] = org_id
 
         operation_str = """
-            SELECT c.id FROM contact AS c
-                WHERE c.firstname = %(firstname)s
-                  AND c.lastname = %(lastname)s
-                  AND c.tel = %(tel)s
-                  AND c.openpgp_fpr = %(openpgp_fpr)s
-                  AND c.email = %(email)s
-                  AND c.format_id = %(format_id)s
-                  AND c.comment = %(comment)s
+            INSERT INTO contact
+                (firstname, lastname, tel,
+                 openpgp_fpr, email, comment, organisation_id)
+                VALUES (%(firstname)s, %(lastname)s, %(tel)s,
+                        %(openpgp_fpr)s, %(email)s, %(comment)s,
+                        %(organisation_id)s)
             """
-        description, results = _db_query(operation_str, contact, False)
-
-        if len(results) >= 1:
-            # use the first found
-            new_contact_id = results[0]["id"]
-        elif id in contact:
-            # update
-            operation_str = """
-                UPDATE contact
-                    SET (firstname, lastname, tel,
-                         openpgp_fpr, email, format_id, comment)
-                      = (%(firstname)s, %(lastname)s, %(tel)s,
-                         %(openpgp_fpr)s, %(email)s, %(format_id)s,
-                         %(comment)s)
-                    WHERE id = %(id)s
-                """
-            _db_manipulate(operation_str, contact, False)
-            new_contact_id = contact["id"]
-        else:
-            # create
-            # TODO refactor with __check_or_create_contacts()
-            operation_str = """
-                INSERT INTO contact
-                    (firstname, lastname, tel,
-                     openpgp_fpr, email, format_id, comment)
-                    VALUES (%(firstname)s, %(lastname)s, %(tel)s,
-                            %(openpgp_fpr)s, %(email)s, %(format_id)s,
-                            %(comment)s)
-                    RETURNING id
-                """
-            description, results = _db_query(operation_str, contact, False)
-            new_contact_id = results[0]["id"]
-
-        # fix the linking
-        operation_str = """
-            SELECT * FROM role
-                WHERE organisation_id = %s
-                  AND contact_id = %s
-            """
-        description, results = _db_query(operation_str,
-                                         (org_id, new_contact_id), False)
-
-        if len(results) == 0:
-            # add link
-            operation_str = """
-                INSERT INTO role
-                    (organisation_id, contact_id)
-                    VALUES (%s, %s)
-                """
-            _db_manipulate(operation_str, (org_id, new_contact_id), False)
-
-        new_contact_ids.append(new_contact_id)
-
-    # remove all links that should not be there
-    operation_str = """
-        DELETE FROM role
-            WHERE organisation_id = %s
-              AND contact_id != ALL(%s)
-        """
-    _db_manipulate(operation_str, (org_id, new_contact_ids), False)
-
-    # remove all manual contacts that are not linked to
-    operation_str = """
-        DELETE FROM contact as c
-            WHERE c.id NOT IN (
-                SELECT r.contact_id FROM role AS r
-                WHERE r.contact_id = c.id
-                )
-        """
-    _db_manipulate(operation_str, end_transaction=False)
+        _db_manipulate(operation_str, contact, False)
 
 
 def _create_org(org: dict) -> int:
@@ -787,11 +604,6 @@ def _create_org(org: dict) -> int:
     """
     log.debug("_create_org called with " + repr(org))
 
-    new_asn_ids = __check_or_create_asns(org['asns'])
-    log.debug("new_asn_ids = " + repr(new_asn_ids))
-    new_contact_ids = __check_or_create_contacts(org['contacts'])
-    log.debug("new_contact_ids = " + repr(new_contact_ids))
-
     needed_attribs = ['name', 'comment', 'ripe_org_hdl',
                       'ti_handle', 'first_handle']
 
@@ -806,7 +618,7 @@ def _create_org(org: dict) -> int:
         raise CommitError("Name of the organisation must be provided.")
 
     operation_str = """
-        SELECT o.id FROM organisation as o
+        SELECT organisation_id FROM organisation as o
             WHERE o.name = %(name)s
               AND o.comment = %(comment)s
               AND o.ripe_org_hdl = %(ripe_org_hdl)s
@@ -825,7 +637,7 @@ def _create_org(org: dict) -> int:
         raise CommitError("More than one organisation row like"
                           " {} in the db".format(org))
     elif len(results) == 1:
-        new_org_id = results[0]["id"]
+        new_org_id = results[0]["organisation_id"]
     else:
         operation_str = """
             INSERT INTO organisation
@@ -833,45 +645,13 @@ def _create_org(org: dict) -> int:
                  ti_handle, first_handle)
                 VALUES (%(name)s, %(sector_id)s, %(comment)s, %(ripe_org_hdl)s,
                         %(ti_handle)s, %(first_handle)s)
-                RETURNING id
+                RETURNING organisation_id
             """
         description, results = _db_query(operation_str, org, False)
-        new_org_id = results[0]["id"]
+        new_org_id = results[0]["organisation_id"]
 
-    for asn, notification_interval in new_asn_ids:
-        operation_str = """
-            SELECT * FROM organisation_to_asn
-                WHERE organisation_id = %s
-                  AND asn_id = %s
-                  AND notification_interval = %s
-            """
-        description, results = _db_query(
-            operation_str, (new_org_id, asn, notification_interval), False)
-        if len(results) < 1:
-
-            operation_str = """
-                INSERT INTO organisation_to_asn
-                    (organisation_id, asn_id, notification_interval)
-                    VALUES ( %s, %s, %s )
-                """
-            _db_manipulate(operation_str,
-                           (new_org_id, asn, notification_interval), False)
-
-    for contact_id in new_contact_ids:
-        operation_str = """
-            SELECT * FROM role
-                WHERE organisation_id = %s
-                  AND contact_id = %s
-            """
-        description, results = _db_query(operation_str,
-                                         (new_org_id, contact_id), False)
-        if len(results) < 1:
-            operation_str = """
-                INSERT INTO role
-                    (organisation_id, contact_id)
-                    VALUES ( %s, %s )
-                """
-            _db_manipulate(operation_str, (new_org_id, contact_id), False)
+    __fix_asns_to_org(org['asns'], new_org_id)
+    __fix_contacts_to_org(org['contacts'], new_org_id)
 
     return(new_org_id)
 
@@ -896,8 +676,8 @@ def _update_org(org):
     if 'name' not in org or org['name'] is None or org['name'] == '':
         raise CommitError("Name of the organisation must be provided.")
 
-    __check_or_update_asns(org["asns"], org_id)
-    __check_or_update_contacts(org["contacts"], org_id)
+    __fix_asns_to_org(org["asns"], org_id)
+    __fix_contacts_to_org(org["contacts"], org_id)
 
     if org["sector_id"] == '':
         org["sector_id"] = None

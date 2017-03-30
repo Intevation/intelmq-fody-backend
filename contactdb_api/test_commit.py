@@ -17,35 +17,43 @@ ENDPOINT = '/api/contactdb/org/manual/commit'
 DATA_BAD = json.dumps({'spam': 1, 'eggs': 2, 'bacon': 0})
 
 # ATTENTION, the following testing data contains database IDs
-# which may or may not mak them usable with a different database
+# which may or may not make them usable with a different database
+
+# Hint: the python object formatting comes from pprint.pprint()
+
 DATA = json.dumps({
     'commands': ['create'],
-    'orgs': [{'asns': [{'asn_id': 49234,
-                        'comment': '',
+    'orgs': [{'annotations': [],
+              'asns': [{'annotations': [{"tag": "hourly"}],
+                        'asn': 2599,
                         'import_source': 'ripe',
-                        'import_time': '2017-01-23T09:43:12.672657',
-                        'notification_interval': 0,
-                        'number': 49234,
-                        'organisation_id': 2458,
-                        'ripe_aut_num': None}],
+                        'import_time': '2017-03-29T15:40:34.357995',
+                        'organisation_automatic_id': 861}],
               'comment': 'This is a second manual entry to test writing the '
                          'details',
               'contacts': [{'comment': 'First command to a contact',
-                            'contact_id': 2691,
+                            'contact_automatic_id': 1536,
                             'email': 'abuse@bund.de',
                             'firstname': 'Abkus',
-                            'format_id': 2,
-                            'id': 2248,
+                            'organisation_automatic_id': 861,
                             'import_source': 'ripe',
-                            'import_time': '2017-01-23T09:43:12.672657',
-                            'is_primary_contact': False,
+                            'import_time': '2017-03-29T15:40:34.357995',
                             'lastname': 'Adler',
                             'openpgp_fpr': 'abcdef12',
-                            'organisation_id': 2458,
-                            'role_type': 'abuse-c',
                             'tel': '+49 00000000001'}],
               'first_handle': '',
+              'fqdns': [],
+              'import_source': 'ripe',
+              'import_time': '2017-03-29T15:40:34.357995',
               'name': 'Bundesamt fuer Sicherheit in der Informationstechnik',
+              'nationalcerts': [],
+              'networks': [{'address': '77.87.224.0/21',
+                            'comment': '',
+                            'import_source': 'ripe',
+                            'import_time': '2017-03-29T15:40:34.357995',
+                            'network_automatic_id': 13653,
+                            'organisation_automatic_id': 861}],
+              'organisation_id': 861,
               'ripe_org_hdl': 'ORG-BA202-RIPE',
               'sector_id': None,
               'ti_handle': ''}]}
