@@ -201,6 +201,8 @@ def _db_manipulate(operation: str, parameters=None,
         Number of affected rows.
     """
     global contactdb_conn
+    #  log.log(DD, "_db_manipulate({}, {}, {})"
+    #          "".format(operation, parameters, end_transaction))
 
     # pscopgy2.4 does not offer 'with' for cursor()
     # FUTURE use with
@@ -416,29 +418,8 @@ def __db_query_asn(asn: int, table_variant: str,
         return None
 
 
-def __remove_inhibitions(inhibitions: list) -> None:
-    """Removes inhibitions and afterwards stale network entries.
-
-    Assumes that organisation_to_network is not used.
-    """
-    operation_str = """
-        DELETE FROM inhibition WHERE id = ANY(%s)
-        """
-    _db_manipulate(operation_str, ([i["id"] for i in inhibitions],), False)
-
-    # remove all manual network entries that are unlinked by inhibition
-    operation_str = """
-        DELETE FROM network AS n
-            WHERE n.id NOT IN (
-                SELECT i.net_id FROM inhibition as i
-                    WHERE n.id = i.net_id
-                )
-        """
-    _db_manipulate(operation_str, end_transaction=False)
-
-
 def __fix_asns_to_org(asns: list, org_id: int) -> None:
-    """Make sure that exactely this asns with annotations exits and are linked.
+    """Make sure that exactly this asns with annotations exits and are linked.
 
     For each asn:
         Add missing annotations
@@ -506,32 +487,51 @@ def __fix_asns_to_org(asns: list, org_id: int) -> None:
         """
     _db_manipulate(operation_str, end_transaction=False)
 
+def __fix_networks_to_org(networks_should: list, networks_are: list,
+                          org_id: int) -> None:
+    """Make sure that these networks are there and the only one linked to org.
 
-def __remove_or_unlink_contacts(contacts: list, org_id: int) -> None:
-    """Removes or unlinks db entries for contacts.
-
-    Parameter:
-        contacts: to be unlinked or removed
-        org_id: the organisation to be unlinked from
+    Parameters:
+        networks_should : .. exist and be linked from the org afterwards
+        networks_are: .. already linked to the org
+        org_id: which should have these networks
     """
-    for contact in contacts:
-        contact_id = contact["contact_id"]
+    addresses_should =  [n["address"] for n in networks_should]
+    addresses_are = [n["address"] for n in networks_are]
+
+    # remove links to networks that we do not want anymore
+    superfluous = [n for n in networks_are
+                   if n["address"] not in addresses_should ]
+    for network_shouldnt in superfluous:
         operation_str = """
-            DELETE FROM role
+            DELETE FROM organisation_to_network
                 WHERE organisation_id = %s
-                  AND contact_id = %s
+                AND network_id = %s
             """
-        _db_manipulate(operation_str, (org_id, contact_id), False)
+        _db_manipulate(operation_str,
+                   (org_id, network_shouldnt["network_id"]), False)
 
-        # how many connection are left to this contact?
-        operation_str = """SELECT count(*) FROM role WHERE contact_id = %s"""
-        description, results = _db_query(operation_str, (contact_id,), False)
+    # create and link missing networks
+    missing = [n for n in networks_should
+               if n["address"] not in addresses_are]
+    for network in missing:
+        pass
 
-        if results[0]["count"] == 0:
-            # delete contact, because there is no connection anymore
+    # update and link existing networks
+    existing = [n for n in networks_are
+                if n["address"] in addresses_should]
+    for network in existing:
+        pass
 
-            operation_str = "DELETE FROM contact WHERE id = %s"
-            _db_manipulate(operation_str, (contact_id,), False)
+    # delete networks that are not linked anymore
+    operation_str = """
+        DELETE FROM network AS n
+            WHERE NOT EXISTS (
+                SELECT * FROM organisation_to_network AS otn
+                    WHERE otn.network_id = n.network_id
+                )
+    """
+    _db_manipulate(operation_str, "", False)
 
 
 def __fix_contacts_to_org(contacts: list, org_id: int) -> None:
@@ -636,8 +636,15 @@ def _create_org(org: dict) -> int:
 
     __fix_asns_to_org(org['asns'], new_org_id)
     __fix_contacts_to_org(org['contacts'], new_org_id)
-    # TODO __fix_fqdns_to_org(org['fqdns'], new_org_id)
-    # TODO __fix_networks_to_org(org['networks'], new_org_id)
+
+
+    org_so_far = __db_query_org(new_org_id, "", end_transaction=False)
+    networks_are = org_so_far["networks"] if "networks" in org_so_far else []
+    __fix_networks_to_org(org["networks"], networks_are, new_org_id)
+
+    fqdns_are = org_so_far["fqdns"] if "fqdns" in org_so_far else []
+    # TODO __fix_fqdns_to_org(org['fqdns'], fqdns_are, new_org_id)
+
     # TODO __fix_nationalcerts_to_org
 
     return(new_org_id)
