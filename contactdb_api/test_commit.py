@@ -23,8 +23,8 @@ DATA_BAD = json.dumps({'spam': 1, 'eggs': 2, 'bacon': 0})
 
 DATA = json.dumps({
     'commands': ['create'],
-    'orgs': [{'annotations': [],
-              'asns': [{'annotations': [{"tag": "hourly"}],
+    'orgs': [{'annotations': [{"tag": "Guten"}],
+              'asns': [{'annotations': [{"tag": "daily"}, {"tag": "X"}],
                         'asn': 49234,
                         'import_source': 'ripe',
                         'import_time': '2017-03-29T15:40:34.357995',

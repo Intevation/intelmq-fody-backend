@@ -332,8 +332,8 @@ def __db_query_org(org_id: int, table_variant: str,
         description, results = _db_query(operation_str, (org_id,), False)
         org["fqdns"] = results
 
-        # add existing annotations
-        # can only be there for manual tables
+        # add existing annotations to the result
+        # they can only be there for manual tables
         if table_variant == '':
             # insert annotations for the org
             operation_str = """
@@ -344,19 +344,19 @@ def __db_query_org(org_id: int, table_variant: str,
             description, results = _db_query(operation_str, (org_id,), False)
             org["annotations"] = results[0]["annotations"]
 
-            # insert annotations for each asn
+            # query annotations for each asn
             for index, asn in enumerate(org["asns"][:]):
                 org["asns"][index]["annotations"] = \
                     __db_query_annotations("autonomous_system", "asn",
                                            asn["asn"], False)
 
-            # insert annotations for each network
+            # query annotations for each network
             for index, network in enumerate(org["networks"][:]):
                 org["networks"][index]["annotations"] = \
                     __db_query_annotations("network", "network_id",
                                            network["network_id"], False)
 
-            # insert annotations for each fqdn
+            # query annotations for each fqdn
             for index, fqdn in enumerate(org["fqdns"][:]):
                 org["fqdns"][index]["annotations"] = \
                     __db_query_annotations("fqdn", "fqdn_id",
@@ -419,6 +419,44 @@ def __db_query_asn(asn: int, table_variant: str,
         return None
 
 
+def __fix_annotations_to_table(
+        annos_should: list, mode: str,
+        table_pre: str, column_name: str, column_value: int) -> None:
+    """Make sure that only these annotations exist to the given table.
+
+    Parameters:
+        annos: annotations that shall exist afterwards
+        mode: how to deal with existing annos not in annos_should
+            values 'cut' or 'add' (default)
+        table_pre: the prefix for `_annotation`
+        column_name: of the FK to be set
+        column_value: of the FK to be set
+    """
+
+    annos_are = __db_query_annotations(table_pre,
+                                       column_name, column_value, False)
+
+    log.log(DD, "annos_should = {}; annos_are = {}"
+                "".format(annos_should, annos_are))
+
+    # add missing annotations
+    for anno in [a for a in annos_should if a not in annos_are]:
+        operation_str = """
+            INSERT INTO {0}_annotation
+                ({1}, annotation) VALUES (%s, %s::json)
+        """.format(table_pre, column_name)
+        _db_manipulate(operation_str, (column_value, Json(anno),), False)
+
+    if mode != "add":
+        # remove superfluous annotations
+        for anno in [a for a in annos_are if a not in annos_should]:
+            operation_str = """
+                DELETE FROM {0}_annotation
+                    WHERE  {1} = %s AND annotation::text = %s::text
+            """.format(table_pre, column_name)
+            _db_manipulate(operation_str, (column_value, Json(anno),), False)
+
+
 def __fix_asns_to_org(asns: list, org_id: int) -> None:
     """Make sure that exactly this asns with annotations exits and are linked.
 
@@ -434,28 +472,10 @@ def __fix_asns_to_org(asns: list, org_id: int) -> None:
     """
     for asn in asns:
         asn_id = asn["asn"]
+
         annos_should = asn["annotations"] if "annotations" in asn else []
-        log.log(DD, "annos_should = " + repr(annos_should))
-
-        annos_are = __db_query_annotations("autonomous_system", "asn",
-                                           asn_id, False)
-        log.log(DD, "annos_are = " + repr(annos_are))
-
-        # add missing annotations
-        for anno in [a for a in annos_should if a not in annos_are]:
-            operation_str = """
-                INSERT INTO autonomous_system_annotation
-                    (asn, annotation) VALUES (%s, %s::json)
-            """
-            _db_manipulate(operation_str, (asn_id, Json(anno),), False)
-
-        # remove superfluous annotations
-        for anno in [a for a in annos_are if a not in annos_should]:
-            operation_str = """
-                DELETE FROM autonomous_system_annotation
-                    WHERE asn = %s AND annotation::text = %s::text
-            """
-            _db_manipulate(operation_str, (asn_id, Json(anno),), False)
+        __fix_annotations_to_table(annos_should, "add",
+                                   "autonomous_system", "asn", asn_id)
 
         # check linking to the org
         operation_str = """
@@ -533,7 +553,10 @@ def __fix_networks_to_org(networks_should: list, networks_are: list,
             desc, results = _db_query(operation_str, network, False)
             new_network_id = results[0]["network_id"]
 
-            # TODO add annotations
+            __fix_annotations_to_table(
+                    network["annotation"], "add",
+                    "network", "network_id_", new_network_id)
+
             # link it to the org
             operation_str = """
                 INSERT INTO organisation_to_network
@@ -661,7 +684,8 @@ def _create_org(org: dict) -> int:
         description, results = _db_query(operation_str, org, False)
         new_org_id = results[0]["organisation_id"]
 
-    # TODO handle org["annotations"]
+    __fix_annotations_to_table(org["annotations"], "add",
+                               "organisation", "organisation_id", new_org_id)
 
     __fix_asns_to_org(org['asns'], new_org_id)
     __fix_contacts_to_org(org['contacts'], new_org_id)
