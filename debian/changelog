@@ -1,3 +1,10 @@
+intelmq-fody-api (0.0.1~rc1) unstable; urgency=low
+
+  * Added statistics.
+  * Work with new contact DB
+
+ -- Sascha Wilde <wilde@intevation.de>  Fri, 31 Mar 2017 19:45:34 +0200
+
 intelmq-fody-api (0.0.1~dev02) testing; urgency=low
 
   * First release of fody api, replacing intelmq-db-api.

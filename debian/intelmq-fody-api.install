@@ -1,4 +1,5 @@
 config/apache-example/001-fody.conf etc/apache2/sites-available/
+config/api-examples/* etc/intelmq/
 events_api/README.md usr/share/doc/intelmq-fody-api/events_api/
 contactdb_api/README.md usr/share/doc/intelmq-fody-api/contactdb_api/
 tickets_api/README.md usr/share/doc/intelmq-fody-api/tickets_api/
