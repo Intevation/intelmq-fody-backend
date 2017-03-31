@@ -50,12 +50,13 @@ import hug
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
+
 # FUTURE if we are reading to raise the requirements to psycopg2 v>=2.5
 # we could use psycopg2's json support, right now we need to improve, see
 # use of Json() within the module.
 # from psycopg2.extras import Json
 def Json(obj):
-  return json.dumps(obj)
+    return json.dumps(obj)
 
 log = logging.getLogger(__name__)
 # adding a custom log level for even more details when diagnosing
@@ -162,6 +163,8 @@ def _db_query(operation: str, parameters=None, end_transaction: bool=True):
             description and results.
     """
     global contactdb_conn
+    # log.log(DD, "_db_query({}, {}, {})"
+    #            "".format(operation, parameters, end_transaction))
 
     description = None
 
@@ -288,8 +291,7 @@ def __db_query_org(org_id: int, table_variant: str,
                 WHERE organisation{0}_id = %s
             """.format(table_variant)
 
-        description, results = _db_query(operation_str, (org_id,),
-                                         end_transaction)
+        description, results = _db_query(operation_str, (org_id,), False)
         org["contacts"] = results
 
         # insert national certs
@@ -298,32 +300,33 @@ def __db_query_org(org_id: int, table_variant: str,
                 WHERE organisation{0}_id = %s
             """.format(table_variant)
 
-        description, results = _db_query(operation_str, (org_id,),
-                                         end_transaction)
+        description, results = _db_query(operation_str, (org_id,), False)
         org["nationalcerts"] = results
 
         # insert networks
+        # we need the `network_id`s to query annotations and remove them later
         operation_str = """
-            SELECT address, comment FROM network{0} AS n
+            SELECT n.network{0}_id AS network_id, address, comment
+                FROM network{0} AS n
                 JOIN organisation_to_network{0} AS otn
                     ON n.network{0}_id = otn.network{0}_id
                 WHERE otn.organisation{0}_id = %s
             """.format(table_variant)
 
-        description, results = _db_query(operation_str, (org_id,),
-                                         end_transaction)
+        description, results = _db_query(operation_str, (org_id,), False)
         org["networks"] = results
 
         # insert fqdns
+        # we need the `fqdn_id`s to query annotations and remove them later
         operation_str = """
-            SELECT fqdn, comment FROM fqdn{0} AS f
+            SELECT f.fqdn{0}_id AS fqdn_id, fqdn, comment
+                FROM fqdn{0} AS f
                 JOIN organisation_to_fqdn{0} AS of
                     ON f.fqdn{0}_id = of.fqdn{0}_id
                 WHERE of.organisation{0}_id = %s
             """.format(table_variant)
 
-        description, results = _db_query(operation_str, (org_id,),
-                                         end_transaction)
+        description, results = _db_query(operation_str, (org_id,), False)
         org["fqdns"] = results
 
         # add existing annotations
@@ -335,27 +338,36 @@ def __db_query_org(org_id: int, table_variant: str,
                     FROM organisation_annotation
                     WHERE organisation_id = %s
                 """
-            description, results = _db_query(operation_str, (org_id,),
-                                             end_transaction)
+            description, results = _db_query(operation_str, (org_id,), False)
             org["annotations"] = results[0]["annotations"]
 
             # insert annotations for each asn
             for index, asn in enumerate(org["asns"][:]):
                 org["asns"][index]["annotations"] = \
                     __db_query_annotations("autonomous_system", "asn",
-                                           asn["asn"], end_transaction)
-
-            # insert annotations for each fqdn
-            for index, fqdn in enumerate(org["fqdns"][:]):
-                org["fdqns"][index]["annotations"] = \
-                    __db_query_annotations("fqdn", "fqdn",
-                                           fqdn["fqdn"], end_transaction)
+                                           asn["asn"], False)
 
             # insert annotations for each network
             for index, network in enumerate(org["networks"][:]):
                 org["networks"][index]["annotations"] = \
-                    __db_query_annotations("network", "address",
-                                           network["address"], end_transaction)
+                    __db_query_annotations("network", "network_id",
+                                           network["network_id"], False)
+
+            # insert annotations for each fqdn
+            for index, fqdn in enumerate(org["fqdns"][:]):
+                org["fqdns"][index]["annotations"] = \
+                    __db_query_annotations("fqdn", "fqdn_id",
+                                           fqdn["fqdn_id"], False)
+
+        if end_transaction:
+            __commit_transaction()
+
+        # remove `network_id`s
+        for network in org["networks"]:
+            del network["network_id"]
+        # remove `fqdn_id`s
+        for fqdn in org["fqdns"]:
+            del fqdn["fqdn_id"]
 
         return org
 
@@ -534,7 +546,7 @@ def __fix_asns_to_org(asns: list, org_id: int) -> None:
             WHERE organisation_id = %s
             AND asn != ALL(%s)
     """
-    _db_manipulate(operation_str, (org_id, [asn["asn"] for asn in asns]),
+    _db_manipulate(operation_str, (org_id, [int(asn["asn"]) for asn in asns]),
                    end_transaction=False)
 
     # remove all annotations that are not linked to anymore

@@ -148,6 +148,8 @@ def semi_automatic():
 
     if not json.loads(result)[0] == new_org_id:
         print('Not idempotent!')
+    else:
+        print('test1 was idempotent.')
 
     # test2 no commands
     try:
