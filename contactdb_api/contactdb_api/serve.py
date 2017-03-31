@@ -518,6 +518,8 @@ def __fix_networks_to_org(networks_should: list, networks_are: list,
     superfluous = [n for n in networks_are
                    if n["address"] not in addresses_should]
     for network_shouldnt in superfluous:
+        __fix_annotations_to_table([], "cut", "network", "network_id",
+                                   network_shouldnt["network_id"])
         operation_str = """
             DELETE FROM organisation_to_network
                 WHERE organisation_id = %s
@@ -547,8 +549,8 @@ def __fix_networks_to_org(networks_should: list, networks_are: list,
             new_network_id = results[0]["network_id"]
 
             __fix_annotations_to_table(
-                    network["annotation"], "add",
-                    "network", "network_id_", new_network_id)
+                network["annotations"], "add",
+                "network", "network_id", new_network_id)
 
             # link it to the org
             operation_str = """

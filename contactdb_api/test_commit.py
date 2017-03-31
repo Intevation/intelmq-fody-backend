@@ -63,66 +63,6 @@ DATA = json.dumps({
               'ti_handle': ''}]}
 )
 
-DATA_UPDATE = json.dumps({
-    'commands': ['update'],
-    'orgs': [{'asns': [{'asn_id': 49234,
-                        'comment': '',
-                        'notification_interval': 0,
-                        'number': 49234,
-                        'organisation_id': 3698,
-                        'ripe_aut_num': None}],
-              'comment': 'Example manual contact entry.',
-              'contacts': [{'comment': 'This is the same contact as '
-                                       'officially given.',
-                            'contact_id': 3580,
-                            'email': 'abuse@bund.de',
-                            'firstname': '',
-                            'format_id': 2,
-                            'id': 3698,
-                            'is_primary_contact': False,
-                            'lastname': '',
-                            'openpgp_fpr': '',
-                            'organisation_id': 3698,
-                            'role_type': 'abuse-c',
-                            'tel': ''}],
-              'first_handle': '',
-              'id': 3698,
-              'name': 'Bundesamt fuer Sicherheit in der Informationstechnik',
-              'ripe_org_hdl': '',
-              'sector_id': None,
-              'ti_handle': ''}]}
-)
-
-DATA_DELETE = json.dumps({
-    'commands': ['delete'],
-    'orgs': [{'asns': [{'asn_id': 49234,
-                        'comment': '',
-                        'notification_interval': 0,
-                        'number': 49234,
-                        'organisation_id': 3698,
-                        'ripe_aut_num': None}],
-              'comment': 'Example manual contact entr.',
-              'contacts': [{'comment': 'This is the same contact as '
-                                       'officially given.',
-                            'contact_id': 3580,
-                            'email': 'abuse@bund.de',
-                            'firstname': '',
-                            'format_id': 2,
-                            'id': 3698,
-                            'is_primary_contact': False,
-                            'lastname': '',
-                            'openpgp_fpr': '',
-                            'organisation_id': 3698,
-                            'role_type': 'abuse-c',
-                            'tel': ''}],
-              'first_handle': '',
-              'id': 3698,
-              'name': 'Bundesamt fuer Sicherheit in der Informationstechnik',
-              'ripe_org_hdl': '',
-              'sector_id': None,
-              'ti_handle': ''}]}
-)
-
 
 def semi_automatic():
     # generic code for an Basic Auth connection
