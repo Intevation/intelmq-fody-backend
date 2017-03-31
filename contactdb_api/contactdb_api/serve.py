@@ -307,7 +307,7 @@ def __db_query_org(org_id: int, table_variant: str,
         org["nationalcerts"] = results
 
         # insert networks
-        # we need the `network_id`s to query annotations and remove them later
+        # we need the `network_id`s to query annotations.
         operation_str = """
             SELECT n.network{0}_id AS network_id, address, comment
                 FROM network{0} AS n
@@ -320,7 +320,7 @@ def __db_query_org(org_id: int, table_variant: str,
         org["networks"] = results
 
         # insert fqdns
-        # we need the `fqdn_id`s to query annotations and remove them later
+        # we need the `fqdn_id`s to query annotations.
         operation_str = """
             SELECT f.fqdn{0}_id AS fqdn_id, fqdn, comment
                 FROM fqdn{0} AS f
@@ -364,13 +364,6 @@ def __db_query_org(org_id: int, table_variant: str,
 
         if end_transaction:
             __commit_transaction()
-
-        # remove `network_id`s
-        for network in org["networks"]:
-            del network["network_id"]
-        # remove `fqdn_id`s
-        for fqdn in org["fqdns"]:
-            del fqdn["fqdn_id"]
 
         return org
 
@@ -743,26 +736,37 @@ def _update_org(org):
 
 
 def _delete_org(org) -> int:
-    """Delete an contactdb entry.
+    """Delete an manual org from the contactdb.
 
-    Also delete the attached asns and contact entries, if they are
-    not used elsewhere.
+    Also delete the attached entries, if they are not used elsewhere.
 
     Returns:
         Database ID of the organisation that has been deleted.
     """
     log.debug("_delete_org called with " + repr(org))
+    org_id_rm = org["organisation_id"]
 
-    org_in_db = __db_query_org(org["organisation_id"], "",
-                               end_transaction=False)
+    org_in_db = __db_query_org(org_id_rm, "", end_transaction=False)
 
     if not org_in_db == org:
         log.debug("org_in_db = {}; org = {}".format(repr(org_in_db),
                                                     repr(org)))
         raise CommitError("Org to be deleted differs from db entry.")
 
-    __fix_asns_to_org([], org['organisation_id'])
-    __fix_contacts_to_org([], org['organisation_id'])
+    __fix_asns_to_org([], org_id_rm)
+    __fix_contacts_to_org([], org_id_rm)
+
+    org_is = __db_query_org(org_id_rm, "", end_transaction=False)
+    networks_are = org_is["networks"] if "networks" in org_is else []
+    __fix_networks_to_org([], networks_are, org_id_rm)
+
+    # fqdns_are = org_so_far["fqdns"] if "fqdns" in org_so_far else []
+    # TODO __fix_fqdns_to_org(org['fqdns'], fqdns_are, new_org_id)
+    #
+    # TODO __fix_nationalcerts_to_org
+
+    __fix_annotations_to_table([], "cut",
+                               "organisation", "organisation_id", org_id_rm)
 
     # remove org itself
     operation_str = "DELETE FROM organisation WHERE organisation_id = %s"

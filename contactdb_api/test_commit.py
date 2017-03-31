@@ -138,18 +138,17 @@ def semi_automatic():
     request.add_header("Content-Type", "application/json")
 
     # test1
+    # print(json.loads(DATA)["orgs"][0])
     f = urllib.request.urlopen(request, DATA.encode('utf-8'))
     result = f.read().decode('utf-8')
     print(result)
-    new_org_id = json.loads(result)[0]
+    new_org_id = json.loads(result)[0][1]
 
-    f = urllib.request.urlopen(request, DATA.encode('utf-8'))
-    result = f.read().decode('utf-8')
-
-    if not json.loads(result)[0] == new_org_id:
-        print('Not idempotent!')
+    # test 1.1
+    if json.loads(result)[0][1] == new_org_id:
+        print('OK. create was idempotent.')
     else:
-        print('test1 was idempotent.')
+        print('BAD. create was **not** idempotent.')
 
     # test2 no commands
     try:
@@ -173,12 +172,24 @@ def semi_automatic():
         print(err.code, err.reason)
         print(err.read().decode('utf-8'))
 
-    # test5 update
-    f = urllib.request.urlopen(request, DATA_UPDATE.encode('utf-8'))
-    print(f.read().decode('utf-8'))
+    # test5 read
+    f = urllib.request.urlopen(request, DATA.encode('utf-8'))
+    result = f.read().decode('utf-8')
 
-    # test5 delete
-    f = urllib.request.urlopen(request, DATA_DELETE.encode('utf-8'))
+    request2 = urllib.request.Request(
+            BASEURL + '/api/contactdb/org/manual/{}'.format(new_org_id))
+    f = urllib.request.urlopen(request2)
+    org = json.loads(f.read().decode('utf-8'))
+
+#    # test6 update
+#    org['comment'] = 'This comment was **updated**!'
+#    data_update = json.dumps({'commands': ['update'], 'orgs': [org]})
+#    f = urllib.request.urlopen(request, data_update.encode('utf-8'))
+#    print(f.read().decode('utf-8'))
+
+    # test7 delete
+    data_delete = json.dumps({'commands': ['delete'], 'orgs': [org]})
+    f = urllib.request.urlopen(request, data_delete.encode('utf-8'))
     print(f.read().decode('utf-8'))
 
 
