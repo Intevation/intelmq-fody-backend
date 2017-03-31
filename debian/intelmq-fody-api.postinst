@@ -13,6 +13,8 @@ if [ "$1" = "configure" ] ; then
     fi
 
     . /usr/share/apache2/apache2-maintscript-helper
+    apache2_invoke enmod proxy
+    apache2_invoke enmod rewrite
     apache2_invoke ensite 001-fody.conf
 fi
 

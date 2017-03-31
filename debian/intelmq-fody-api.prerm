@@ -3,7 +3,7 @@ set -e
 
 if [ "$1" = "remove" ] ; then
     . /usr/share/apache2/apache2-maintscript-helper
-    apache2_invoke ensite db-api
+    apache2_invoke dissite 001-fody.conf
 fi
 
 #DEBHELPER#

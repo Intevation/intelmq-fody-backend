@@ -4,17 +4,4 @@ export PYBUILD_NAME=intelmq-fody-api
 %:
 	dh $@ --with python3 --without python2 --buildsystem=pybuild
 
-
-# FIX ME: is this really neccessary?  Why?
-#	  packages I (sw build from pypi using pybuild don't have that problem...
-#
-# # Without forcing the correct --install-lib path here, files would get
-# # installed into /usr/lib/python3.4/site-packages.
-# override_dh_auto_install:
-# 	python3 setup.py install --root=debian/intelmq-mailgen \
-# 		--prefix=/usr --install-lib=/usr/lib/python3/dist-packages
-# 	cd extras/contactdb_api && \
-# 	python3 setup.py install --root=../../debian/intelmq-db-api \
-# 		--prefix=/usr --install-lib=/usr/lib/python3/dist-packages
-
 # vim :set noet sts=0 sw=2 ts=2:
