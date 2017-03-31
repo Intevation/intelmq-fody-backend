@@ -437,58 +437,8 @@ def __remove_inhibitions(inhibitions: list) -> None:
     _db_manipulate(operation_str, end_transaction=False)
 
 
-def __remove_or_unlink_asns(asns: list, org_id: int) -> None:
-    """Removes or unlinks db entries for asns.
-
-    Considers a list of inhibitions in each asn.
-
-    Parameter:
-        asns: to be unlinked or removed
-        org_id: the organisation to be unlinked from
-    """
-    for asn in asns:
-        asn_id = asn["number"]
-        operation_str = """
-            DELETE FROM organisation_to_asn AS oa
-                WHERE oa.organisation_id = %s
-                  AND oa.asn_id = %s
-            """
-        _db_manipulate(operation_str, (org_id, asn_id), False)
-
-        # how many connections are left to this asn?
-        operation_str = """
-            SELECT count(*) FROM organisation_to_asn WHERE asn_id = %s
-            """
-        description, results = _db_query(operation_str, (asn_id,), False)
-
-        if results[0]["count"] == 0:
-            # delete asn, because there is no connection anymore
-
-            asn_in_db = __db_query_asn(asn_id, "", False)
-
-            # ignore in the comparison, because it comes from the n-to-m table
-            del(asn["notification_interval"])
-            del(asn["organisation_id"])
-            del(asn["asn_id"])
-            if "inhibitions" in asn:
-                __remove_inhibitions(asn["inhibitions"])
-                del(asn["inhibitions"])  # comes from inserted inhibitions
-
-            if asn_in_db == asn:
-                operation_str = """
-                    DELETE FROM autonomous_system
-                      WHERE number = %s
-                    """
-                _db_manipulate(operation_str, (asn_id,), False)
-            else:
-                log.debug("asn_in_db = {}; asn = {}".format(
-                            repr(asn_in_db), repr(asn)))
-                raise CommitError("ASN{} to be deleted differs from db entry."
-                                  "".format(asn_id))
-
-
 def __fix_asns_to_org(asns: list, org_id: int) -> None:
-    """Make sure that asns with annotations exits and are linked.
+    """Make sure that exactely this asns with annotations exits and are linked.
 
     For each asn:
         Add missing annotations
@@ -585,7 +535,7 @@ def __remove_or_unlink_contacts(contacts: list, org_id: int) -> None:
 
 
 def __fix_contacts_to_org(contacts: list, org_id: int) -> None:
-    """Make sure that contacts exist and link to the org.
+    """Make sure that exactly these contacts exist and link to the org.
     """
     needed_attribs = ['firstname', 'lastname', 'tel', 'openpgp_fpr',
                       'email', 'comment']
@@ -752,15 +702,16 @@ def _delete_org(org) -> int:
                                                     repr(org)))
         raise CommitError("Org to be deleted differs from db entry.")
 
-    __remove_or_unlink_asns(org['asns'], org['id'])
-    __remove_or_unlink_contacts(org['contacts'], org['id'])
+    __fix_asns_to_org([], org['organisation_id'])
+    __fix_contacts_to_org([], org['organisation_id'])
 
     # remove org itself
-    operation_str = "DELETE FROM organisation WHERE id = %s"
-    affected_rows = _db_manipulate(operation_str, (org["id"],), False)
+    operation_str = "DELETE FROM organisation WHERE organisation_id = %s"
+    affected_rows = _db_manipulate(operation_str, (org["organisation_id"],),
+                                   False)
 
     if affected_rows == 1:
-        return org["id"]
+        return org["organisation_id"]
 
 
 @hug.startup()
