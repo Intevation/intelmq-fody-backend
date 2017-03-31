@@ -58,6 +58,7 @@ from psycopg2.extras import RealDictCursor
 def Json(obj):
     return json.dumps(obj)
 
+
 log = logging.getLogger(__name__)
 # adding a custom log level for even more details when diagnosing
 DD = logging.DEBUG-2
@@ -487,6 +488,7 @@ def __fix_asns_to_org(asns: list, org_id: int) -> None:
         """
     _db_manipulate(operation_str, end_transaction=False)
 
+
 def __fix_networks_to_org(networks_should: list, networks_are: list,
                           org_id: int) -> None:
     """Make sure that these networks are there and the only one linked to org.
@@ -496,26 +498,53 @@ def __fix_networks_to_org(networks_should: list, networks_are: list,
         networks_are: .. already linked to the org
         org_id: which should have these networks
     """
-    addresses_should =  [n["address"] for n in networks_should]
+    addresses_should = [n["address"] for n in networks_should]
     addresses_are = [n["address"] for n in networks_are]
 
     # remove links to networks that we do not want anymore
     superfluous = [n for n in networks_are
-                   if n["address"] not in addresses_should ]
+                   if n["address"] not in addresses_should]
     for network_shouldnt in superfluous:
         operation_str = """
             DELETE FROM organisation_to_network
                 WHERE organisation_id = %s
-                AND network_id = %s
+                    AND network_id = %s
             """
         _db_manipulate(operation_str,
-                   (org_id, network_shouldnt["network_id"]), False)
+                       (org_id, network_shouldnt["network_id"]), False)
 
     # create and link missing networks
     missing = [n for n in networks_should
                if n["address"] not in addresses_are]
     for network in missing:
-        pass
+        # search for existing network with address that is not linked
+        operation_str = """
+            SELECT * from network
+                WHERE address = %s
+            """
+        desc, results = _db_query(operation_str, (network["address"],), False)
+        if len(results) == 0:
+            # we have to freshly create a network entry
+            operation_str = """
+                INSERT INTO network (address, comment)
+                    VALUES (%(address)s, %(comment)s)
+                RETURNING network_id
+            """
+            desc, results = _db_query(operation_str, network, False)
+            new_network_id = results[0]["network_id"]
+
+            # TODO add annotations
+            # link it to the org
+            operation_str = """
+                INSERT INTO organisation_to_network
+                    (organisation_id, network_id) VALUES (%s, %s)
+                """
+            _db_manipulate(operation_str, (org_id, new_network_id), False)
+
+        else:
+            # we have to check if one of the found is similiar
+            # to what we want and then use it or create new one
+            pass
 
     # update and link existing networks
     existing = [n for n in networks_are
@@ -637,14 +666,13 @@ def _create_org(org: dict) -> int:
     __fix_asns_to_org(org['asns'], new_org_id)
     __fix_contacts_to_org(org['contacts'], new_org_id)
 
-
     org_so_far = __db_query_org(new_org_id, "", end_transaction=False)
     networks_are = org_so_far["networks"] if "networks" in org_so_far else []
     __fix_networks_to_org(org["networks"], networks_are, new_org_id)
 
-    fqdns_are = org_so_far["fqdns"] if "fqdns" in org_so_far else []
+    # fqdns_are = org_so_far["fqdns"] if "fqdns" in org_so_far else []
     # TODO __fix_fqdns_to_org(org['fqdns'], fqdns_are, new_org_id)
-
+    #
     # TODO __fix_nationalcerts_to_org
 
     return(new_org_id)
