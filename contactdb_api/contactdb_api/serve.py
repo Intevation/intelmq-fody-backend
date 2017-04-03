@@ -562,6 +562,7 @@ def __fix_ntms_to_org(ntms_should: list, ntms_are: list,
             _db_manipulate(operation_str, (org_id, new_entry_id))
 
         else:
+            # TODO
             # we have to check if one of the found is similiar
             # to what we want and then use it or create new one
             pass
@@ -569,6 +570,7 @@ def __fix_ntms_to_org(ntms_should: list, ntms_are: list,
     # update and link existing networks
     existing = [n for n in ntms_are if n[column_name] in values_should]
     for entry in existing:
+        # TODO
         pass
 
     # delete networks that are not linked anymore
