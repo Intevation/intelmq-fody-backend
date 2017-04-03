@@ -128,10 +128,11 @@ def semi_automatic():
 #    f = urllib.request.urlopen(request, data_update.encode('utf-8'))
 #    print(f.read().decode('utf-8'))
 
-    # test7 delete
-    data_delete = json.dumps({'commands': ['delete'], 'orgs': [org]})
-    f = urllib.request.urlopen(request, data_delete.encode('utf-8'))
-    print(f.read().decode('utf-8'))
+    if not os.getenv("TESTKEEP"):
+        # test7 delete
+        data_delete = json.dumps({'commands': ['delete'], 'orgs': [org]})
+        f = urllib.request.urlopen(request, data_delete.encode('utf-8'))
+        print(f.read().decode('utf-8'))
 
 
 if __name__ == '__main__':

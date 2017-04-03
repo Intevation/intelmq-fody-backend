@@ -491,61 +491,74 @@ def __fix_asns_to_org(asns: list, org_id: int) -> None:
     _db_manipulate(operation_str)
 
 
-def __fix_networks_to_org(networks_should: list, networks_are: list,
-                          org_id: int) -> None:
-    """Make sure that these networks are there and the only one linked to org.
+def __fix_ntms_to_org(ntms_should: list, ntms_are: list,
+                      table_name: str, column_name: str,
+                      org_id: int) -> None:
+    """Make sure that these ntm entries are there and linked from the org.
+
+    In the certbund_contact db schema useful for entries that are linked
+    via n-to-m tables and have annotations like 'network' and 'fqdn'.
 
     Parameters:
-        networks_should : .. exist and be linked from the org afterwards
-        networks_are: .. already linked to the org
-        org_id: which should have these networks
+        ntms_should : .. exist and be linked from the org afterwards
+        ntms_are: .. already linked to the org
+        table_name: of the ntm table, also used to calculate the id_column_name
+        org_id: to be linked by the ntms_should
     """
-    addresses_should = [n["address"] for n in networks_should]
-    addresses_are = [n["address"] for n in networks_are]
+    id_column_name = table_name + "_id"
 
-    # remove links to networks that we do not want anymore
-    superfluous = [n for n in networks_are
-                   if n["address"] not in addresses_should]
-    for network_shouldnt in superfluous:
-        __fix_annotations_to_table([], "cut", "network", "network_id",
-                                   network_shouldnt["network_id"])
+    log.log(DD, "__fix_ntms_to_org({}, {},{}, {}, {})"
+                "".format(ntms_should, ntms_are,
+                          table_name, column_name, org_id))
+
+    values_should = [n[column_name] for n in ntms_should]
+    values_are = [n[column_name] for n in ntms_are]
+
+    # remove links to orgs that we do not want anymore
+    superfluous = [n for n in ntms_are
+                   if n[column_name] not in values_should]
+    for entry_shouldnt in superfluous:
+        __fix_annotations_to_table([], "cut", table_name,
+                                   id_column_name,
+                                   entry_shouldnt[id_column_name])
         operation_str = """
-            DELETE FROM organisation_to_network
+            DELETE FROM organisation_to_{0}
                 WHERE organisation_id = %s
-                    AND network_id = %s
-            """
-        _db_manipulate(operation_str, (org_id, network_shouldnt["network_id"]))
+                    AND {1} = %s
+            """.format(table_name, id_column_name)
+        _db_manipulate(operation_str,
+                       (org_id, entry_shouldnt[id_column_name]))
 
-    # create and link missing networks
-    missing = [n for n in networks_should
-               if n["address"] not in addresses_are]
-    for network in missing:
-        # search for existing network with address that is not linked
+    # create and link missing entries
+    missing = [n for n in ntms_should
+               if n[column_name] not in values_are]
+    for entry in missing:
+        # search for existing entries with value that is not linked
         operation_str = """
-            SELECT * from network
-                WHERE address = %s
-            """
-        desc, results = _db_query(operation_str, (network["address"],))
+            SELECT * from {0}
+                WHERE {1} = %s
+            """.format(table_name, column_name)
+        desc, results = _db_query(operation_str, (entry[column_name],))
         if len(results) == 0:
             # we have to freshly create a network entry
             operation_str = """
-                INSERT INTO network (address, comment)
-                    VALUES (%(address)s, %(comment)s)
-                RETURNING network_id
-            """
-            desc, results = _db_query(operation_str, network)
-            new_network_id = results[0]["network_id"]
+                INSERT INTO {0} ({1}, comment)
+                    VALUES (%({1})s, %(comment)s)
+                RETURNING {2}
+            """.format(table_name, column_name, id_column_name)
+            desc, results = _db_query(operation_str, entry)
+            new_entry_id = results[0][id_column_name]
 
             __fix_annotations_to_table(
-                network["annotations"], "add",
-                "network", "network_id", new_network_id)
+                entry["annotations"], "add",
+                table_name, id_column_name, new_entry_id)
 
             # link it to the org
             operation_str = """
-                INSERT INTO organisation_to_network
-                    (organisation_id, network_id) VALUES (%s, %s)
-                """
-            _db_manipulate(operation_str, (org_id, new_network_id))
+                INSERT INTO organisation_to_{0}
+                    (organisation_id, {1}) VALUES (%s, %s)
+                """.format(table_name, id_column_name)
+            _db_manipulate(operation_str, (org_id, new_entry_id))
 
         else:
             # we have to check if one of the found is similiar
@@ -553,19 +566,18 @@ def __fix_networks_to_org(networks_should: list, networks_are: list,
             pass
 
     # update and link existing networks
-    existing = [n for n in networks_are
-                if n["address"] in addresses_should]
-    for network in existing:
+    existing = [n for n in ntms_are if n[column_name] in values_should]
+    for entry in existing:
         pass
 
     # delete networks that are not linked anymore
     operation_str = """
-        DELETE FROM network AS n
+        DELETE FROM {0} AS t
             WHERE NOT EXISTS (
-                SELECT * FROM organisation_to_network AS otn
-                    WHERE otn.network_id = n.network_id
+                SELECT * FROM organisation_to_{0} AS ott
+                    WHERE ott.{1} = t.{1}
                 )
-    """
+    """.format(table_name, id_column_name)
     _db_manipulate(operation_str, "")
 
 
@@ -681,12 +693,16 @@ def _create_org(org: dict) -> int:
                             'openpgp_fpr', 'email', 'comment'], new_org_id)
 
     org_so_far = __db_query_org(new_org_id, "")
-    networks_are = org_so_far["networks"] if "networks" in org_so_far else []
-    __fix_networks_to_org(org["networks"], networks_are, new_org_id)
+    log.log(DD, "org_so_far =" + repr(org_so_far))
 
-    # fqdns_are = org_so_far["fqdns"] if "fqdns" in org_so_far else []
-    # TODO __fix_fqdns_to_org(org['fqdns'], fqdns_are, new_org_id)
-    #
+    networks_are = org_so_far["networks"] if "networks" in org_so_far else []
+    __fix_ntms_to_org(org["networks"], networks_are,
+                      "network", "address", new_org_id)
+
+    fqdns_are = org_so_far["fqdns"] if "fqdns" in org_so_far else []
+    __fix_ntms_to_org(org["fqdns"], fqdns_are,
+                      "fqdn", "fqdn", new_org_id)
+
     __fix_leafnodes_to_org(org["nationalcerts"], "national_cert",
                            ["country_code", "comment"], new_org_id)
 
@@ -720,6 +736,10 @@ def _update_org(org):
 
     if org["sector_id"] == '':
         org["sector_id"] = None
+
+    # nationalcerts
+    # networks
+    # fqdns
 
     # linking of asns and contacts has been done, only update is left to do
     operation_str = """
@@ -757,12 +777,13 @@ def _delete_org(org) -> int:
     __fix_leafnodes_to_org([], "contact", [], org_id_rm)
 
     org_is = __db_query_org(org_id_rm, "")
-    networks_are = org_is["networks"] if "networks" in org_is else []
-    __fix_networks_to_org([], networks_are, org_id_rm)
 
-    # fqdns_are = org_so_far["fqdns"] if "fqdns" in org_so_far else []
-    # TODO __fix_fqdns_to_org(org['fqdns'], fqdns_are, org_id_rm)
-    #
+    networks_are = org_is["networks"] if "networks" in org_is else []
+    __fix_ntms_to_org([], networks_are, "network", "address", org_id_rm)
+
+    fqdns_are = org_is["fqdns"] if "fqdns" in org_is else []
+    __fix_ntms_to_org([], fqdns_are, "fqdn", "fqdn", org_id_rm)
+
     __fix_leafnodes_to_org([], "national_cert", [], org_id_rm)
 
     __fix_annotations_to_table([], "cut",
