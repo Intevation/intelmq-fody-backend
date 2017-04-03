@@ -121,12 +121,23 @@ def semi_automatic():
             BASEURL + '/api/contactdb/org/manual/{}'.format(new_org_id))
     f = urllib.request.urlopen(request2)
     org = json.loads(f.read().decode('utf-8'))
+    print(org)
 
-#    # test6 update
-#    org['comment'] = 'This comment was **updated**!'
-#    data_update = json.dumps({'commands': ['update'], 'orgs': [org]})
-#    f = urllib.request.urlopen(request, data_update.encode('utf-8'))
-#    print(f.read().decode('utf-8'))
+    # test6 update
+    org['comment'] = 'This comment was **updated**!'
+    org['nationalcerts'] = [{'country_code': 'DE', 'comment': '(up test)'}]
+    org['contacts'][0]["firstname"] = "Abakus"
+    org['asns'][0]['annotations'] = [{"tag": "daily"}, {"tag": "Y"}]
+
+    org['networks'][0]['comment'] = '**updated*'
+    org['networks'][0]['annotations'] = [{"tag": "two-way"}]
+
+    org['fqdns'].append({"fqdn": "w3.bsi.bund.de", "comment": "new",
+                         "annotations": [{"tag": "one-way"}]})
+
+    data_update = json.dumps({'commands': ['update'], 'orgs': [org]})
+    f = urllib.request.urlopen(request, data_update.encode('utf-8'))
+    print(f.read().decode('utf-8'))
 
     if not os.getenv("TESTKEEP"):
         # test7 delete

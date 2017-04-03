@@ -412,7 +412,7 @@ def __fix_annotations_to_table(
     Parameters:
         annos: annotations that shall exist afterwards
         mode: how to deal with existing annos not in annos_should
-            values 'cut' or 'add' (default)
+            values 'cut' or 'add'
         table_pre: the prefix for `_annotation`
         column_name: of the FK to be set
         column_value: of the FK to be set
@@ -441,7 +441,7 @@ def __fix_annotations_to_table(
             _db_manipulate(operation_str, (column_value, Json(anno),))
 
 
-def __fix_asns_to_org(asns: list, org_id: int) -> None:
+def __fix_asns_to_org(asns: list, mode: str, org_id: int) -> None:
     """Make sure that exactly this asns with annotations exits and are linked.
 
     For each asn:
@@ -452,13 +452,14 @@ def __fix_asns_to_org(asns: list, org_id: int) -> None:
 
     Parameters:
         asns: that should be exist afterwards
+        mode: how to deal with annotation differences 'cut' or 'add' (default)
         org_id: the org for the asns
     """
     for asn in asns:
         asn_id = asn["asn"]
 
         annos_should = asn["annotations"] if "annotations" in asn else []
-        __fix_annotations_to_table(annos_should, "add",
+        __fix_annotations_to_table(annos_should, mode,
                                    "autonomous_system", "asn", asn_id)
 
         # check linking to the org
@@ -687,21 +688,20 @@ def _create_org(org: dict) -> int:
     __fix_annotations_to_table(org["annotations"], "add",
                                "organisation", "organisation_id", new_org_id)
 
-    __fix_asns_to_org(org['asns'], new_org_id)
+    __fix_asns_to_org(org['asns'], "add", new_org_id)
     __fix_leafnodes_to_org(org['contacts'], 'contact',
                            ['firstname', 'lastname', 'tel',
                             'openpgp_fpr', 'email', 'comment'], new_org_id)
 
     org_so_far = __db_query_org(new_org_id, "")
-    log.log(DD, "org_so_far =" + repr(org_so_far))
+    # log.log(DD, "org_so_far =" + repr(org_so_far))
 
     networks_are = org_so_far["networks"] if "networks" in org_so_far else []
     __fix_ntms_to_org(org["networks"], networks_are,
                       "network", "address", new_org_id)
 
     fqdns_are = org_so_far["fqdns"] if "fqdns" in org_so_far else []
-    __fix_ntms_to_org(org["fqdns"], fqdns_are,
-                      "fqdn", "fqdn", new_org_id)
+    __fix_ntms_to_org(org["fqdns"], fqdns_are, "fqdn", "fqdn", new_org_id)
 
     __fix_leafnodes_to_org(org["nationalcerts"], "national_cert",
                            ["country_code", "comment"], new_org_id)
@@ -712,7 +712,7 @@ def _create_org(org: dict) -> int:
 def _update_org(org):
     """Update a contactdb entry.
 
-    First update asns and links to them then the same for contacts.
+    First updates the linked entries.
     Last update of the values of the org itself.
 
     Returns:
@@ -720,35 +720,43 @@ def _update_org(org):
     """
     log.debug("_update_org called with " + repr(org))
 
-    org_id = org["id"]
+    org_id = org["organisation_id"]
     org_in_db = __db_query_org(org_id, "")
 
-    if ("id" not in org_in_db) or org_in_db["id"] != org_id:
+    if ("organisation_id" not in org_in_db) \
+            or org_in_db["organisation_id"] != org_id:
         raise CommitError("Org {} to be updated not in db.".format(org_id))
 
     if 'name' not in org or org['name'] is None or org['name'] == '':
         raise CommitError("Name of the organisation must be provided.")
 
-    __fix_asns_to_org(org["asns"], org_id)
+    if org["sector_id"] == '':
+        org["sector_id"] = None
+
+    __fix_asns_to_org(org["asns"], "cut", org_id)
     __fix_leafnodes_to_org(org['contacts'], 'contact',
                            ['firstname', 'lastname', 'tel',
                             'openpgp_fpr', 'email', 'comment'], org_id)
 
-    if org["sector_id"] == '':
-        org["sector_id"] = None
+    org_so_far = __db_query_org(org_id, "")
+    networks_are = org_so_far["networks"] if "networks" in org_so_far else []
+    __fix_ntms_to_org(org["networks"], networks_are,
+                      "network", "address", org_id)
 
-    # nationalcerts
-    # networks
-    # fqdns
+    fqdns_are = org_so_far["fqdns"] if "fqdns" in org_so_far else []
+    __fix_ntms_to_org(org["fqdns"], fqdns_are, "fqdn", "fqdn", org_id)
 
-    # linking of asns and contacts has been done, only update is left to do
+    __fix_leafnodes_to_org(org["nationalcerts"], "national_cert",
+                           ["country_code", "comment"], org_id)
+
+    # linking other tables has been done, only update is left to do
     operation_str = """
         UPDATE organisation
             SET (name, sector_id, comment, ripe_org_hdl,
                  ti_handle, first_handle)
               = (%(name)s, %(sector_id)s, %(comment)s, %(ripe_org_hdl)s,
                  %(ti_handle)s, %(first_handle)s)
-            WHERE id = %(id)s
+            WHERE organisation_id = %(organisation_id)s
         """
     _db_manipulate(operation_str, org)
 
@@ -773,7 +781,7 @@ def _delete_org(org) -> int:
                                                     repr(org)))
         raise CommitError("Org to be deleted differs from db entry.")
 
-    __fix_asns_to_org([], org_id_rm)
+    __fix_asns_to_org([], "cut", org_id_rm)
     __fix_leafnodes_to_org([], "contact", [], org_id_rm)
 
     org_is = __db_query_org(org_id_rm, "")
