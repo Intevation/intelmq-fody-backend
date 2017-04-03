@@ -43,7 +43,7 @@ import json
 import logging
 import os
 import sys
-from typing import Union
+from typing import Tuple, Union
 
 from falcon import HTTP_BAD_REQUEST, HTTP_NOT_FOUND
 import hug
@@ -144,28 +144,37 @@ def __rollback_transaction():
     contactdb_conn.rollback()
 
 
-# FUTURE once typing is available
-# def _db_query(operation:str, parameters:Union[dict, list]=None,
-#              end_transaction:bool=True) -> Tuple(list, list):
-def _db_query(operation: str, parameters=None, end_transaction: bool=True):
+def _db_query(operation: str,
+              parameters: Union[dict, list]=None) -> Tuple[list, list]:
     """Does an database query.
 
     Creates a cursor from the global database connection, runs
     the query or command the fetches all results.
 
+    | By default, the first time a command is sent to the database [..]
+    | a new transaction is created. The following database commands will
+    | be executed in the context of the same transaction – not only the
+    | commands issued by the first cursor, but the ones issued by all
+    | the cursors created by the same connection.
+    from psycopg2 docs section: Basic module usage->Transaction control
+    http://initd.org/psycopg/docs/usage.html?#transactions-control
+
+    Thus each endpoint must make sure explicitely call __commit_transaction()
+    or __rollback_transaction() when done with all db operations.
+    In case of a command failure __rollback_transaction() must be called
+    until new commands will be executed.
+
     Parameters:
         operation: The query to be used by psycopg2.cursor.execute()
         parameters: for the sql query
-        end_transaction: set to False to do subsequent queries in the same
-            transaction.
 
     Returns:
         Tuple[list, List[psycopg2.extras.RealDictRow]]:
             description and results.
     """
     global contactdb_conn
-    # log.log(DD, "_db_query({}, {}, {})"
-    #            "".format(operation, parameters, end_transaction))
+    # log.log(DD, "_db_query({}, {})"
+    #            "".format(operation, parameters))
 
     description = None
 
@@ -178,41 +187,33 @@ def _db_query(operation: str, parameters=None, end_transaction: bool=True):
     description = cur.description
     results = cur.fetchall()
 
-    if end_transaction:
-        __commit_transaction()
-
     cur.close()
 
     return (description, results)
 
 
-def _db_manipulate(operation: str, parameters=None,
-                   end_transaction: bool=True) -> int:
+def _db_manipulate(operation: str, parameters=None) -> int:
     """Manipulates the database.
 
     Creates a cursor from the global database connection, runs the command.
+    Has the same requirements regarding transactions as _db_query().
 
     Parameters:
         operation: The query to be used by psycopg2.cursor.execute()
         parameters: for the sql query
-        end_transaction: set to False to do subsequent queries in the same
-            transaction.
 
     Returns:
         Number of affected rows.
     """
     global contactdb_conn
-    #  log.log(DD, "_db_manipulate({}, {}, {})"
-    #          "".format(operation, parameters, end_transaction))
+    #  log.log(DD, "_db_manipulate({}, {})"
+    #          "".format(operation, parameters))
 
     # pscopgy2.4 does not offer 'with' for cursor()
     # FUTURE use with
     cur = contactdb_conn.cursor(cursor_factory=RealDictCursor)
     cur.execute(operation, parameters)
     log.log(DD, "Ran query={}".format(cur.query.decode('utf-8')))
-    if end_transaction:
-        __commit_transaction()
-    cur.close()
 
     return cur.rowcount
 
@@ -247,9 +248,8 @@ def __db_query_organisation_ids(operation_str: str,  parameters=None):
     return orgs
 
 
-def __db_query_org(org_id: int, table_variant: str,
-                   end_transaction: bool=True) -> dict:
-    """Returns details for an organisaion.
+def __db_query_org(org_id: int, table_variant: str) -> dict:
+    """Returns details for an organisation.
 
     Parameters:
         org_id:int: the organisation id to be queried
@@ -264,7 +264,7 @@ def __db_query_org(org_id: int, table_variant: str,
         SELECT * FROM organisation{0} WHERE organisation{0}_id = %s
         """.format(table_variant)
 
-    description, results = _db_query(operation_str, (org_id,), False)
+    description, results = _db_query(operation_str, (org_id,))
 
     if not len(results) == 1:
             return {}
@@ -285,7 +285,7 @@ def __db_query_org(org_id: int, table_variant: str,
                 WHERE organisation{0}_id = %s
             """.format(table_variant)
 
-        description, results = _db_query(operation_str, (org_id,), False)
+        description, results = _db_query(operation_str, (org_id,))
         org["asns"] = results
 
         # insert contacts
@@ -294,7 +294,7 @@ def __db_query_org(org_id: int, table_variant: str,
                 WHERE organisation{0}_id = %s
             """.format(table_variant)
 
-        description, results = _db_query(operation_str, (org_id,), False)
+        description, results = _db_query(operation_str, (org_id,))
         org["contacts"] = results
 
         # insert national certs
@@ -303,7 +303,7 @@ def __db_query_org(org_id: int, table_variant: str,
                 WHERE organisation{0}_id = %s
             """.format(table_variant)
 
-        description, results = _db_query(operation_str, (org_id,), False)
+        description, results = _db_query(operation_str, (org_id,))
         org["nationalcerts"] = results
 
         # insert networks
@@ -316,7 +316,7 @@ def __db_query_org(org_id: int, table_variant: str,
                 WHERE otn.organisation{0}_id = %s
             """.format(table_variant)
 
-        description, results = _db_query(operation_str, (org_id,), False)
+        description, results = _db_query(operation_str, (org_id,))
         org["networks"] = results
 
         # insert fqdns
@@ -329,7 +329,7 @@ def __db_query_org(org_id: int, table_variant: str,
                 WHERE of.organisation{0}_id = %s
             """.format(table_variant)
 
-        description, results = _db_query(operation_str, (org_id,), False)
+        description, results = _db_query(operation_str, (org_id,))
         org["fqdns"] = results
 
         # add existing annotations to the result
@@ -341,37 +341,32 @@ def __db_query_org(org_id: int, table_variant: str,
                     FROM organisation_annotation
                     WHERE organisation_id = %s
                 """
-            description, results = _db_query(operation_str, (org_id,), False)
+            description, results = _db_query(operation_str, (org_id,))
             org["annotations"] = results[0]["annotations"]
 
             # query annotations for each asn
             for index, asn in enumerate(org["asns"][:]):
                 org["asns"][index]["annotations"] = \
                     __db_query_annotations("autonomous_system", "asn",
-                                           asn["asn"], False)
+                                           asn["asn"])
 
             # query annotations for each network
             for index, network in enumerate(org["networks"][:]):
                 org["networks"][index]["annotations"] = \
                     __db_query_annotations("network", "network_id",
-                                           network["network_id"], False)
+                                           network["network_id"])
 
             # query annotations for each fqdn
             for index, fqdn in enumerate(org["fqdns"][:]):
                 org["fqdns"][index]["annotations"] = \
                     __db_query_annotations("fqdn", "fqdn_id",
-                                           fqdn["fqdn_id"], False)
-
-        if end_transaction:
-            __commit_transaction()
+                                           fqdn["fqdn_id"])
 
         return org
 
 
-def __db_query_annotations(
-        table: str, column_name: str, column_value: Union[str, int],
-        end_transaction: bool=True
-        ) -> list:
+def __db_query_annotations(table: str, column_name: str,
+                           column_value: Union[str, int]) -> list:
     """Queries annotations.
 
     Parameters:
@@ -386,27 +381,24 @@ def __db_query_annotations(
         SELECT array_agg(annotation) FROM {0}_annotation
             WHERE {1} = %s
     """.format(table, column_name)
-    description, results = _db_query(operation_str, (column_value,),
-                                     end_transaction)
+    description, results = _db_query(operation_str, (column_value,))
     annos = results[0]["array_agg"]
     return annos if annos is not None else []
 
 
-def __db_query_asn(asn: int, table_variant: str,
-                   end_transaction: bool=True) -> dict:
+def __db_query_asn(asn: int, table_variant: str) -> dict:
     """Returns details for an asn."""
 
     operation_str = """
                 SELECT * FROM organisation_to_asn{0}
                     WHERE asn = %s
                 """.format(table_variant)
-    description, results = _db_query(operation_str, (asn,), end_transaction)
+    description, results = _db_query(operation_str, (asn,))
 
     if len(results) > 0:
         if table_variant == '':  # insert annotations for manual tables
             results[0]['annotations'] = \
-                __db_query_annotations("autonomous_system", "asn", asn,
-                                       end_transaction)
+                __db_query_annotations("autonomous_system", "asn", asn)
         return results[0]
     else:
         return None
@@ -426,8 +418,7 @@ def __fix_annotations_to_table(
         column_value: of the FK to be set
     """
 
-    annos_are = __db_query_annotations(table_pre,
-                                       column_name, column_value, False)
+    annos_are = __db_query_annotations(table_pre, column_name, column_value)
 
     log.log(DD, "annos_should = {}; annos_are = {}"
                 "".format(annos_should, annos_are))
@@ -438,7 +429,7 @@ def __fix_annotations_to_table(
             INSERT INTO {0}_annotation
                 ({1}, annotation) VALUES (%s, %s::json)
         """.format(table_pre, column_name)
-        _db_manipulate(operation_str, (column_value, Json(anno),), False)
+        _db_manipulate(operation_str, (column_value, Json(anno),))
 
     if mode != "add":
         # remove superfluous annotations
@@ -447,7 +438,7 @@ def __fix_annotations_to_table(
                 DELETE FROM {0}_annotation
                     WHERE  {1} = %s AND annotation::text = %s::text
             """.format(table_pre, column_name)
-            _db_manipulate(operation_str, (column_value, Json(anno),), False)
+            _db_manipulate(operation_str, (column_value, Json(anno),))
 
 
 def __fix_asns_to_org(asns: list, org_id: int) -> None:
@@ -475,15 +466,14 @@ def __fix_asns_to_org(asns: list, org_id: int) -> None:
             SELECT * FROM organisation_to_asn
                 WHERE organisation_id = %s AND asn = %s
             """
-        description, results = _db_query(operation_str,
-                                         (org_id, asn_id,), False)
+        description, results = _db_query(operation_str, (org_id, asn_id,))
         if len(results) == 0:
             # add link
             operation_str = """
                 INSERT INTO organisation_to_asn
                     (organisation_id, asn) VALUES (%s, %s)
                 """
-            _db_manipulate(operation_str, (org_id, asn_id,), False)
+            _db_manipulate(operation_str, (org_id, asn_id,))
 
     # remove links between asns and org that should not be there anymore
     operation_str = """
@@ -491,15 +481,14 @@ def __fix_asns_to_org(asns: list, org_id: int) -> None:
             WHERE organisation_id = %s
             AND asn != ALL(%s)
     """
-    _db_manipulate(operation_str, (org_id, [int(asn["asn"]) for asn in asns]),
-                   end_transaction=False)
+    _db_manipulate(operation_str, (org_id, [int(asn["asn"]) for asn in asns]))
 
     # remove all annotations that are not linked to anymore
     operation_str = """
         DELETE FROM autonomous_system_annotation as asa
             WHERE asa.asn NOT IN (SELECT asn FROM organisation_to_asn)
         """
-    _db_manipulate(operation_str, end_transaction=False)
+    _db_manipulate(operation_str)
 
 
 def __fix_networks_to_org(networks_should: list, networks_are: list,
@@ -525,8 +514,7 @@ def __fix_networks_to_org(networks_should: list, networks_are: list,
                 WHERE organisation_id = %s
                     AND network_id = %s
             """
-        _db_manipulate(operation_str,
-                       (org_id, network_shouldnt["network_id"]), False)
+        _db_manipulate(operation_str, (org_id, network_shouldnt["network_id"]))
 
     # create and link missing networks
     missing = [n for n in networks_should
@@ -537,7 +525,7 @@ def __fix_networks_to_org(networks_should: list, networks_are: list,
             SELECT * from network
                 WHERE address = %s
             """
-        desc, results = _db_query(operation_str, (network["address"],), False)
+        desc, results = _db_query(operation_str, (network["address"],))
         if len(results) == 0:
             # we have to freshly create a network entry
             operation_str = """
@@ -545,7 +533,7 @@ def __fix_networks_to_org(networks_should: list, networks_are: list,
                     VALUES (%(address)s, %(comment)s)
                 RETURNING network_id
             """
-            desc, results = _db_query(operation_str, network, False)
+            desc, results = _db_query(operation_str, network)
             new_network_id = results[0]["network_id"]
 
             __fix_annotations_to_table(
@@ -557,7 +545,7 @@ def __fix_networks_to_org(networks_should: list, networks_are: list,
                 INSERT INTO organisation_to_network
                     (organisation_id, network_id) VALUES (%s, %s)
                 """
-            _db_manipulate(operation_str, (org_id, new_network_id), False)
+            _db_manipulate(operation_str, (org_id, new_network_id))
 
         else:
             # we have to check if one of the found is similiar
@@ -578,7 +566,7 @@ def __fix_networks_to_org(networks_should: list, networks_are: list,
                     WHERE otn.network_id = n.network_id
                 )
     """
-    _db_manipulate(operation_str, "", False)
+    _db_manipulate(operation_str, "")
 
 
 def __fix_contacts_to_org(contacts: list, org_id: int) -> None:
@@ -592,7 +580,7 @@ def __fix_contacts_to_org(contacts: list, org_id: int) -> None:
         DELETE FROM contact
             WHERE organisation_id = %s
         """
-    _db_manipulate(operation_str, (org_id,), False)
+    _db_manipulate(operation_str, (org_id,))
 
     # then recreate all that we want to have now
     for contact in contacts:
@@ -612,7 +600,7 @@ def __fix_contacts_to_org(contacts: list, org_id: int) -> None:
                         %(openpgp_fpr)s, %(email)s, %(comment)s,
                         %(organisation_id)s)
             """
-        _db_manipulate(operation_str, contact, False)
+        _db_manipulate(operation_str, contact)
 
 
 def _create_org(org: dict) -> int:
@@ -661,7 +649,7 @@ def _create_org(org: dict) -> int:
     else:
         operation_str += " AND o.sector_id = %(sector_id)s"
 
-    description, results = _db_query(operation_str, org, False)
+    description, results = _db_query(operation_str, org)
     if len(results) > 1:
         raise CommitError("More than one organisation row like"
                           " {} in the db".format(org))
@@ -676,7 +664,7 @@ def _create_org(org: dict) -> int:
                         %(ti_handle)s, %(first_handle)s)
                 RETURNING organisation_id
             """
-        description, results = _db_query(operation_str, org, False)
+        description, results = _db_query(operation_str, org)
         new_org_id = results[0]["organisation_id"]
 
     __fix_annotations_to_table(org["annotations"], "add",
@@ -685,7 +673,7 @@ def _create_org(org: dict) -> int:
     __fix_asns_to_org(org['asns'], new_org_id)
     __fix_contacts_to_org(org['contacts'], new_org_id)
 
-    org_so_far = __db_query_org(new_org_id, "", end_transaction=False)
+    org_so_far = __db_query_org(new_org_id, "")
     networks_are = org_so_far["networks"] if "networks" in org_so_far else []
     __fix_networks_to_org(org["networks"], networks_are, new_org_id)
 
@@ -709,7 +697,7 @@ def _update_org(org):
     log.debug("_update_org called with " + repr(org))
 
     org_id = org["id"]
-    org_in_db = __db_query_org(org_id, "", end_transaction=False)
+    org_in_db = __db_query_org(org_id, "")
 
     if ("id" not in org_in_db) or org_in_db["id"] != org_id:
         raise CommitError("Org {} to be updated not in db.".format(org_id))
@@ -732,7 +720,7 @@ def _update_org(org):
                  %(ti_handle)s, %(first_handle)s)
             WHERE id = %(id)s
         """
-    _db_manipulate(operation_str, org, False)
+    _db_manipulate(operation_str, org)
 
     return org_id
 
@@ -748,7 +736,7 @@ def _delete_org(org) -> int:
     log.debug("_delete_org called with " + repr(org))
     org_id_rm = org["organisation_id"]
 
-    org_in_db = __db_query_org(org_id_rm, "", end_transaction=False)
+    org_in_db = __db_query_org(org_id_rm, "")
 
     if not org_in_db == org:
         log.debug("org_in_db = {}; org = {}".format(repr(org_in_db),
@@ -758,7 +746,7 @@ def _delete_org(org) -> int:
     __fix_asns_to_org([], org_id_rm)
     __fix_contacts_to_org([], org_id_rm)
 
-    org_is = __db_query_org(org_id_rm, "", end_transaction=False)
+    org_is = __db_query_org(org_id_rm, "")
     networks_are = org_is["networks"] if "networks" in org_is else []
     __fix_networks_to_org([], networks_are, org_id_rm)
 
@@ -772,8 +760,7 @@ def _delete_org(org) -> int:
 
     # remove org itself
     operation_str = "DELETE FROM organisation WHERE organisation_id = %s"
-    affected_rows = _db_manipulate(operation_str, (org["organisation_id"],),
-                                   False)
+    affected_rows = _db_manipulate(operation_str, (org["organisation_id"],))
 
     if affected_rows == 1:
         return org["organisation_id"]
@@ -795,11 +782,18 @@ def pong():
 
 @hug.get(ENDPOINT_PREFIX + '/searchasn')
 def searchasn(asn: int):
-    return __db_query_organisation_ids("""
-        SELECT DISTINCT array_agg(organisation{0}_id) as organisation_ids
-            FROM organisation_to_asn{0}
-            WHERE asn=%s
-        """, (asn,))
+    try:
+        query_results = __db_query_organisation_ids("""
+            SELECT DISTINCT array_agg(organisation{0}_id) as organisation_ids
+                FROM organisation_to_asn{0}
+                WHERE asn=%s
+            """, (asn,))
+    except psycopg2.DatabaseError:
+        __rollback_transaction()
+        raise
+    finally:
+        __commit_transaction()
+    return query_results
 
 
 @hug.get(ENDPOINT_PREFIX + '/searchorg')
@@ -808,14 +802,21 @@ def searchorg(name: str):
 
     Search is an case-insensitive substring search.
     """
-    return __db_query_organisation_ids("""
-        SELECT DISTINCT array_agg(o.organisation{0}_id) AS organisation_ids
-            FROM organisation{0} AS o
-            WHERE name ILIKE %s
-               OR name ILIKE %s
-               OR name ILIKE %s
-               OR name ILIKE %s
-        """, (name, "%"+name+"%", "%"+name, name+"%"))
+    try:
+        query_results = __db_query_organisation_ids("""
+            SELECT DISTINCT array_agg(o.organisation{0}_id) AS organisation_ids
+                FROM organisation{0} AS o
+                WHERE name ILIKE %s
+                   OR name ILIKE %s
+                   OR name ILIKE %s
+                   OR name ILIKE %s
+            """, (name, "%"+name+"%", "%"+name, name+"%"))
+    except psycopg2.DatabaseError:
+        __rollback_transaction()
+        raise
+    finally:
+        __commit_transaction()
+    return query_results
 
 
 @hug.get(ENDPOINT_PREFIX + '/searchcontact')
@@ -824,29 +825,56 @@ def searchcontact(email: str):
 
     Uses a case-insensitive substring search.
     """
-    return __db_query_organisation_ids("""
-        SELECT DISTINCT array_agg(c.organisation{0}_id) AS organisation_ids
-            FROM contact{0} AS c
-            WHERE c.email LIKE %s
-               OR c.email LIKE %s
-               OR c.email LIKE %s
-               OR c.email LIKE %s
-        """, (email, "%"+email+"%", "%"+email, email+"%"))
+    try:
+        query_results = __db_query_organisation_ids("""
+            SELECT DISTINCT array_agg(c.organisation{0}_id) AS organisation_ids
+                FROM contact{0} AS c
+                WHERE c.email LIKE %s
+                   OR c.email LIKE %s
+                   OR c.email LIKE %s
+                   OR c.email LIKE %s
+            """, (email, "%"+email+"%", "%"+email, email+"%"))
+    except psycopg2.DatabaseError:
+        __rollback_transaction()
+        raise
+    finally:
+        __commit_transaction()
+    return query_results
 
 
 @hug.get(ENDPOINT_PREFIX + '/org/manual/{id}')
 def get_manual_org_details(id: int):
-    return __db_query_org(id, "")
+    try:
+        query_results = __db_query_org(id, "")
+    except psycopg2.DatabaseError:
+        __rollback_transaction()
+        raise
+    finally:
+        __commit_transaction()
+    return query_results
 
 
 @hug.get(ENDPOINT_PREFIX + '/org/auto/{id}')
 def get_auto_org_details(id: int):
-    return __db_query_org(id, "_automatic")
+    try:
+        query_results = __db_query_org(id, "_automatic")
+    except psycopg2.DatabaseError:
+        __rollback_transaction()
+        raise
+    finally:
+        __commit_transaction()
+    return query_results
 
 
 @hug.get(ENDPOINT_PREFIX + '/asn/manual/{number}')
 def get_manual_asn_details(number: int, response):
-    asn = __db_query_asn(number, "")
+    try:
+        asn = __db_query_asn(number, "")
+    except psycopg2.DatabaseError:
+        __rollback_transaction()
+        raise
+    finally:
+        __commit_transaction()
 
     if asn is None:
         response.status = HTTP_NOT_FOUND
