@@ -43,7 +43,7 @@ import json
 import logging
 import os
 import sys
-from typing import Tuple, Union
+from typing import List, Tuple, Union
 
 from falcon import HTTP_BAD_REQUEST, HTTP_NOT_FOUND
 import hug
@@ -569,38 +569,43 @@ def __fix_networks_to_org(networks_should: list, networks_are: list,
     _db_manipulate(operation_str, "")
 
 
-def __fix_contacts_to_org(contacts: list, org_id: int) -> None:
-    """Make sure that exactly these contacts exist and link to the org.
+def __fix_leafnodes_to_org(leafs: List[dict], table: str,
+                           needed_attributes: List[str], org_id: int) -> None:
+    """Make sure that exactly the list of leafnotes exist and link to the org.
+
+    (In the certbund-contact db this is useful for 'national_cert' and
+    'contact').
+
+    Parameters:
+        leafs: entries that shall be linked to the org
+        table: name of the entry table
+        needed_attributes: that have to be keys in each entry to be inserted
+            in the database 'table'
     """
-    needed_attribs = ['firstname', 'lastname', 'tel', 'openpgp_fpr',
-                      'email', 'comment']
 
-    # first delete all contacts for the org
-    operation_str = """
-        DELETE FROM contact
-            WHERE organisation_id = %s
-        """
-    _db_manipulate(operation_str, (org_id,))
+    # first delete all leafnotes for the org
+    op_str = "DELETE FROM {0} WHERE organisation_id = %s".format(table)
+    _db_manipulate(op_str, (org_id,))
 
-    # then recreate all that we want to have now
-    for contact in contacts:
-        # we need make sure that all values are there and at least ''
-        # as None would be translated to '= NULL' which always fails in SQL
-        for attrib in needed_attribs:
-            if (attrib not in contact) or contact[attrib] is None:
-                raise CommitError("{} not set".format(attrib))
+    # next (re)create all entries we want to have now
+    for leaf in leafs:
+        # make sure that all attributes are there and at least ''
+        # (As None would we translated to = NULL' which always fails in SQL)
+        for attribute in needed_attributes:
+            if (attribute not in leaf) or leaf[attribute] is None:
+                raise CommitError("{} not set".format(attribute))
 
-        contact["organisation_id"] = org_id
+        # add the org_id to the dict so it holds all parameters for the query
+        leaf["organisation_id"] = org_id
 
-        operation_str = """
-            INSERT INTO contact
-                (firstname, lastname, tel,
-                 openpgp_fpr, email, comment, organisation_id)
-                VALUES (%(firstname)s, %(lastname)s, %(tel)s,
-                        %(openpgp_fpr)s, %(email)s, %(comment)s,
-                        %(organisation_id)s)
-            """
-        _db_manipulate(operation_str, contact)
+        op_str = """
+            INSERT INTO {0} ({1}, organisation_id)
+            VALUES (%({2})s, %(organisation_id)s)
+        """.format(table,
+                   ", ".join(needed_attributes),
+                   ")s, %(".join(needed_attributes))
+
+        _db_manipulate(op_str, leaf)
 
 
 def _create_org(org: dict) -> int:
@@ -671,7 +676,9 @@ def _create_org(org: dict) -> int:
                                "organisation", "organisation_id", new_org_id)
 
     __fix_asns_to_org(org['asns'], new_org_id)
-    __fix_contacts_to_org(org['contacts'], new_org_id)
+    __fix_leafnodes_to_org(org['contacts'], 'contact',
+                           ['firstname', 'lastname', 'tel',
+                            'openpgp_fpr', 'email', 'comment'], new_org_id)
 
     org_so_far = __db_query_org(new_org_id, "")
     networks_are = org_so_far["networks"] if "networks" in org_so_far else []
@@ -680,7 +687,8 @@ def _create_org(org: dict) -> int:
     # fqdns_are = org_so_far["fqdns"] if "fqdns" in org_so_far else []
     # TODO __fix_fqdns_to_org(org['fqdns'], fqdns_are, new_org_id)
     #
-    # TODO __fix_nationalcerts_to_org
+    __fix_leafnodes_to_org(org["nationalcerts"], "national_cert",
+                           ["country_code", "comment"], new_org_id)
 
     return(new_org_id)
 
@@ -706,7 +714,9 @@ def _update_org(org):
         raise CommitError("Name of the organisation must be provided.")
 
     __fix_asns_to_org(org["asns"], org_id)
-    __fix_contacts_to_org(org["contacts"], org_id)
+    __fix_leafnodes_to_org(org['contacts'], 'contact',
+                           ['firstname', 'lastname', 'tel',
+                            'openpgp_fpr', 'email', 'comment'], org_id)
 
     if org["sector_id"] == '':
         org["sector_id"] = None
@@ -744,16 +754,16 @@ def _delete_org(org) -> int:
         raise CommitError("Org to be deleted differs from db entry.")
 
     __fix_asns_to_org([], org_id_rm)
-    __fix_contacts_to_org([], org_id_rm)
+    __fix_leafnodes_to_org([], "contact", [], org_id_rm)
 
     org_is = __db_query_org(org_id_rm, "")
     networks_are = org_is["networks"] if "networks" in org_is else []
     __fix_networks_to_org([], networks_are, org_id_rm)
 
     # fqdns_are = org_so_far["fqdns"] if "fqdns" in org_so_far else []
-    # TODO __fix_fqdns_to_org(org['fqdns'], fqdns_are, new_org_id)
+    # TODO __fix_fqdns_to_org(org['fqdns'], fqdns_are, org_id_rm)
     #
-    # TODO __fix_nationalcerts_to_org
+    __fix_leafnodes_to_org([], "national_cert", [], org_id_rm)
 
     __fix_annotations_to_table([], "cut",
                                "organisation", "organisation_id", org_id_rm)
