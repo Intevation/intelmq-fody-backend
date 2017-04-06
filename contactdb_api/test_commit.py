@@ -85,12 +85,6 @@ def semi_automatic():
     print(result)
     new_org_id = json.loads(result)[0][1]
 
-    # test 1.1
-    if json.loads(result)[0][1] == new_org_id:
-        print('OK. create was idempotent.')
-    else:
-        print('BAD. create was **not** idempotent.')
-
     # test2 no commands
     try:
         f = urllib.request.urlopen(request, DATA_BAD.encode('utf-8'))
@@ -140,6 +134,10 @@ def semi_automatic():
     print(f.read().decode('utf-8'))
 
     if not os.getenv("TESTKEEP"):
+        # as stuff may have changed, we re-read before deletion
+        f = urllib.request.urlopen(request2)
+        org = json.loads(f.read().decode('utf-8'))
+
         # test7 delete
         data_delete = json.dumps({'commands': ['delete'], 'orgs': [org]})
         f = urllib.request.urlopen(request, data_delete.encode('utf-8'))

@@ -452,7 +452,7 @@ def __fix_asns_to_org(asns: list, mode: str, org_id: int) -> None:
 
     Parameters:
         asns: that should be exist afterwards
-        mode: how to deal with annotation differences 'cut' or 'add' (default)
+        mode: how to deal with annotation differences 'cut' or 'add'
         org_id: the org for the asns
     """
     for asn in asns:
@@ -500,12 +500,14 @@ def __fix_ntms_to_org(ntms_should: list, ntms_are: list,
     In the certbund_contact db schema useful for entries that are linked
     via n-to-m tables and have annotations like 'network' and 'fqdn'.
 
+    We implement way 2 from the https://github.com/Intevation/intelmq-fody/blob/master/docs/DesignConsiderations.md
+
     Parameters:
         ntms_should : .. exist and be linked from the org afterwards
         ntms_are: .. already linked to the org
         table_name: of the ntm table, also used to calculate the id_column_name
         org_id: to be linked by the ntms_should
-    """
+    """  # noqa
     id_column_name = table_name + "_id"
 
     log.log(DD, "__fix_ntms_to_org({}, {},{}, {}, {})"
@@ -629,15 +631,12 @@ def _create_org(org: dict) -> int:
     Makes sure that the contactdb entry expressed by the org dict
     is in the tables for manual entries.
 
-    First checks the linked asns and linked contact tables.
-    Then checks the organisation itself.
-    Afterwards checks the n-to-m entries that link the tables.
-
-    Checks for each query if an entry with equal values is already in the
-    table. If so, uses the existing entry, otherwise inserts a new entry.
+    Creates it anyway, even if there are entries with the same
+    values in organisation, because there may be differences in the
+    entries that are attached for a purpose.
 
     Returns:
-        Database ID of the organisation that has been there or was created.
+        Database ID of the organisation that was created.
     """
     log.debug("_create_org called with " + repr(org))
 
@@ -655,37 +654,15 @@ def _create_org(org: dict) -> int:
         raise CommitError("Name of the organisation must be provided.")
 
     operation_str = """
-        SELECT organisation_id FROM organisation as o
-            WHERE o.name = %(name)s
-              AND o.comment = %(comment)s
-              AND o.ripe_org_hdl = %(ripe_org_hdl)s
-              AND o.ti_handle = %(ti_handle)s
-              AND o.first_handle = %(first_handle)s
+        INSERT INTO organisation
+            (name, sector_id, comment, ripe_org_hdl,
+             ti_handle, first_handle)
+            VALUES (%(name)s, %(sector_id)s, %(comment)s, %(ripe_org_hdl)s,
+                    %(ti_handle)s, %(first_handle)s)
+            RETURNING organisation_id
         """
-    if (('sector_id' not in org) or org['sector_id'] is None
-            or org['sector_id'] == ''):
-        operation_str += " AND o.sector_id IS NULL"
-        org["sector_id"] = None
-    else:
-        operation_str += " AND o.sector_id = %(sector_id)s"
-
     description, results = _db_query(operation_str, org)
-    if len(results) > 1:
-        raise CommitError("More than one organisation row like"
-                          " {} in the db".format(org))
-    elif len(results) == 1:
-        new_org_id = results[0]["organisation_id"]
-    else:
-        operation_str = """
-            INSERT INTO organisation
-                (name, sector_id, comment, ripe_org_hdl,
-                 ti_handle, first_handle)
-                VALUES (%(name)s, %(sector_id)s, %(comment)s, %(ripe_org_hdl)s,
-                        %(ti_handle)s, %(first_handle)s)
-                RETURNING organisation_id
-            """
-        description, results = _db_query(operation_str, org)
-        new_org_id = results[0]["organisation_id"]
+    new_org_id = results[0]["organisation_id"]
 
     __fix_annotations_to_table(org["annotations"], "add",
                                "organisation", "organisation_id", new_org_id)
