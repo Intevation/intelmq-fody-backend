@@ -557,19 +557,26 @@ def __fix_ntms_to_org(ntms_should: list, ntms_are: list,
 
     # update and link existing networks
     existing = [n for n in ntms_are if n[column_name] in values_should]
-    for entry in existing:
-        # update values
+    for entry_is in existing:
+        # find entry_should
+        for entry in ntms_should:
+            if entry_is[column_name] == entry[column_name]:
+                entry_should = entry
+                break
+
+        # update comment (as the colum is already the one we wanted)
         op_str = """
             UPDATE {0}
-                SET ({1}, comment) = (%({1})s, %(comment)s)
-                WHERE {2} = %({2})s
-            """.format(table_name, column_name, id_column_name)
-        _db_manipulate(op_str, entry)
+                SET (comment) = (%s)
+                WHERE {1} = %s
+            """.format(table_name, id_column_name)
+        _db_manipulate(op_str,
+                       (entry_should['comment'], entry_is[id_column_name],))
 
-        # updates annotations
-        __fix_annotations_to_table(entry["annotations"], "cut",
+        # update annotations
+        __fix_annotations_to_table(entry_should["annotations"], "cut",
                                    table_name, id_column_name,
-                                   entry[id_column_name])
+                                   entry_is[id_column_name])
 
     # delete networks that are not linked anymore
     operation_str = """
