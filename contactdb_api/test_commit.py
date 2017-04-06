@@ -48,8 +48,8 @@ DATA = json.dumps({
               'import_source': 'ripe',
               'import_time': '2017-03-29T15:40:34.357995',
               'name': 'Bundesamt fuer Sicherheit in der Informationstechnik',
-              'nationalcerts': [{'country_code': 'DE', 'comment': '(test)'},
-                                {'country_code': 'IO', 'comment': '(test2)'}],
+              'national_certs': [{'country_code': 'DE', 'comment': '(test)'},
+                                 {'country_code': 'IO', 'comment': '(test2)'}],
               'networks': [{'address': '77.87.224.0/21',
                             'annotations': [{"tag": "monthly"},
                                             {"tag": "no-way"}],
@@ -125,7 +125,7 @@ def semi_automatic():
 
     # test6 update
     org['comment'] = 'This comment was **updated**!'
-    org['nationalcerts'] = [{'country_code': 'DE', 'comment': '(up test)'}]
+    org['national_certs'] = [{'country_code': 'DE', 'comment': '(up test)'}]
     org['contacts'][0]["firstname"] = "Abakus"
     org['asns'][0]['annotations'] = [{"tag": "daily"}, {"tag": "Y"}]
 

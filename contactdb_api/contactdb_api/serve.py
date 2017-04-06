@@ -304,7 +304,7 @@ def __db_query_org(org_id: int, table_variant: str) -> dict:
             """.format(table_variant)
 
         description, results = _db_query(operation_str, (org_id,))
-        org["nationalcerts"] = results
+        org["national_certs"] = results
 
         # insert networks
         # we need the `network_id`s to query annotations.
@@ -705,7 +705,7 @@ def _create_org(org: dict) -> int:
     fqdns_are = org_so_far["fqdns"] if "fqdns" in org_so_far else []
     __fix_ntms_to_org(org["fqdns"], fqdns_are, "fqdn", "fqdn", new_org_id)
 
-    __fix_leafnodes_to_org(org["nationalcerts"], "national_cert",
+    __fix_leafnodes_to_org(org["national_certs"], "national_cert",
                            ["country_code", "comment"], new_org_id)
 
     return(new_org_id)
@@ -748,7 +748,7 @@ def _update_org(org):
     fqdns_are = org_so_far["fqdns"] if "fqdns" in org_so_far else []
     __fix_ntms_to_org(org["fqdns"], fqdns_are, "fqdn", "fqdn", org_id)
 
-    __fix_leafnodes_to_org(org["nationalcerts"], "national_cert",
+    __fix_leafnodes_to_org(org["national_certs"], "national_cert",
                            ["country_code", "comment"], org_id)
 
     # linking other tables has been done, only update is left to do
