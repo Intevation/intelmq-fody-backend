@@ -714,6 +714,9 @@ def _update_org(org):
     if org["sector_id"] == '':
         org["sector_id"] = None
 
+    __fix_annotations_to_table(org["annotations"], "cut",
+                               "organisation", "organisation_id", org_id)
+
     __fix_asns_to_org(org["asns"], "cut", org_id)
     __fix_leafnodes_to_org(org['contacts'], 'contact',
                            ['firstname', 'lastname', 'tel',
