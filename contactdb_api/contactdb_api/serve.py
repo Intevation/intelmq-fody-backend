@@ -668,22 +668,17 @@ def _create_org(org: dict) -> int:
                                "organisation", "organisation_id", new_org_id)
 
     __fix_asns_to_org(org['asns'], "add", new_org_id)
+
     __fix_leafnodes_to_org(org['contacts'], 'contact',
                            ['firstname', 'lastname', 'tel',
                             'openpgp_fpr', 'email', 'comment'], new_org_id)
 
-    org_so_far = __db_query_org(new_org_id, "")
-    # log.log(DD, "org_so_far =" + repr(org_so_far))
-
-    networks_are = org_so_far["networks"] if "networks" in org_so_far else []
-    __fix_ntms_to_org(org["networks"], networks_are,
-                      "network", "address", new_org_id)
-
-    fqdns_are = org_so_far["fqdns"] if "fqdns" in org_so_far else []
-    __fix_ntms_to_org(org["fqdns"], fqdns_are, "fqdn", "fqdn", new_org_id)
-
     __fix_leafnodes_to_org(org["national_certs"], "national_cert",
                            ["country_code", "comment"], new_org_id)
+
+    # as this is a new org object, there is nothing linked to it yet
+    __fix_ntms_to_org(org["networks"], [], "network", "address", new_org_id)
+    __fix_ntms_to_org(org["fqdns"], [], "fqdn", "fqdn", new_org_id)
 
     return(new_org_id)
 
