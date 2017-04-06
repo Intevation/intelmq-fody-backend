@@ -536,44 +536,40 @@ def __fix_ntms_to_org(ntms_should: list, ntms_are: list,
     missing = [n for n in ntms_should
                if n[column_name] not in values_are]
     for entry in missing:
-        # search for existing entries with value that is not linked
+        # we have to freshly create an entry
         operation_str = """
-            SELECT * from {0}
-                WHERE {1} = %s
-            """.format(table_name, column_name)
-        desc, results = _db_query(operation_str, (entry[column_name],))
-        if len(results) == 0:
-            # we have to freshly create a network entry
-            operation_str = """
-                INSERT INTO {0} ({1}, comment)
-                    VALUES (%({1})s, %(comment)s)
-                RETURNING {2}
+            INSERT INTO {0} ({1}, comment)
+                VALUES (%({1})s, %(comment)s)
+            RETURNING {2}
             """.format(table_name, column_name, id_column_name)
-            desc, results = _db_query(operation_str, entry)
-            new_entry_id = results[0][id_column_name]
+        desc, results = _db_query(operation_str, entry)
+        new_entry_id = results[0][id_column_name]
 
-            __fix_annotations_to_table(
-                entry["annotations"], "add",
-                table_name, id_column_name, new_entry_id)
+        __fix_annotations_to_table(entry["annotations"], "add",
+                                   table_name, id_column_name, new_entry_id)
 
-            # link it to the org
-            operation_str = """
-                INSERT INTO organisation_to_{0}
-                    (organisation_id, {1}) VALUES (%s, %s)
-                """.format(table_name, id_column_name)
-            _db_manipulate(operation_str, (org_id, new_entry_id))
-
-        else:
-            # TODO
-            # we have to check if one of the found is similiar
-            # to what we want and then use it or create new one
-            pass
+        # link it to the org
+        operation_str = """
+            INSERT INTO organisation_to_{0}
+                (organisation_id, {1}) VALUES (%s, %s)
+            """.format(table_name, id_column_name)
+        _db_manipulate(operation_str, (org_id, new_entry_id))
 
     # update and link existing networks
     existing = [n for n in ntms_are if n[column_name] in values_should]
     for entry in existing:
-        # TODO
-        pass
+        # update values
+        op_str = """
+            UPDATE {0}
+                SET ({1}, comment) = (%({1})s, %(comment)s)
+                WHERE {2} = %({2})s
+            """.format(table_name, column_name, id_column_name)
+        _db_manipulate(op_str, entry)
+
+        # updates annotations
+        __fix_annotations_to_table(entry["annotations"], "cut",
+                                   table_name, id_column_name,
+                                   entry[id_column_name])
 
     # delete networks that are not linked anymore
     operation_str = """
@@ -582,7 +578,7 @@ def __fix_ntms_to_org(ntms_should: list, ntms_are: list,
                 SELECT * FROM organisation_to_{0} AS ott
                     WHERE ott.{1} = t.{1}
                 )
-    """.format(table_name, id_column_name)
+        """.format(table_name, id_column_name)
     _db_manipulate(operation_str, "")
 
 
@@ -638,7 +634,7 @@ def _create_org(org: dict) -> int:
     Returns:
         Database ID of the organisation that was created.
     """
-    log.debug("_create_org called with " + repr(org))
+    # log.debug("_create_org called with " + repr(org))
 
     needed_attribs = ['name', 'comment', 'ripe_org_hdl',
                       'ti_handle', 'first_handle']
@@ -686,13 +682,17 @@ def _create_org(org: dict) -> int:
 def _update_org(org):
     """Update a contactdb entry.
 
-    First updates the linked entries.
-    Last update of the values of the org itself.
+    First updates or creates the linked entries.
+    There is no need to check if other linked entries are similiar,
+    because we use the contactdb in a way that each org as its own
+    linked entries.
+
+    Last update the values of the org itself.
 
     Returns:
         Database ID of the updated organisation.
     """
-    log.debug("_update_org called with " + repr(org))
+    # log.debug("_update_org called with " + repr(org))
 
     org_id = org["organisation_id"]
     org_in_db = __db_query_org(org_id, "")
@@ -711,6 +711,8 @@ def _update_org(org):
     __fix_leafnodes_to_org(org['contacts'], 'contact',
                            ['firstname', 'lastname', 'tel',
                             'openpgp_fpr', 'email', 'comment'], org_id)
+    __fix_leafnodes_to_org(org["national_certs"], "national_cert",
+                           ["country_code", "comment"], org_id)
 
     org_so_far = __db_query_org(org_id, "")
     networks_are = org_so_far["networks"] if "networks" in org_so_far else []
@@ -719,9 +721,6 @@ def _update_org(org):
 
     fqdns_are = org_so_far["fqdns"] if "fqdns" in org_so_far else []
     __fix_ntms_to_org(org["fqdns"], fqdns_are, "fqdn", "fqdn", org_id)
-
-    __fix_leafnodes_to_org(org["national_certs"], "national_cert",
-                           ["country_code", "comment"], org_id)
 
     # linking other tables has been done, only update is left to do
     operation_str = """
@@ -745,7 +744,7 @@ def _delete_org(org) -> int:
     Returns:
         Database ID of the organisation that has been deleted.
     """
-    log.debug("_delete_org called with " + repr(org))
+    # log.debug("_delete_org called with " + repr(org))
     org_id_rm = org["organisation_id"]
 
     org_in_db = __db_query_org(org_id_rm, "")
