@@ -108,9 +108,6 @@ def semi_automatic():
         print(err.read().decode('utf-8'))
 
     # test5 read
-    f = urllib.request.urlopen(request, DATA.encode('utf-8'))
-    result = f.read().decode('utf-8')
-
     request2 = urllib.request.Request(
             BASEURL + '/api/contactdb/org/manual/{}'.format(new_org_id))
     f = urllib.request.urlopen(request2)
