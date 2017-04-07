@@ -905,6 +905,24 @@ def get_manual_asn_details(number: int, response):
         return asn
 
 
+@hug.get(ENDPOINT_PREFIX + '/annotation/hints')
+def get_annotation_hints():
+    """Return all hints helpful to build a good interface to annotations.
+    """
+    # TODO ask the database or what the rules have registered
+
+    # the following fixed hints are hints for all table types,
+    # in the future, if needed, we could have a dict for each
+    # `autonomous_system`, `organisation`, `network` and `fqdn` separately
+    hints = {'tags': ['daily', 'hourly', 'xarf', 'whitelisted'],
+             'conditions': {'binary_operators': ['eq'],
+                            'fields': {'event_field': [
+                                'classification.identifier',
+                                'destination.asn'
+                                ]}}}
+    return hints
+
+
 # a way to test this is similiar to
 #   import requests
 #   requests.post('http://localhost:8000/api/contactdb/org/manual/commit', json={'one': 'two'}, auth=('user', 'pass')).json() # noqa
