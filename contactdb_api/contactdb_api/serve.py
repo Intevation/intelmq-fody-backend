@@ -336,13 +336,8 @@ def __db_query_org(org_id: int, table_variant: str) -> dict:
         # they can only be there for manual tables
         if table_variant == '':
             # insert annotations for the org
-            operation_str = """
-                SELECT array_agg(annotation) AS annotations
-                    FROM organisation_annotation
-                    WHERE organisation_id = %s
-                """
-            description, results = _db_query(operation_str, (org_id,))
-            org["annotations"] = results[0]["annotations"]
+            org["annotations"] = __db_query_annotations(
+                    "organisation", "organisation_id", org_id)
 
             # query annotations for each asn
             for index, asn in enumerate(org["asns"][:]):
