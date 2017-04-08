@@ -433,11 +433,22 @@ def __fix_annotations_to_table(
     if mode != "add":
         # remove superfluous annotations
         for anno in [a for a in annos_are if a not in annos_should]:
-            operation_str = """
-                DELETE FROM {0}_annotation
-                    WHERE  {1} = %s AND annotation::text = %s::text
-            """.format(table_pre, column_name)
-            _db_manipulate(operation_str, (column_value, Json(anno),))
+            # because postgresql (at least in 9.3) is unable to do
+            # a comparison between json types, we need to do the comparison
+            # in python and delete the exact string that postgresql saved
+            op_str = """
+                SELECT annotation::text from {0}_annotation
+                    WHERE {1} = %s
+                """.format(table_pre, column_name)
+            desc, results = _db_query(op_str, (column_value,))
+            for result in results:
+                if json.loads(result["annotation"]) == anno:
+                    operation_str = """
+                        DELETE FROM {0}_annotation
+                            WHERE  {1} = %s AND annotation::text = %s
+                        """.format(table_pre, column_name)
+                    _db_manipulate(operation_str,
+                                   (column_value, result["annotation"],))
 
 
 def __fix_asns_to_org(asns: list, mode: str, org_id: int) -> None:
