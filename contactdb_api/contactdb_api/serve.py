@@ -914,7 +914,7 @@ def get_annotation_hints():
     # in the future, if needed, we could have a dict for each
     # `autonomous_system`, `organisation`, `network` and `fqdn` separately
     hints = {'tags': ['daily', 'hourly', 'xarf', 'whitelisted'],
-             'conditions': {'binary_operators': ['eq'],
+             'conditions': {'binary_operators': {'eq': '=='},
                             'fields': {'event_field': [
                                 'classification.identifier',
                                 'destination.asn'
