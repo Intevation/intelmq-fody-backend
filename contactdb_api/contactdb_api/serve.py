@@ -53,10 +53,14 @@ from psycopg2.extras import RealDictCursor
 
 # FUTURE if we are reading to raise the requirements to psycopg2 v>=2.5
 # we could use psycopg2's json support, right now we need to improve, see
-# use of Json() within the module.
+# use of Json() to_Json() within the module.
 # from psycopg2.extras import Json
 def Json(obj):
     return json.dumps(obj)
+
+
+def to_Json(string: str):
+    return json.loads(string)
 
 
 log = logging.getLogger(__name__)
@@ -373,12 +377,12 @@ def __db_query_annotations(table: str, column_name: str,
         all annotations, even if one occurs several times
     """
     operation_str = """
-        SELECT array_agg(annotation) FROM {0}_annotation
+        SELECT json_agg(annotation) FROM {0}_annotation
             WHERE {1} = %s
     """.format(table, column_name)
     description, results = _db_query(operation_str, (column_value,))
-    annos = results[0]["array_agg"]
-    return annos if annos is not None else []
+    annos = results[0]["json_agg"]
+    return to_Json(annos) if annos is not None else []
 
 
 def __db_query_asn(asn: int, table_variant: str) -> dict:
