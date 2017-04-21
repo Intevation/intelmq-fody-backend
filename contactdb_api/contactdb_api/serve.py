@@ -874,6 +874,33 @@ def searchcontact(email: str):
     return query_results
 
 
+@hug.get(ENDPOINT_PREFIX + '/searchcidr')
+def searchcidr(address: str, response):
+    """Search for entries that include the given cidr style address."""
+    try:
+        # postgresql 9.3/docs/9.12: '<<=   is contained within or equals'
+        query_results = __db_query_organisation_ids("""
+            SELECT DISTINCT
+                array_agg(otn.organisation{0}_id) AS organisation_ids
+                FROM organisation_to_network{0} AS otn
+                JOIN network{0} AS n
+                    ON n.network{0}_id = otn.network{0}_id
+                WHERE n.address <<= %s
+            """, (address,))
+    except psycopg2.DataError:
+        # catching psycopg2.DataError: invalid input syntax for type inet
+        __rollback_transaction()
+        log.info("searchcidr?address=%s failed with DataError", address)
+        response.status = HTTP_BAD_REQUEST
+        return {"reason": "DataError, probably not in cidr style."}
+    except psycopg2.DatabaseError:
+        __rollback_transaction()
+        raise
+    finally:
+        __commit_transaction()
+    return query_results
+
+
 @hug.get(ENDPOINT_PREFIX + '/org/manual/{id}')
 def get_manual_org_details(id: int):
     try:
