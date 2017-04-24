@@ -885,8 +885,8 @@ def searchcidr(address: str, response):
                 FROM organisation_to_network{0} AS otn
                 JOIN network{0} AS n
                     ON n.network{0}_id = otn.network{0}_id
-                WHERE n.address <<= %s
-            """, (address,))
+                WHERE n.address <<= %s or n.address >>= %s
+            """, (address, address))
     except psycopg2.DataError:
         # catching psycopg2.DataError: invalid input syntax for type inet
         __rollback_transaction()
