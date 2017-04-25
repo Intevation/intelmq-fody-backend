@@ -943,7 +943,7 @@ def searchnational(countrycode: hug.types.length(2, 3)):
         query_results = __db_query_organisation_ids("""
             SELECT array_agg(DISTINCT organisation{0}_id) AS organisation_ids
                 FROM national_cert{0}
-                WHERE country_code = %s
+                WHERE country_code ILIKE %s
             """, (countrycode,))
     except psycopg2.DatabaseError:
         __rollback_transaction()
