@@ -876,7 +876,11 @@ def searchcontact(email: str):
 
 @hug.get(ENDPOINT_PREFIX + '/searchcidr')
 def searchcidr(address: str, response):
-    """Search for entries that include the given cidr style address."""
+    """Search for entries that include the given cidr style address.
+
+    Strips leading and trailing whitespace.
+    """
+    address = address.strip()
     try:
         # postgresql 9.3/docs/9.12:
         #   '<<=   is contained within or equals'
