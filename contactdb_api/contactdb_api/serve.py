@@ -878,14 +878,16 @@ def searchcontact(email: str):
 def searchcidr(address: str, response):
     """Search for entries that include the given cidr style address."""
     try:
-        # postgresql 9.3/docs/9.12: '<<=   is contained within or equals'
+        # postgresql 9.3/docs/9.12:
+        #   '<<=   is contained within or equals'
+        #   '>>    contains'
         query_results = __db_query_organisation_ids("""
             SELECT DISTINCT
                 array_agg(otn.organisation{0}_id) AS organisation_ids
                 FROM organisation_to_network{0} AS otn
                 JOIN network{0} AS n
                     ON n.network{0}_id = otn.network{0}_id
-                WHERE n.address <<= %s or n.address >>= %s
+                WHERE n.address <<= %s OR n.address >> %s
             """, (address, address))
     except psycopg2.DataError:
         # catching psycopg2.DataError: invalid input syntax for type inet
