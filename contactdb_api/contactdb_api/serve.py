@@ -876,7 +876,10 @@ def searchcontact(email: str):
 
 @hug.get(ENDPOINT_PREFIX + '/searchcidr')
 def searchcidr(address: str, response):
-    """Search for entries that include the given cidr style address.
+    """Search for orgs related to the cidr.
+
+    Finds orgs that either are responsible for the network or ip
+    or that are contained in the given network.
 
     Strips leading and trailing whitespace.
     """
@@ -886,8 +889,8 @@ def searchcidr(address: str, response):
         #   '<<=   is contained within or equals'
         #   '>>    contains'
         query_results = __db_query_organisation_ids("""
-            SELECT DISTINCT
-                array_agg(otn.organisation{0}_id) AS organisation_ids
+            SELECT array_agg(DISTINCT otn.organisation{0}_id)
+                    AS organisation_ids
                 FROM organisation_to_network{0} AS otn
                 JOIN network{0} AS n
                     ON n.network{0}_id = otn.network{0}_id
@@ -904,6 +907,50 @@ def searchcidr(address: str, response):
         raise
     finally:
         __commit_transaction()
+
+    return query_results
+
+
+@hug.get(ENDPOINT_PREFIX + '/searchfqdn')
+def searchfqdn(domain: str):
+    """Search orgs that are responsible for a hostname in the domain.
+
+    Strips whitespace.
+    """
+    domain = domain.strip()
+    try:
+        query_results = __db_query_organisation_ids("""
+            SELECT array_agg(DISTINCT otf.organisation{0}_id)
+                    AS organisation_ids
+                FROM organisation_to_fqdn{0} AS otf
+                JOIN fqdn{0} AS f ON f.fqdn{0}_id = otf.fqdn{0}_id
+                WHERE f.fqdn ILIKE %s OR f.fqdn ILIKE %s
+            """, (domain, "%."+domain))
+    except psycopg2.DatabaseError:
+        __rollback_transaction()
+        raise
+    finally:
+        __commit_transaction()
+
+    return query_results
+
+
+@hug.get(ENDPOINT_PREFIX + '/searchnational')
+def searchnational(countrycode: hug.types.length(2, 3)):
+    """Search for orgs that are responsible for the given country.
+    """
+    try:
+        query_results = __db_query_organisation_ids("""
+            SELECT array_agg(DISTINCT organisation{0}_id) AS organisation_ids
+                FROM national_cert{0}
+                WHERE country_code = %s
+            """, (countrycode,))
+    except psycopg2.DatabaseError:
+        __rollback_transaction()
+        raise
+    finally:
+        __commit_transaction()
+
     return query_results
 
 
