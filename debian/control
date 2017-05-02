@@ -1,4 +1,4 @@
-Source: intelmq-fody-api
+Source: intelmq-fody-backend
 Maintainer: Sascha Wilde <wilde@intevation.de>
 Section: net
 Priority: optional
@@ -6,14 +6,14 @@ Build-Depends: dh-python, python3-setuptools, python3-all,
  debhelper (>= 9), python3-psycopg2
 Standards-Version: 3.9.5.0
 
-Package: intelmq-fody-api
+Package: intelmq-fody-backend
 Architecture: all
 Depends: ${misc:Depends}, ${python3:Depends}, python3-psycopg2,
  python3-hug (>= 2.2.0), python3, apache2, apache2-utils,
- libapache2-mod-wsgi-py3, adduser, intelmq-fody (>= 0.4.2),
+ libapache2-mod-wsgi-py3, adduser, intelmq-fody (>= 0.4.3),
  intelmq-mailgen (>= 0.95)
-Conflicts: intelmq-db-api
-Replaces: intelmq-db-api
+Conflicts: intelmq-db-api, intelmq-fody-api
+Replaces: intelmq-db-api, intelmq-fody-api
 Description: Backend for DB manipulation via modern web aplications.
  .
  Backend APIs for accessing IntelMQ databases, as used by Fody.

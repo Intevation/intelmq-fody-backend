@@ -1,7 +1,7 @@
 Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: intelmq-fody-api
+Upstream-Name: intelmq-fody-backend
 Upstream-Contact:  
-Source: https://github.com/Intevation/intelmq-fody-api
+Source: https://github.com/Intevation/intelmq-fody-backend
 
 Files: *
 Copyright: 2016 Intevation GmbH
@@ -21,4 +21,4 @@ License: AGPL-3+
  You should have received a copy of the GNU General Public License
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  .
- In this package the license is included as /usr/share/doc/intelmq-fody-api/agpl-3.0.txt
+ In this package the license is included as /usr/share/doc/intelmq-fody-backend/agpl-3.0.txt

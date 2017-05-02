@@ -1,6 +1,6 @@
 #!/usr/bin/make -f
 
-export PYBUILD_NAME=intelmq-fody-api
+export PYBUILD_NAME=intelmq-fody-backend
 %:
 	dh $@ --with python3 --without python2 --buildsystem=pybuild
 
