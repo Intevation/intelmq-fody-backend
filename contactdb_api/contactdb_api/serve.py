@@ -53,10 +53,14 @@ from psycopg2.extras import RealDictCursor
 
 # FUTURE if we are reading to raise the requirements to psycopg2 v>=2.5
 # we could use psycopg2's json support, right now we need to improve, see
-# use of Json() within the module.
+# use of Json() to_Json() within the module.
 # from psycopg2.extras import Json
 def Json(obj):
     return json.dumps(obj)
+
+
+def to_Json(string: str):
+    return json.loads(string)
 
 
 log = logging.getLogger(__name__)
@@ -336,13 +340,8 @@ def __db_query_org(org_id: int, table_variant: str) -> dict:
         # they can only be there for manual tables
         if table_variant == '':
             # insert annotations for the org
-            operation_str = """
-                SELECT array_agg(annotation) AS annotations
-                    FROM organisation_annotation
-                    WHERE organisation_id = %s
-                """
-            description, results = _db_query(operation_str, (org_id,))
-            org["annotations"] = results[0]["annotations"]
+            org["annotations"] = __db_query_annotations(
+                    "organisation", "organisation_id", org_id)
 
             # query annotations for each asn
             for index, asn in enumerate(org["asns"][:]):
@@ -378,12 +377,12 @@ def __db_query_annotations(table: str, column_name: str,
         all annotations, even if one occurs several times
     """
     operation_str = """
-        SELECT array_agg(annotation) FROM {0}_annotation
+        SELECT json_agg(annotation) FROM {0}_annotation
             WHERE {1} = %s
     """.format(table, column_name)
     description, results = _db_query(operation_str, (column_value,))
-    annos = results[0]["array_agg"]
-    return annos if annos is not None else []
+    annos = results[0]["json_agg"]
+    return to_Json(annos) if annos is not None else []
 
 
 def __db_query_asn(asn: int, table_variant: str) -> dict:
@@ -434,11 +433,22 @@ def __fix_annotations_to_table(
     if mode != "add":
         # remove superfluous annotations
         for anno in [a for a in annos_are if a not in annos_should]:
-            operation_str = """
-                DELETE FROM {0}_annotation
-                    WHERE  {1} = %s AND annotation::text = %s::text
-            """.format(table_pre, column_name)
-            _db_manipulate(operation_str, (column_value, Json(anno),))
+            # because postgresql (at least in 9.3) is unable to do
+            # a comparison between json types, we need to do the comparison
+            # in python and delete the exact string that postgresql saved
+            op_str = """
+                SELECT annotation::text from {0}_annotation
+                    WHERE {1} = %s
+                """.format(table_pre, column_name)
+            desc, results = _db_query(op_str, (column_value,))
+            for result in results:
+                if json.loads(result["annotation"]) == anno:
+                    operation_str = """
+                        DELETE FROM {0}_annotation
+                            WHERE  {1} = %s AND annotation::text = %s
+                        """.format(table_pre, column_name)
+                    _db_manipulate(operation_str,
+                                   (column_value, result["annotation"],))
 
 
 def __fix_asns_to_org(asns: list, mode: str, org_id: int) -> None:
@@ -714,6 +724,9 @@ def _update_org(org):
     if org["sector_id"] == '':
         org["sector_id"] = None
 
+    __fix_annotations_to_table(org["annotations"], "cut",
+                               "organisation", "organisation_id", org_id)
+
     __fix_asns_to_org(org["asns"], "cut", org_id)
     __fix_leafnodes_to_org(org['contacts'], 'contact',
                            ['firstname', 'lastname', 'tel',
@@ -861,6 +874,86 @@ def searchcontact(email: str):
     return query_results
 
 
+@hug.get(ENDPOINT_PREFIX + '/searchcidr')
+def searchcidr(address: str, response):
+    """Search for orgs related to the cidr.
+
+    Finds orgs that either are responsible for the network or ip
+    or that are contained in the given network.
+
+    Strips leading and trailing whitespace.
+    """
+    address = address.strip()
+    try:
+        # postgresql 9.3/docs/9.12:
+        #   '<<=   is contained within or equals'
+        #   '>>    contains'
+        query_results = __db_query_organisation_ids("""
+            SELECT array_agg(DISTINCT otn.organisation{0}_id)
+                    AS organisation_ids
+                FROM organisation_to_network{0} AS otn
+                JOIN network{0} AS n
+                    ON n.network{0}_id = otn.network{0}_id
+                WHERE n.address <<= %s OR n.address >> %s
+            """, (address, address))
+    except psycopg2.DataError:
+        # catching psycopg2.DataError: invalid input syntax for type inet
+        __rollback_transaction()
+        log.info("searchcidr?address=%s failed with DataError", address)
+        response.status = HTTP_BAD_REQUEST
+        return {"reason": "DataError, probably not in cidr style."}
+    except psycopg2.DatabaseError:
+        __rollback_transaction()
+        raise
+    finally:
+        __commit_transaction()
+
+    return query_results
+
+
+@hug.get(ENDPOINT_PREFIX + '/searchfqdn')
+def searchfqdn(domain: str):
+    """Search orgs that are responsible for a hostname in the domain.
+
+    Strips whitespace.
+    """
+    domain = domain.strip()
+    try:
+        query_results = __db_query_organisation_ids("""
+            SELECT array_agg(DISTINCT otf.organisation{0}_id)
+                    AS organisation_ids
+                FROM organisation_to_fqdn{0} AS otf
+                JOIN fqdn{0} AS f ON f.fqdn{0}_id = otf.fqdn{0}_id
+                WHERE f.fqdn ILIKE %s OR f.fqdn ILIKE %s
+            """, (domain, "%."+domain))
+    except psycopg2.DatabaseError:
+        __rollback_transaction()
+        raise
+    finally:
+        __commit_transaction()
+
+    return query_results
+
+
+@hug.get(ENDPOINT_PREFIX + '/searchnational')
+def searchnational(countrycode: hug.types.length(2, 3)):
+    """Search for orgs that are responsible for the given country.
+    """
+    try:
+        query_results = __db_query_organisation_ids("""
+            SELECT array_agg(DISTINCT organisation{0}_id) AS organisation_ids
+                FROM national_cert{0}
+                WHERE country_code ILIKE %s
+            """, (countrycode,))
+    except psycopg2.DatabaseError:
+        __rollback_transaction()
+        raise
+    finally:
+        __commit_transaction()
+
+    return query_results
+
+
 @hug.get(ENDPOINT_PREFIX + '/org/manual/{id}')
 def get_manual_org_details(id: int):
     try:
@@ -900,6 +993,24 @@ def get_manual_asn_details(number: int, response):
         return {"reason": "ASN not found"}
     else:
         return asn
+
+
+@hug.get(ENDPOINT_PREFIX + '/annotation/hints')
+def get_annotation_hints():
+    """Return all hints helpful to build a good interface to annotations.
+    """
+    # TODO ask the database or what the rules have registered
+
+    # the following fixed hints are hints for all table types,
+    # in the future, if needed, we could have a dict for each
+    # `autonomous_system`, `organisation`, `network` and `fqdn` separately
+    hints = {'tags': ['daily', 'hourly', 'xarf', 'whitelisted'],
+             'conditions': {'binary_operators': {'eq': '=='},
+                            'fields': {'event_field': [
+                                'classification.identifier',
+                                'destination.asn'
+                                ]}}}
+    return hints
 
 
 # a way to test this is similiar to

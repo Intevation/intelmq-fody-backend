@@ -1,7 +1,7 @@
 
 # Requirements
  * hug
- * psycopg2
+ * psycopg2 2.4.5 (HIGHER Versions are not supported!)
  * intelmq-mailgen
  * python-dateutil
 
