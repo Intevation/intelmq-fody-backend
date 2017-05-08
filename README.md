@@ -27,6 +27,25 @@ apt-get install libapache2-mod-wsgi-py3
 You might want to use an Apache-Config similar to the example included as 
 [config/apache-example/001-fody.conf](config/apache-example/001-fody.conf)
 
+# Track db changes by user
+As with v0.4 and v0.5 only `contactdb_api` offers to write changes to the db.
+
+If you want to be able to find out which user did which particular change:
+ 1. Use basic authentication and maintain one userid and password per user.
+    (For apache2 this can be done with the `htpasswd` tool.)
+ 2. Keep logs of the wsgi application at least at the INFO level.
+
+Log entries will show the requested change
+together with the authenticated userid, search for
+`remote_user =`. Example for apache2:
+
+```sh
+pushd /var/log/apache2/
+grep 'remote_user =' *
+error.log:[Fri May 05 14:19:26.882299 2017] [:error] [pid 2075] 2017-05-05 14:19:26,882 contactdb_api.contactdb_api.serve INFO - Got commit_object = {'orgs': [{'comment': 'Testing', 'first_handle': '', 'name': 'Intevation', 'sector_id': None, 'contacts': [], 'ti_handle': '', 'ripe_org_hdl': '', 'asns': []}], 'commands': ['create']}; remote_user = 'bernhard.reiter'
+error.log:[Fri May 05 14:19:26.882299 2017] [:error] [pid 2075] 2017-05-05 14:19274,179 contactdb_api.contactdb_api.serve INFO - Commit successful, results = [('create', 126)]; remote_user = 'bernhard.reiter'
+```
+
 
 # Development
 ## Version number
