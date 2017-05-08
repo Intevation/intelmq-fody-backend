@@ -26,7 +26,7 @@ There is an additional loglevel `DDEBUG`
 for more details than `DEBUG`.
 
 ## Installation
-For a production setup `intelmq_fody_api.py` has to be installed
+For a production setup `intelmq_fody_backend.py` has to be installed
 with a webserver running `wsgi.multithread == False` and will try
 to import the `tickets\_api` module.
 

@@ -12,7 +12,7 @@ for details.
 
 # Run with hug
 ```
-hug -f intelmq_fody_api/serve.py -p 8002
+hug -f intelmq_fody_backend/serve.py -p 8002
 ```
 
 
