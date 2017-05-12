@@ -52,15 +52,19 @@ from psycopg2.extras import RealDictCursor
 
 
 # FUTURE if we are reading to raise the requirements to psycopg2 v>=2.5
-# we could use psycopg2's json support, right now we need to improve, see
-# use of Json() to_Json() within the module.
-# from psycopg2.extras import Json
-def Json(obj):
-    return json.dumps(obj)
+# we could rely only on psycopg2's json support and simplify by removing
+# to_Json(), see use of Json() to_Json() within the module.
+try:
+   from psycopg2.extras import Json
+   # The Json adaption will automatically convert to objects when reading
+   def to_Json(obj:object):
+       return obj
+except:
+    def Json(obj):
+        return json.dumps(obj)
 
-
-def to_Json(string: str):
-    return json.loads(string)
+    def to_Json(string: str):
+        return json.loads(string)
 
 
 log = logging.getLogger(__name__)
