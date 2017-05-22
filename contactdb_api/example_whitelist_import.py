@@ -29,7 +29,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 Author(s):
         * Bernhard E. Reiter <bernhard@intevation.de>
-"""
+"""  # noqa
 
 import csv
 from email.utils import parseaddr
@@ -38,8 +38,8 @@ import sys
 
 log = logging.getLogger(__name__)
 logging.basicConfig(format='%(levelname)s:%(message)s',
-#                    level=logging.DEBUG)
                     level=logging.INFO)
+#                    level=logging.DEBUG)
 
 with open(sys.argv[1]) as csvfile:
     # guess the csv file data format "dialect"
@@ -55,6 +55,8 @@ with open(sys.argv[1]) as csvfile:
     reader = csv.DictReader(csvfile, dialect=dialect)
     for row in reader:
         log.debug(row)
+
+        # counting for stats
         number_of_lines += 1
 
         if row['type'] != '':
@@ -69,8 +71,7 @@ with open(sys.argv[1]) as csvfile:
             else:
                 identifiers[row['identifier']] = 1
 
-
-        new_org = {}
+        potential_new_org = {}
         # let us use the domain part of the contact email address as org name
         log.debug(parseaddr(row["contact"]))
 
@@ -82,31 +83,36 @@ with open(sys.argv[1]) as csvfile:
         else:
             realname_firstname = ''
 
-        new_org["name"] = email_addr.split("@",1)[1]
+        potential_new_org["name"] = email_addr.split("@", 1)[1]
 
         # unless we have some common email providers
-        if new_org["name"] in ("gmail.com", "gmx.de"):
-            new_org["name"] = email_addr
+        if potential_new_org["name"] in ("gmail.com", "gmx.de"):
+            potential_new_org["name"] = email_addr
 
-        new_org["contacts"] = [{
+        potential_new_org["contacts"] = [{
                 "email": email_addr,
                 "firstname": realname_firstname,
                 "lastname": realname_lastname
                 }]
 
-        if new_org["name"] in new_org_names:
-            # use existing org
-            if (new_org["contacts"][0] not in
-                    new_org_names[new_org["name"]]["contacts"]):
-                # add additional contact address
-                new_org_names[new_org["name"]]["contacts"].append(
-                    new_org["contacts"][0])
+        while (potential_new_org["name"] in new_org_names):
+            # check if we already have an organisation where we should
+            # add additional networks to
 
-            new_org = new_org_names[new_org["name"]]
+            if (potential_new_org["contacts"][0] ==
+                    new_org_names[potential_new_org["name"]]["contacts"][0]):
+
+                new_org = new_org_names[potential_new_org["name"]]
+                break
+            else:
+                # try the next generated name
+                # /!\ needs a more clever algorithm if happens more often
+                potential_new_org["name"] += " (n)"
+                continue
         else:
             # add new org
+            new_org = potential_new_org
             new_org_names[new_org["name"]] = new_org
-
 
         if row["asn"] != '':
             # /!\ there are only asns with 'malware' and each org is singular
@@ -119,7 +125,7 @@ with open(sys.argv[1]) as csvfile:
         else:
             # must be id_or_cidr
             network_inhib = {'address': row["ip_or_cidr"],
-                              'comment': row["comment"]}
+                             'comment': row["comment"]}
             if row["type"] == 'malware':
                 network_inhib["annotations"] = [{"tag": "no-malware"}]
             else:
@@ -136,16 +142,15 @@ with open(sys.argv[1]) as csvfile:
             else:
                 new_org["networks"] = [network_inhib]
 
-
         log.debug(new_org)
 
     # TODO create structure to be send to the endpoint
     #   /api/contactdb/org/manual/commit
+    import pprint
     for name, org in new_org_names.items():
-        print(org)
+        pprint.pprint(org)
 
     log.info("number_of_lines = {}".format(number_of_lines))
     log.info("types_count = {}".format(types))
     log.info("identifier_count = {}".format(identifiers))
     log.info("number_of_resulting_orgs = {}".format(len(new_org_names)))
-
