@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Example how to import a whitelist csv file.
 
+Creates a python script to be run as contactdb_api backend user.
+
 Will create manual orgs to be imported via fody_backend from lines like::
 
 
@@ -8,6 +10,9 @@ asn;ip_or_cidr;type;identifier;comment;contact
 49234;;malware;;"BSI, meist False-Positives";"<abuse@bsi.bund.de>"
 ;2001:638:81e::/48;malware;;"Malware-Research";"Max Musterfrau <abuse@cert-bund.de>"
 ;194.94.208.10;opendns;;"Rate-Limiting für DNS implementiert";Max Musterfrau <abuse@cert-bund.de>"
+
+
+Makes several assumptions, see /!\ in the code.
 
 
 Copyright (C) 2017 by Bundesamt für Sicherheit in der Informationstechnik
@@ -34,6 +39,7 @@ Author(s):
 import csv
 from email.utils import parseaddr
 import logging
+import pprint
 import sys
 
 log = logging.getLogger(__name__)
@@ -71,7 +77,19 @@ with open(sys.argv[1]) as csvfile:
             else:
                 identifiers[row['identifier']] = 1
 
-        potential_new_org = {}
+        potential_new_org = {
+                "name" : None,
+                "comment": "",
+                "ripe_org_hdl": '',
+                "ti_handle": '',
+                'first_handle':'',
+                "sector_id": None,
+                "networks": [],
+                "asns": [],
+                "fqdns": [],
+                "annotations": [],
+                "national_certs": []
+                }
         # let us use the domain part of the contact email address as org name
         log.debug(parseaddr(row["contact"]))
 
@@ -92,7 +110,10 @@ with open(sys.argv[1]) as csvfile:
         potential_new_org["contacts"] = [{
                 "email": email_addr,
                 "firstname": realname_firstname,
-                "lastname": realname_lastname
+                "lastname": realname_lastname,
+                "tel": "",
+                "openpgp_fpr": "",
+                "comment": ""
                 }]
 
         while (potential_new_org["name"] in new_org_names):
@@ -144,11 +165,38 @@ with open(sys.argv[1]) as csvfile:
 
         log.debug(new_org)
 
-    # TODO create structure to be send to the endpoint
-    #   /api/contactdb/org/manual/commit
-    import pprint
-    for name, org in new_org_names.items():
-        pprint.pprint(org)
+    # creating a python 
+    print("""\
+import logging
+import types
+
+from contactdb_api.contactdb_api import serve
+
+logging.basicConfig(format='%(levelname)s:%(message)s')
+
+# simple wsgi like objects
+simple_request = types.SimpleNamespace(env = {'REMOTE_USER':'local_script'})
+simple_response = types.SimpleNamespace()
+
+""")
+
+    output_strings = [pprint.pformat(org) for org in new_org_names.values()]
+    print('orgs = [')
+    print(',\n'.join(output_strings))
+    print(']')
+
+    output_commands = ["create"] * len(output_strings)
+
+    print("body = { 'commands' : " + repr(output_commands) + ",")
+    print("         'orgs' : orgs }")
+
+    print("""\
+serve.setup(None)
+result = serve.commit_pending_org_changes(
+    body, simple_request, simple_response)
+
+print(result, simple_response)
+""")
 
     log.info("number_of_lines = {}".format(number_of_lines))
     log.info("types_count = {}".format(types))
