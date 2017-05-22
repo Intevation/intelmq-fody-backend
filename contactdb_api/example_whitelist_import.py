@@ -90,7 +90,7 @@ with open(sys.argv[1]) as csvfile:
                 "annotations": [],
                 "national_certs": []
                 }
-        # let us use the domain part of the contact email address as org name
+        # /!\ let us use the domain part of the contact email addr as org name
         log.debug(parseaddr(row["contact"]))
 
         realname, email_addr = parseaddr(row["contact"])
@@ -104,6 +104,7 @@ with open(sys.argv[1]) as csvfile:
         potential_new_org["name"] = email_addr.split("@", 1)[1]
 
         # unless we have some common email providers
+        # /!\ we assume it is enough to deal with these email providers
         if potential_new_org["name"] in ("gmail.com", "gmx.de"):
             potential_new_org["name"] = email_addr
 
@@ -150,6 +151,7 @@ with open(sys.argv[1]) as csvfile:
             if row["type"] == 'malware':
                 network_inhib["annotations"] = [{"tag": "no-malware"}]
             else:
+                # /!\ we assume that we have an identifier instead
                 network_inhib["annotations"] = [{
                     "tag": "inhibition",
                     "condition": [
