@@ -55,17 +55,17 @@ from psycopg2.extras import RealDictCursor
 # we could rely only on psycopg2's json support and simplify by removing
 # to_Json(), see use of Json() to_Json() within the module.
 try:
-   from psycopg2.extras import Json
-   # The Json adaption will automatically convert to objects when reading
-   def to_Json(obj:object):
-       return obj
+    from psycopg2.extras import Json
+    # The Json adaption will automatically convert to objects when reading
+
+    def to_Json(obj: object):
+        return obj
 except:
     def Json(obj):
         return json.dumps(obj)
 
     def to_Json(string: str):
         return json.loads(string)
-
 
 log = logging.getLogger(__name__)
 # adding a custom log level for even more details when diagnosing
