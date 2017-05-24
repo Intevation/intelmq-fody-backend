@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Example how to import a whitelist csv file.
 
-Creates a python script to be run as contactdb_api backend user.
+Creates a python script that can be inspected and later
+run as contactdb_api backend user (with the same configuration file)
+to write date into the intelmq-cb-mailgen contactdb.
 
 Will create manual orgs to be imported via fody_backend from lines like::
 
@@ -47,13 +49,16 @@ logging.basicConfig(format='%(levelname)s:%(message)s',
                     level=logging.INFO)
 #                    level=logging.DEBUG)
 
+TAG_WHITELIST_MALWARE = "whitelist-malware"
+
 with open(sys.argv[1]) as csvfile:
     # guess the csv file data format "dialect"
     dialect = csv.Sniffer().sniff(csvfile.read(1024))
     csvfile.seek(0)
 
-    new_org_names = {}
+    new_org_names = {}  # holds all objects to be created, hashed by name
 
+    # counters for stats
     types = {}
     identifiers = {}
     number_of_lines = 0
@@ -78,11 +83,11 @@ with open(sys.argv[1]) as csvfile:
                 identifiers[row['identifier']] = 1
 
         potential_new_org = {
-                "name" : None,
+                "name": None,
                 "comment": "",
                 "ripe_org_hdl": '',
                 "ti_handle": '',
-                'first_handle':'',
+                "first_handle": '',
                 "sector_id": None,
                 "networks": [],
                 "asns": [],
@@ -104,7 +109,7 @@ with open(sys.argv[1]) as csvfile:
         potential_new_org["name"] = email_addr.split("@", 1)[1]
 
         # unless we have some common email providers
-        # /!\ we assume it is enough to deal with these email providers
+        # /!\ we assume it is enough to deal with the following email providers
         if potential_new_org["name"] in ("gmail.com", "gmx.de"):
             potential_new_org["name"] = email_addr
 
@@ -123,7 +128,7 @@ with open(sys.argv[1]) as csvfile:
 
             if (potential_new_org["contacts"][0] ==
                     new_org_names[potential_new_org["name"]]["contacts"][0]):
-
+                # use existing org
                 new_org = new_org_names[potential_new_org["name"]]
                 break
             else:
@@ -136,10 +141,11 @@ with open(sys.argv[1]) as csvfile:
             new_org = potential_new_org
             new_org_names[new_org["name"]] = new_org
 
+        # /!\ we assume that either asn or id_or_cidr are filled
         if row["asn"] != '':
             # /!\ there are only asns with 'malware' and each org is singular
             asn_inhib = {'asn': int(row["asn"]),
-                         'annotations': [{"tag": "no-malware"}]}
+                         'annotations': [{"tag": TAG_WHITELIST_MALWARE}]}
 
             new_org["asns"] = asn_inhib
             new_org["comment"] = "ASN inhibition comment: " + row["comment"]
@@ -149,16 +155,20 @@ with open(sys.argv[1]) as csvfile:
             network_inhib = {'address': row["ip_or_cidr"],
                              'comment': row["comment"]}
             if row["type"] == 'malware':
-                network_inhib["annotations"] = [{"tag": "no-malware"}]
+                network_inhib["annotations"] = [{"tag": TAG_WHITELIST_MALWARE}]
             else:
                 # /!\ we assume that we have an identifier instead
-                network_inhib["annotations"] = [{
-                    "tag": "inhibition",
-                    "condition": [
-                        "eq", ["event_field", "classification.identifier"],
-                        row["identifier"]
-                        ]
-                    }]
+                if row["identifier"] == 'opendns':
+                    network_inhib["annotations"] = [
+                        {"tag": "whitelist-opendns"}]
+                else:
+                    network_inhib["annotations"] = [{
+                        "tag": "inhibition",
+                        "condition": [
+                            "eq", ["event_field", "classification.identifier"],
+                            row["identifier"]
+                            ]
+                        }]
 
             if 'networks' in new_org:
                 new_org["networks"].append(network_inhib)
@@ -167,7 +177,7 @@ with open(sys.argv[1]) as csvfile:
 
         log.debug(new_org)
 
-    # creating a python 
+    # create a python skript
     print("""\
 import logging
 import types
@@ -176,7 +186,7 @@ from contactdb_api.contactdb_api import serve
 
 logging.basicConfig(format='%(levelname)s:%(message)s')
 
-# simple wsgi like objects
+# objects with some wsgi-like properties for serve.commit_pending_org_changes()
 simple_request = types.SimpleNamespace(env = {'REMOTE_USER':'local_script'})
 simple_response = types.SimpleNamespace()
 
@@ -200,6 +210,7 @@ result = serve.commit_pending_org_changes(
 print(result, simple_response)
 """)
 
+    # output some stats
     log.info("number_of_lines = {}".format(number_of_lines))
     log.info("types_count = {}".format(types))
     log.info("identifier_count = {}".format(identifiers))
