@@ -147,7 +147,7 @@ with open(sys.argv[1]) as csvfile:
             asn_inhib = {'asn': int(row["asn"]),
                          'annotations': [{"tag": TAG_WHITELIST_MALWARE}]}
 
-            new_org["asns"] = asn_inhib
+            new_org["asns"] = [asn_inhib]
             new_org["comment"] = "ASN inhibition comment: " + row["comment"]
 
         else:
