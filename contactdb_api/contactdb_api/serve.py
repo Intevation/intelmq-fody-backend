@@ -1003,12 +1003,16 @@ def get_manual_asn_details(number: int, response):
 def get_annotation_hints():
     """Return all hints helpful to build a good interface to annotations.
     """
-    # TODO ask the database or what the rules have registered
+    # TODO ask the database or inquire what the rules have registered
 
     # the following fixed hints are hints for all table types,
     # in the future, if needed, we could have a dict for each
     # `autonomous_system`, `organisation`, `network` and `fqdn` separately
-    hints = {'tags': ['daily', 'hourly', 'xarf', 'whitelisted'],
+    hints = {'tags': ['whitelist-opendns',
+                      'whitelist-malware',
+                      'de-provider-xarf',
+                      'cert.at-realtime-xmpp',
+                      'erhalte-de'],
              'conditions': {'binary_operators': {'eq': '=='},
                             'fields': {'event_field': [
                                 'classification.identifier',
