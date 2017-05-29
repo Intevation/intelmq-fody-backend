@@ -72,6 +72,9 @@ log = logging.getLogger(__name__)
 DD = logging.DEBUG-2
 logging.addLevelName(DD, "DDEBUG")
 
+# Using a global config variable, to be initialised once
+config = None
+
 
 def read_configuration() -> dict:
     """Read configuration file.
@@ -107,6 +110,11 @@ def read_configuration() -> dict:
 
 EXAMPLE_CONF_FILE = r"""
 {
+  "common_tags": [ "whitelist-opendns",
+                   "whitelist-malware",
+                   "de-provider-xarf",
+                   "cert.at-realtime-xmpp",
+                   "erhalte-de"],
   "libpg conninfo":
     "host=localhost dbname=contactdb user=apiuser password='USER\\'s DB PASSWORD'",
   "logging_level": "INFO"
@@ -804,6 +812,7 @@ def _delete_org(org) -> int:
 
 @hug.startup()
 def setup(api):
+    global config
     config = read_configuration()
     if "logging_level" in config:
         log.setLevel(config["logging_level"])
@@ -1003,21 +1012,25 @@ def get_manual_asn_details(number: int, response):
 def get_annotation_hints():
     """Return all hints helpful to build a good interface to annotations.
     """
+    global config
     # TODO ask the database or inquire what the rules have registered
 
-    # the following fixed hints are hints for all table types,
+    # the following hints are hints for all table types,
     # in the future, if needed, we could have a dict for each
     # `autonomous_system`, `organisation`, `network` and `fqdn` separately
-    hints = {'tags': ['whitelist-opendns',
-                      'whitelist-malware',
-                      'de-provider-xarf',
-                      'cert.at-realtime-xmpp',
-                      'erhalte-de'],
+    hints = {'tags': ['daily',
+                      'hourly',
+                      'XY-provider-xarf',
+                      'certXY-realtime-xmpp'],
              'conditions': {'binary_operators': {'eq': '=='},
                             'fields': {'event_field': [
                                 'classification.identifier',
                                 'destination.asn'
                                 ]}}}
+
+    if 'common_tags' in config:
+        hints['tags'] = config['common_tags']
+
     return hints
 
 
@@ -1089,16 +1102,21 @@ def main():
     cur = open_db_connection(config["libpg conninfo"]).cursor()
 
     for count in [
-            "autonomous_system_automatic",
-            "autonomous_system",
             "organisation_automatic",
             "organisation",
             "contact_automatic",
-            "contact"
+            "contact",
+            "organisation_to_asn_automatic",
+            "organisation_to_asn",
+            "national_cert_automatic",
+            "national_cert",
+            "network_automatic",
+            "network",
+            "fqdn_automatic",
+            "fqdn",
             ]:
         cur.execute("SELECT count(*) FROM {}".format(count))
         result = cur.fetchone()
-        print("count {} = {}".format(count, result))
+        print("count_{} = {}".format(count, result[0]))
 
-    cur.execute("SELECT count(*) FROM autonomous_system")
     cur.connection.commit()  # end transaction
