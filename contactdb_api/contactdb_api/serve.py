@@ -967,6 +967,22 @@ def searchnational(countrycode: hug.types.length(2, 3)):
     return query_results
 
 
+@hug.get(ENDPOINT_PREFIX + '/annotation/search')
+def search_annotation(tag: str):
+    """Search for orgs that are attached to a matching annotation.
+    """
+    try:
+        query_results = {"auto": [], "manual": []}
+        # TODO
+    except psycopg2.DatabaseError:
+        __rollback_transaction()
+        raise
+    finally:
+        __commit_transaction()
+
+    return query_results
+
+
 @hug.get(ENDPOINT_PREFIX + '/org/manual/{id}')
 def get_manual_org_details(id: int):
     try:
