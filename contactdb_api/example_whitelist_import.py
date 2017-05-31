@@ -3,7 +3,7 @@
 
 Creates a python script that can be inspected and later
 run as contactdb_api backend user (with the same configuration file)
-to write date into the intelmq-cb-mailgen contactdb.
+to write data into the intelmq-cb-mailgen contactdb.
 
 Will create manual orgs to be imported via fody_backend from lines like::
 
