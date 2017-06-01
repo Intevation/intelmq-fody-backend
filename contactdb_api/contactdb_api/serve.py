@@ -972,8 +972,22 @@ def search_annotation(tag: str):
     """Search for orgs that are attached to a matching annotation.
     """
     try:
+        # we only have the manual tables with annotations, thus we
+        # cannot use  __db_query_organisation_ids()
         query_results = {"auto": [], "manual": []}
-        # TODO
+
+        op_str = """
+            SELECT DISTINCT array_agg(organisation_annotation_id)
+                    AS organisation_ids
+                FROM organisation_annotation
+                WHERE annotation::json->>'tag' ILIKE %s
+            """
+        desc, results = _db_query(op_str, ("%" + tag + "%",))
+
+        if len(results) == 1 and results[0]["organisation_ids"] is not None:
+            query_results["manual"] = results[0]["organisation_ids"]
+        # TODO add other annotations
+
     except psycopg2.DatabaseError:
         __rollback_transaction()
         raise
