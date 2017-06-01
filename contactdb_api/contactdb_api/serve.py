@@ -939,6 +939,7 @@ def searchfqdn(domain: str):
                 JOIN fqdn{0} AS f ON f.fqdn{0}_id = otf.fqdn{0}_id
                 WHERE f.fqdn ILIKE %s OR f.fqdn ILIKE %s
             """, (domain, "%."+domain))
+
     except psycopg2.DatabaseError:
         __rollback_transaction()
         raise
@@ -973,20 +974,51 @@ def search_annotation(tag: str):
     """
     try:
         # we only have the manual tables with annotations, thus we
-        # cannot use  __db_query_organisation_ids()
+        # cannot use  __db_query_organisation_ids() and do it manually
         query_results = {"auto": [], "manual": []}
 
         op_str = """
-            SELECT DISTINCT array_agg(organisation_annotation_id)
-                    AS organisation_ids
-                FROM organisation_annotation
-                WHERE annotation::json->>'tag' ILIKE %s
+            SELECT array_agg(organisation_id) AS organisation_ids FROM (
+
+                -- 1. orgs
+                SELECT organisation_annotation_id AS organisation_id
+                    FROM organisation_annotation
+                    WHERE annotation::json->>'tag' ILIKE %s
+
+                UNION DISTINCT
+
+                -- 2. asns
+                SELECT organisation_id FROM organisation_to_asn AS ota
+                    JOIN autonomous_system_annotation AS asa
+                        ON ota.asn = asa.asn
+                    WHERE asa.annotation->>'tag' ILIKE %s
+
+                UNION DISTINCT
+
+                -- 3. networks
+                SELECT organisation_id FROM organisation_to_network AS otn
+                    JOIN network AS n
+                        ON otn.network_id = n.network_id
+                    JOIN network_annotation AS na
+                        ON n.network_id = na.network_id
+                    WHERE na.annotation->>'tag' ILIKE %s
+
+                UNION DISTINCT
+
+                -- 4. fqdns
+                SELECT organisation_id FROM organisation_to_fqdn AS otf
+                    JOIN fqdn AS f
+                        ON otf.fqdn_id = f.fqdn_id
+                    JOIN fqdn_annotation AS fa
+                        ON f.fqdn_id = fa.fqdn_id
+                    WHERE fa.annotation->>'tag' ILIKE %s
+
+                ) AS foo
             """
-        desc, results = _db_query(op_str, ("%" + tag + "%",))
+        desc, results = _db_query(op_str, ("%" + tag + "%",)*4)
 
         if len(results) == 1 and results[0]["organisation_ids"] is not None:
             query_results["manual"] = results[0]["organisation_ids"]
-        # TODO add other annotations
 
     except psycopg2.DatabaseError:
         __rollback_transaction()
