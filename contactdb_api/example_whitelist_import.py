@@ -16,6 +16,14 @@ asn;ip_or_cidr;type;identifier;comment;contact
 
 Makes several assumptions, see /!\ in the code.
 
+Use like
+    python3 $basename whitelist-20170505.csv >import-wlist-1.py
+    vim import-wlist-1.py  # optional
+
+Transfer to the machine (and user) where the fody-backend runs
+(check the contactdb_api docs if you want to configure it differently)
+    python3 import-wlist-1.py  # and redirect logs according to your needs
+
 
 Copyright (C) 2017 by Bundesamt für Sicherheit in der Informationstechnik
 
