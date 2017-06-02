@@ -852,10 +852,7 @@ def searchorg(name: str):
             SELECT DISTINCT array_agg(o.organisation{0}_id) AS organisation_ids
                 FROM organisation{0} AS o
                 WHERE name ILIKE %s
-                   OR name ILIKE %s
-                   OR name ILIKE %s
-                   OR name ILIKE %s
-            """, (name, "%"+name+"%", "%"+name, name+"%"))
+            """, ("%"+name+"%",))
     except psycopg2.DatabaseError:
         __rollback_transaction()
         raise
@@ -874,11 +871,8 @@ def searchcontact(email: str):
         query_results = __db_query_organisation_ids("""
             SELECT DISTINCT array_agg(c.organisation{0}_id) AS organisation_ids
                 FROM contact{0} AS c
-                WHERE c.email LIKE %s
-                   OR c.email LIKE %s
-                   OR c.email LIKE %s
-                   OR c.email LIKE %s
-            """, (email, "%"+email+"%", "%"+email, email+"%"))
+                WHERE c.email ILIKE %s
+            """, ("%"+email+"%",))
     except psycopg2.DatabaseError:
         __rollback_transaction()
         raise
