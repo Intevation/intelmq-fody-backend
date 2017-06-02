@@ -2,10 +2,11 @@
 
  (TODO)
  * Contactdb: Adds search for annotations by tag-name.
- * Contactdb: The list of common "tags" can be configured now.
+ * Contactdb: Allows to configure the list of common "tags".
 
 ### Upgrade
- * Configuration: (optional) Add "common\_tags" to the contactdb config file.
+ * Configuration: (optional) Add "common\_tags" to the contactdb config file,
+     otherwise the default ones may be exposed to users by the frontend.
 
 ## 0.4.3.dev0 to 0.5.0
  * Contactdb: Allows tracking of db changes by user.
