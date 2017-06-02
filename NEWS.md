@@ -1,4 +1,4 @@
-## 0.5.0 to 0.5.1 (unreleased so far)
+## 0.5.0 to 0.5.1
 
  * Contactdb: Adds search for annotations by tag-name.
  * Contactdb: Allows to configure the list of common "tags".
