@@ -1,3 +1,12 @@
+intelmq-fody-backend (0.5.1) unstable; urgency=medium
+
+  * Contactdb: Allows tracking of db changes by user.
+  * Contactdb: Adds example script for importing a manual whitelist.
+  * Technical: Module called "intelmq-fody-backend" now
+  * Technical: Compatible with psycopg2 coming with Ubuntu 16.04LTS now.
+
+ -- Sascha Wilde <wilde@intevation.de>  Tue, 06 Jun 2017 12:25:49 +0200
+
 intelmq-fody-backend (0.5.0~rc1) unstable; urgency=medium
 
   * Added script for import of whitelists.
