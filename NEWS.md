@@ -1,3 +1,9 @@
+## 0.5.1 to 0.5.2 (unreleased)
+
+(TODO)
+ * Contactdb: Fixes annotation/search for organisation\_annotations.
+
+
 ## 0.5.0 to 0.5.1
 
  * Contactdb: Adds search for annotations by tag-name.

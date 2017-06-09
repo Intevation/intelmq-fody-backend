@@ -975,8 +975,7 @@ def search_annotation(tag: str):
             SELECT array_agg(organisation_id) AS organisation_ids FROM (
 
                 -- 1. orgs
-                SELECT organisation_annotation_id AS organisation_id
-                    FROM organisation_annotation
+                SELECT organisation_id FROM organisation_annotation
                     WHERE annotation::json->>'tag' ILIKE %s
 
                 UNION DISTINCT
