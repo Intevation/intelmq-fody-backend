@@ -12,19 +12,25 @@ the AGPL v3 or later versions of this license.
 See the file `agpl-3.0.txt` or https://www.gnu.org/licenses/agpl-3.0.en.html
 for details.
 
-# Run with hug
+# Operating manual
+
+Because of https://github.com/Intevation/intelmq-fody-backend/issues/12
+make sure to restart the serving process(es) each time you have
+restarted postgresql.
+
+## Run with hug
 ```
 hug -f intelmq_fody_backend/serve.py -p 8002
 ```
 
 
-# Run with Apache and WSGI
+## Run with Apache and WSGI
 ```
 #as root
 apt-get install libapache2-mod-wsgi-py3
 ```
 
-You might want to use an Apache-Config similar to the example included as 
+You might want to use an Apache-Config similar to the example included as
 [config/apache-example/001-fody.conf](config/apache-example/001-fody.conf)
 
 # Track db changes by user
