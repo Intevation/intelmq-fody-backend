@@ -1,6 +1,5 @@
-## 0.5.1 to 0.5.2 (unreleased)
+## 0.5.1 to 0.5.2
 
-(TODO)
  * Contactdb: Fixes annotation/search for organisation\_annotations.
 
 
