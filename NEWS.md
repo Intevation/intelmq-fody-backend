@@ -1,7 +1,6 @@
 ## 0.5.2 to 0.5.3 (unreleased)
 
-(TODO)
-
+ * Events: Subqueries can be extended by the configuration, see the example configuration.
 
 ## 0.5.1 to 0.5.2
 

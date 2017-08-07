@@ -395,10 +395,10 @@ def query_prepare_export(q):
     for subquerytuple in q:
         if counter > 0:
             q_string = q_string + " AND " + subquerytuple[0]
-            params.append(subquerytuple[1])
+            params.extend((subquerytuple[1], ) * subquerytuple[0].count('%s'))
         else:
             q_string = q_string + " WHERE " + subquerytuple[0]
-            params.append(subquerytuple[1])
+            params.extend((subquerytuple[1], ) * subquerytuple[0].count('%s'))
         counter += 1
     return q_string, params
 
@@ -433,10 +433,10 @@ def query_prepare_search(q):
     for subquerytuple in q:
         if counter > 0:
             q_string = q_string + " AND " + subquerytuple[0]
-            params.append(subquerytuple[1])
+            params.extend((subquerytuple[1], ) * subquerytuple[0].count('%s'))
         else:
             q_string = q_string + " WHERE " + subquerytuple[0]
-            params.append(subquerytuple[1])
+            params.extend((subquerytuple[1], ) * subquerytuple[0].count('%s'))
         counter += 1
     return q_string, params
 
@@ -467,10 +467,10 @@ def query_prepare_stats(q, interval = 'day'):
     for subquerytuple in q:
         if counter > 0:
             q_string = q_string + " AND " + subquerytuple[0]
-            params.append(subquerytuple[1])
+            params.extend((subquerytuple[1], ) * subquerytuple[0].count('%s'))
         else:
             q_string = q_string + " WHERE " + subquerytuple[0]
-            params.append(subquerytuple[1])
+            params.extend((subquerytuple[1], ) * subquerytuple[0].count('%s'))
         counter += 1
     q_string = q_string + " GROUP BY %s ORDER BY date_trunc" % (trunc, )
     return q_string, params
