@@ -58,7 +58,15 @@ EXAMPLE_CONF_FILE = r"""
 {
   "libpg conninfo":
     "host=localhost dbname=intelmq-events user=eventapiuser password='USER\\'s DB PASSWORD'",
-  "logging_level": "INFO"
+  "logging_level": "INFO",
+  "subqueries": {
+     "all_ips": {
+       "sql": "(\"source.ip\" = %s OR \"source.local_ip\" = %s OR \"destination.ip\" = %s OR \"destination.local_ip\" = %s)",
+       "description": "Queries (source|destination).(local_)ip",
+       "label": "Query all IPs",
+       "ext_type": "integer"
+     }
+   }
 }
 """
 
@@ -508,6 +516,9 @@ def setup(api):
         log.setLevel(config["logging_level"])
     open_db_connection(config["libpg conninfo"])
     log.debug("Initialised DB connection for events_api.")
+
+    global QUERY_EVENT_SUBQUERY
+    QUERY_EVENT_SUBQUERY.update(config.get('subqueries', {}))
 
 
 @hug.get(ENDPOINT_PREFIX, examples="id=1")
