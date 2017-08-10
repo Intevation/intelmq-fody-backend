@@ -5,8 +5,12 @@
      checkticket's /getEvents)
  * Events: Enhances subqueries:
    * New subqueries can be added in the config file, see example configuration.
-   * The given parameter can be used multiple times in an SQL query, for example:
-   ```("source.ip" = '%s' OR "destination.ip" = '%s')```
+   * The given parameter can be used multiple times in an SQL query,
+     for example: `("source.ip" = '%s' OR "destination.ip" = '%s')`
+
+### Upgrade
+ * Configuration: (optional) Add the example subquery `all_ips` to the
+     eventsdb config file to get one more useful query.
 
 
 ## 0.5.1 to 0.5.2
