@@ -1,10 +1,13 @@
 ## 0.5.2 to 0.5.3 (unreleased)
+(TODO)
 
- * Events: Subqueries can be extended by the configuration, see the example configuration.
- * Events: Subqueries can need the parameter '%s' more or less than one time in the SQL query, for example:
-   ```
-   ("source.ip" = '%s' OR "destination.ip" = '%s')
-   ```
+ * Events: Changes /search endpoint to return complete events (similiar to
+     checkticket's /getEvents)
+ * Events: Enhances subqueries:
+   * New subqueries can be added in the config file, see example configuration.
+   * The given parameter can be used multiple times in an SQL query, for example:
+   ```("source.ip" = '%s' OR "destination.ip" = '%s')```
+
 
 ## 0.5.1 to 0.5.2
 

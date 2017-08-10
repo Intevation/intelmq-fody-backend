@@ -410,45 +410,7 @@ def query_prepare_export(q):
         counter += 1
     return q_string, params
 
-
-def query_prepare_search(q):
-    """ Prepares a Query-string in order to Export Everything from the DB
-
-    Args:
-        q: An array of Tuples created with query_build_query
-
-    Returns: A Tuple consisting of a query sting and an array of parameters.
-
-    """
-    q_string = "SELECT id , " \
-               " \"time.observation\", " \
-               " \"time.source\", " \
-               " \"source.ip\", " \
-               " \"destination.ip\", " \
-               " \"classification.taxonomy\", " \
-               " \"classification.type\", " \
-               " \"classification.identifier\", " \
-               " \"malware.name\", " \
-               " \"feed.provider\", "\
-               " \"feed.name\" " \
-               " FROM events"  # TODO maybe events should be a variable...
-
-    params = []
-    # now iterate over q (which had to be created with query_build_query
-    # previously) and should be a list of tuples an concatenate the resulting query.
-    # and a list of query parameters
-    counter = 0
-    for subquerytuple in q:
-        if counter > 0:
-            q_string = q_string + " AND " + subquerytuple[0]
-            params.extend((subquerytuple[1], ) * subquerytuple[0].count('%s'))
-        else:
-            q_string = q_string + " WHERE " + subquerytuple[0]
-            params.extend((subquerytuple[1], ) * subquerytuple[0].count('%s'))
-        counter += 1
-    return q_string, params
-
-
+  
 def query_prepare_stats(q, interval = 'day'):
     """ Prepares a Query-string for statistics
 
@@ -593,15 +555,22 @@ def search(response, **params):
 
     querylist = query_build_query(params)
 
-    prep = query_prepare_search(querylist)
+    prep = query_prepare_export(querylist)
 
     try:
-        return query(prep)
+        rows = query(prep)
     except psycopg2.Error as e:
         log.error(e)
         __rollback_transaction()
         response.status = HTTP_INTERNAL_SERVER_ERROR
         return {"error": "The query could not be processed."}
+
+    events = []
+    for row in rows:
+        # remove None entries from the resulting dict
+        event = {k:v for k,v in row.items() if v != None}
+        events.append(event)
+    return events
 
 
 @hug.get(ENDPOINT_PREFIX + '/stats', examples="malware-name_is=nymaim&timeres=day")
