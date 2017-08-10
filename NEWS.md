@@ -1,6 +1,8 @@
 ## 0.5.2 to 0.5.3 (unreleased)
 
 (TODO)
+ * Events: Changes /search endpoint to return complete events (similiar to
+     checkticket's /getEvents)
 
 
 ## 0.5.1 to 0.5.2
