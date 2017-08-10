@@ -25,7 +25,8 @@ Author(s):
     * Dustin Demuth <dustin.demuth@intevation.de>
 
 TODO:
-    - To start, all queries will be AND concatenated. OR-Queries can be introduced later.
+    - To start, all queries will be AND concatenated.
+      OR-Queries can be introduced later.
 
 """
 
@@ -39,7 +40,7 @@ import sys
 # except:
 #    pass
 
-from falcon import HTTP_BAD_REQUEST, HTTP_NOT_FOUND, HTTP_SERVICE_UNAVAILABLE, HTTP_INTERNAL_SERVER_ERROR
+from falcon import HTTP_BAD_REQUEST, HTTP_INTERNAL_SERVER_ERROR
 import hug
 import psycopg2
 import datetime
@@ -68,10 +69,11 @@ EXAMPLE_CONF_FILE = r"""
      }
    }
 }
-"""
+"""  # noqa
 
 ENDPOINT_PREFIX = '/api/events'
 ENDPOINT_NAME = 'Events'
+
 
 def read_configuration() -> dict:
     """Read configuration file.
@@ -100,9 +102,8 @@ def read_configuration() -> dict:
           overall design philosophy to use json for configuration files.
     """
     config = None
-    config_file_name = os.environ.get(
-                        "EVENTDB_SERVE_CONF_FILE",
-                        "/etc/intelmq/eventdb-serve.conf")
+    config_file_name = os.environ.get("EVENTDB_SERVE_CONF_FILE",
+                                      "/etc/intelmq/eventdb-serve.conf")
 
     if os.path.isfile(config_file_name):
         with open(config_file_name) as config_handle:
@@ -135,6 +136,7 @@ def __rollback_transaction():
     global eventdb_conn
     log.log(DD, "Calling rollback()")
     eventdb_conn.rollback()
+
 
 QUERY_EVENT_SUBQUERY = {
     # queryname: ['sqlstatement', 'description', 'label', 'Expected-Type']
@@ -357,7 +359,7 @@ def query_get_subquery(q: str):
 
 
 def query_build_subquery(q: str, p: str):
-    """Resolves the Query-Operaton and the Parameter into a tuple of SQL and the parameter
+    """Resolves the query-operation and the parameters into a tuple.
 
     Args:
         q: the column which should match the search value
@@ -394,11 +396,11 @@ def query_prepare_export(q):
     Returns: A Tuple consisting of a query string and an array of parameters.
 
     """
-    q_string = "SELECT * FROM events"  # TODO maybe events should be a variable...
+    q_string = "SELECT * FROM events"
     params = []
     # now iterate over q (which had to be created with query_build_query
-    # previously) and should be a list of tuples an concatenate the resulting query.
-    # and a list of query parameters
+    # previously) and should be a list of tuples and concatenate
+    # the resulting query and a list of query parameters.
     counter = 0
     for subquerytuple in q:
         if counter > 0:
@@ -410,8 +412,8 @@ def query_prepare_export(q):
         counter += 1
     return q_string, params
 
-  
-def query_prepare_stats(q, interval = 'day'):
+
+def query_prepare_stats(q, interval='day'):
     """ Prepares a Query-string for statistics
 
     Args:
@@ -431,8 +433,8 @@ def query_prepare_stats(q, interval = 'day'):
 
     params = []
     # now iterate over q (which had to be created with query_build_query
-    # previously) and should be a list of tuples an concatenate the resulting query.
-    # and a list of query parameters
+    # previously) and should be a list of tuples and concatenate the
+    # resulting query and a list of query parameters
     counter = 0
     for subquerytuple in q:
         if counter > 0:
@@ -445,11 +447,13 @@ def query_prepare_stats(q, interval = 'day'):
     q_string = q_string + " GROUP BY %s ORDER BY date_trunc" % (trunc, )
     return q_string, params
 
+
 def query(prepared_query):
     """ Queries the Database for Events
 
     Args:
-        prepared_query: A QueryString, Paramater pair created with query_prepare
+        prepared_query: A QueryString, Paramater pair created
+                        with query_prepare
 
     Returns: The results of the databasequery in JSON-Format.
 
@@ -485,7 +489,7 @@ def setup(api):
 
 @hug.get(ENDPOINT_PREFIX, examples="id=1")
 # @hug.post(ENDPOINT_PREFIX)
-def getEvent(response, id: int = None):
+def getEvent(response, id: int=None):
     """Return one Event identifid by ID
 
     Args:
@@ -496,7 +500,7 @@ def getEvent(response, id: int = None):
 
     """
     if id:
-        param =  {"id": id}
+        param = {"id": id}
     else:
         response.status = HTTP_BAD_REQUEST
         return {"error": "You need to provide an id."}
@@ -520,7 +524,7 @@ def showSubqueries():
     subquery_copy = copy.deepcopy(QUERY_EVENT_SUBQUERY)
 
     # Remove the SQL Statement from the SQ Object.
-    for k,v in subquery_copy.items():
+    for k, v in subquery_copy.items():
         try:
             del(v['sql'])
         except:
@@ -529,7 +533,9 @@ def showSubqueries():
     return subquery_copy
 
 
-@hug.get(ENDPOINT_PREFIX + '/search', examples="time-observation_after=2017-03-01&time-observation_before=2017-03-01")
+@hug.get(ENDPOINT_PREFIX + '/search',
+         examples="time-observation_after=2017-03-01"
+                  "&time-observation_before=2017-03-01")
 # @hug.post(ENDPOINT_PREFIX + '/search')
 def search(response, **params):
     """Search for events
@@ -538,7 +544,8 @@ def search(response, **params):
         response: A HUG response object...
         **params: Queries from QUERY_EVENT_SUBQUERY
 
-    Returns: A subset of the most likely most important fields of the events which are matching the query.
+    Returns: A subset of the most likely most important fields of the events
+             which are matching the query.
 
     """
     for param in params:
@@ -547,7 +554,9 @@ def search(response, **params):
             query_get_subquery(param)
         except ValueError:
             response.status = HTTP_BAD_REQUEST
-            return {"error": "At least one of the queryparameters is not allowed: %s" % (param, )}
+            return {"error":
+                    "At least one of the queryparameters is not allowed: %s"
+                    % (param, )}
 
     if not params:
         response.status = HTTP_BAD_REQUEST
@@ -568,12 +577,13 @@ def search(response, **params):
     events = []
     for row in rows:
         # remove None entries from the resulting dict
-        event = {k:v for k,v in row.items() if v != None}
+        event = {k: v for k, v in row.items() if v is not None}
         events.append(event)
     return events
 
 
-@hug.get(ENDPOINT_PREFIX + '/stats', examples="malware-name_is=nymaim&timeres=day")
+@hug.get(ENDPOINT_PREFIX + '/stats',
+         examples="malware-name_is=nymaim&timeres=day")
 # @hug.post(ENDPOINT_PREFIX + '/export')
 def stats(response, **params):
     """Return distribution of events for query parameters.
@@ -585,16 +595,19 @@ def stats(response, **params):
     """
     now = datetime.datetime.now()
 
-    DAY = datetime.timedelta(1,0)
-    WEEK = datetime.timedelta(7,0)
-    MONTH = datetime.timedelta(30,0)
+    DAY = datetime.timedelta(1, 0)
+    WEEK = datetime.timedelta(7, 0)
+    MONTH = datetime.timedelta(30, 0)
 
-    # The Timebox of the resulting query. For which timeframe should an evaluation take place?
-    # based upon this timeframe a good timeresolution will be suggested and used, if
-    # no other resolution was provided...
+    # The Timebox of the resulting query.
+    # For which timeframe should an evaluation take place?
+    # based upon this timeframe a good timeresolution will be suggested
+    # and used, if no other resolution was provided...
 
-    time_after = params.get("time-observation_after", now - datetime.timedelta(days=1))
-    time_before = params.get("time-observation_before", now + datetime.timedelta(days=1))
+    time_after = params.get(
+        "time-observation_after", now - datetime.timedelta(days=1))
+    time_before = params.get(
+        "time-observation_before", now + datetime.timedelta(days=1))
 
     # Convert to datetime....
     if type(time_after) == str:
@@ -658,7 +671,9 @@ def stats(response, **params):
             query_get_subquery(param)
         except ValueError:
             response.status = HTTP_BAD_REQUEST
-            return {"error": "At least one of the queryparameters is not allowed: %s" % (param, )}
+            return {"error":
+                    "At least one of the queryparameters is not allowed: %s" %
+                    (param, )}
 
     if not params:
         response.status = HTTP_BAD_REQUEST
@@ -689,7 +704,9 @@ def stats(response, **params):
     return {'timeres': timeres, 'total': totalcount, 'results': results}
 
 
-@hug.get(ENDPOINT_PREFIX + '/export', examples="time-observation_after=2017-03-01&time-observation_before=2017-03-01")
+@hug.get(ENDPOINT_PREFIX + '/export',
+         examples="time-observation_after=2017-03-01"
+                  "&time-observation_before=2017-03-01")
 # @hug.post(ENDPOINT_PREFIX + '/export')
 def export(response, **params):
     """ This interface exports all events matching the query parameters
@@ -698,7 +715,7 @@ def export(response, **params):
         response: A HUG response object...
         **params: Queries from QUERY_EVENT_SUBQUERY
 
-    Returns: If existing all events of the EventDB which are matching the query
+    Returns: If existing all events of the EventDB matching the query
 
     """
     for param in params:
@@ -707,7 +724,8 @@ def export(response, **params):
             query_get_subquery(param)
         except ValueError:
             response.status = HTTP_BAD_REQUEST
-            return {"error": "At least one of the queryparameters is not allowed"}
+            return {"error":
+                    "At least one of the queryparameters is not allowed"}
 
     if not params:
         response.status = HTTP_BAD_REQUEST
@@ -724,7 +742,6 @@ def export(response, **params):
         __rollback_transaction()
         response.status = HTTP_INTERNAL_SERVER_ERROR
         return {"error": "The query could not be processed."}
-
 
 
 def main():
