@@ -1,3 +1,9 @@
+intelmq-fody-backend (0.5.3) unstable; urgency=medium
+
+  * New release
+
+ -- Gernot Schulz <gernot@intevation.de>  Wed, 16 Aug 2017 11:12:58 +0200
+
 intelmq-fody-backend (0.5.2) unstable; urgency=medium
 
   * Contactdb: Fixes annotation/search for organisation_annotations.
