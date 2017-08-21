@@ -1,3 +1,11 @@
+"""Measure the duration of HTTP requests repeatedly.
+
+This program calls a given URL in intervals, logging how long the
+request took. The code assumes that you need to authenticate with
+username and password. The username can be given as a command line
+argument and the password will be prompted for interactively.
+"""
+
 import sys
 import time
 import argparse
@@ -51,7 +59,7 @@ def gather_stats_api_times(url, user, password, sleep_duration):
 
 
 def main():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--user", default="intevation")
     parser.add_argument("--url",
                         default=("http://localhost:8000/api/events/stats"
