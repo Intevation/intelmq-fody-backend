@@ -577,7 +577,7 @@ def __fix_ntms_to_org(ntms_should: list, ntms_are: list,
             """.format(table_name, id_column_name)
         _db_manipulate(operation_str, (org_id, new_entry_id))
 
-    # update and link existing networks
+    # update and link existing entries
     existing = [n for n in ntms_are if n[column_name] in values_should]
     for entry_is in existing:
         # find entry_should
@@ -600,7 +600,7 @@ def __fix_ntms_to_org(ntms_should: list, ntms_are: list,
                                    table_name, id_column_name,
                                    entry_is[id_column_name])
 
-    # delete networks that are not linked anymore
+    # delete entries that are not linked anymore
     operation_str = """
         DELETE FROM {0} AS t
             WHERE NOT EXISTS (
