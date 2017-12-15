@@ -828,8 +828,10 @@ def pong():
 @hug.get(ENDPOINT_PREFIX + '/searchasn')
 def searchasn(asn: int):
     try:
+        # as an asn can only be associated once with an org_id,
+        # we do not need DISTINCT
         query_results = __db_query_organisation_ids("""
-            SELECT DISTINCT array_agg(organisation{0}_id) as organisation_ids
+            SELECT array_agg(organisation{0}_id) as organisation_ids
                 FROM organisation_to_asn{0}
                 WHERE asn=%s
             """, (asn,))
@@ -848,8 +850,9 @@ def searchorg(name: str):
     Search is an case-insensitive substring search.
     """
     try:
+        # each org_id only has one name, so we do not need DISTINCT
         query_results = __db_query_organisation_ids("""
-            SELECT DISTINCT array_agg(o.organisation{0}_id) AS organisation_ids
+            SELECT array_agg(o.organisation{0}_id) AS organisation_ids
                 FROM organisation{0} AS o
                 WHERE name ILIKE %s
             """, ("%"+name+"%",))
@@ -869,7 +872,7 @@ def searchcontact(email: str):
     """
     try:
         query_results = __db_query_organisation_ids("""
-            SELECT DISTINCT array_agg(c.organisation{0}_id) AS organisation_ids
+            SELECT array_agg(DISTINCT c.organisation{0}_id) AS organisation_ids
                 FROM contact{0} AS c
                 WHERE c.email ILIKE %s
             """, ("%"+email+"%",))

@@ -1,6 +1,8 @@
 ## 0.5.3 to 0.5.4 (unreleased)
 (TODO)
 
+ * Contactdb: Fixes search by email address so it filters out duplicates.
+
 
 ## 0.5.2 to 0.5.3
 
