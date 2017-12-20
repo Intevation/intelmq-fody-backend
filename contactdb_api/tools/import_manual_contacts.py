@@ -62,6 +62,7 @@ def main():
         for line_number, row in enumerate(reader, 1):
             log.debug(row)
 
+            # find or add organization
             new_org = orgs_by_name.setdefault(row["organization"], {
                 "name": row["organization"],
                 "comment": import_comment,
@@ -72,7 +73,7 @@ def main():
                 "networks": [],
                 "asns": [],
                 "fqdns": [],
-                "annotations": [],
+                "annotations": [{"tag": tag}],
                 "national_certs": [],
                 })
 
@@ -93,7 +94,6 @@ def main():
                 new_org["networks"].append({"address": cidr,
                                             "comment": row["comment"]})
 
-            # TODO add tag (aka simple annotation)
 
     # TODO do real import, until then just pretty print:
     pprint.pprint(orgs_by_name)
