@@ -15,8 +15,12 @@ Details:
     An "import_YYYYMMDD" comment is added to the organisation.
 
     The result of --dry-run --dump-json can be used to manually upload, e.g.
-        curl http://localhost:8070/api/contactdb/org/manual/commit \
+      curl http://localhost:8070/api/contactdb/org/manual/commit \
                 --header "Content-Type:application/json" --data @z
+     or with TLS and basic auth
+      curl https://example.intevation.de:8000/api/contactdb/org/manual/commit \
+              --cacert example.intevation-cert.pem --basic --user intevation
+              --header "Content-Type:application/json" --data @z
 
 Context:
     A tool to be used as part of an intelmq-cb-mailgen
