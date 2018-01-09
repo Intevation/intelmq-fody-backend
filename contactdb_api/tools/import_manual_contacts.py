@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Import manual contacts from .csv file to an intelmq-cb-mailgen contactdb.
+"""Import manual contacts from .csv file into an intelmq-cb-mailgen contactdb.
 
 Takes contacts from a special .csv file and a parameter for a tag.
 Just imports, does **not** check if the data is in the contactdb already.
 
 Example input:
-    example-contacts-1.csv
+    {scriptname} example-contacts-1.csv "Targetgroup:CRITIS"
 
 A tool to be used as part of an intelmq-cb-mailgen
 (https://github.com/Intevation/intelmq-mailgen-release) setup.
@@ -33,6 +33,7 @@ Author(s):
     * Bernhard Herzog <bernhard.herzog@intevation.de>
 """
 
+import argparse
 import csv
 import datetime
 # from email.utils import parseaddr
@@ -46,13 +47,10 @@ logging.basicConfig(format='%(levelname)s:%(message)s',
                     level=logging.INFO)
 #                    level=logging.DEBUG)
 
-# TODO get tag by command line parameter
-tag = "Targetgroup:CRITIS"
-
 import_comment = "import_" + datetime.date.today().strftime("%Y%m%d")
 
 
-def add_info_from_row(orgs_by_name, line_number, row):
+def add_info_from_row(orgs_by_name, line_number, row, tag):
     """Add info from one row to the orgs_by_name dictionary."""
     # find or add organization
     new_org = orgs_by_name.setdefault(row["organization"], {
@@ -98,7 +96,22 @@ def add_info_from_row(orgs_by_name, line_number, row):
 
 
 def main():
-    with open(sys.argv[1]) as csvfile:
+    parser = argparse.ArgumentParser(epilog=__doc__.format(
+                scriptname=sys.argv[0]),
+                formatter_class=argparse.RawTextHelpFormatter)
+    parser.add_argument("--debug", action="store_true",
+                        help="set loglevel to DEBUG")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="just print resulting org-objects")
+    parser.add_argument("filename", help="file to import")
+    parser.add_argument("tag", help="tag to be used for importing")
+
+    args = parser.parse_args()
+
+    if args.debug:
+        log.setLevel("DEBUG")
+
+    with open(args.filename) as csvfile:
         # guess the csv file data format "dialect"
         dialect = csv.Sniffer().sniff(csvfile.read(1024))
         csvfile.seek(0)
@@ -109,10 +122,13 @@ def main():
 
         for line_number, row in enumerate(reader, 1):
             log.debug(row)
-            add_info_from_row(orgs_by_name, line_number, row)
+            add_info_from_row(orgs_by_name, line_number, row, args.tag)
 
-    # TODO do real import, until then just pretty print:
-    pprint.pprint(orgs_by_name)
+    if args.dry_run:
+        pprint.pprint(orgs_by_name)
+    else:
+        # TODO real import
+        raise NotImplementedError
 
     # stats
     log.info("number_of_lines = {}".format(line_number))
