@@ -52,6 +52,51 @@ tag = "Targetgroup:CRITIS"
 import_comment = "import_" + datetime.date.today().strftime("%Y%m%d")
 
 
+def add_info_from_row(orgs_by_name, line_number, row):
+    """Add info from one row to the orgs_by_name dictionary."""
+    # find or add organization
+    new_org = orgs_by_name.setdefault(row["organization"], {
+        "name": row["organization"],
+        "comment": import_comment,
+        "ripe_org_hdl": "",
+        "ti_handle": "",
+        "first_handle": "",
+        "sector_id": None,
+        "networks": [],
+        "asns": [],
+        "fqdns": [],
+        "annotations": [{"tag": tag}],
+        "national_certs": [],
+        })
+
+    # TODO add contact(s)
+
+    if row["as_or_cidr"].startswith("AS"):
+        try:
+            asn = int(row["as_or_cidr"][2:])
+        except ValueError:
+            log.error("Problem parsing AS in line %d", line_number)
+            raise
+
+        new_org["asns"].append({"asn": asn,
+                                "annotations": []})
+
+        if row["comment"]:
+            new_org["comment"] += ", AS{:d}:'{:s}'".format(
+                                    asn, row["comment"])
+
+    else:
+        # use ipaddress module for a simple validation
+        try:
+            cidr = ipaddress.ip_network(row["as_or_cidr"]).compressed
+        except ValueError:
+            log.error("Problem parsing CIDR in line %d", line_number)
+            raise
+
+        new_org["networks"].append({"address": cidr,
+                                    "comment": row["comment"]})
+
+
 def main():
     with open(sys.argv[1]) as csvfile:
         # guess the csv file data format "dialect"
@@ -64,38 +109,7 @@ def main():
 
         for line_number, row in enumerate(reader, 1):
             log.debug(row)
-
-            # find or add organization
-            new_org = orgs_by_name.setdefault(row["organization"], {
-                "name": row["organization"],
-                "comment": import_comment,
-                "ripe_org_hdl": "",
-                "ti_handle": "",
-                "first_handle": "",
-                "sector_id": None,
-                "networks": [],
-                "asns": [],
-                "fqdns": [],
-                "annotations": [{"tag": tag}],
-                "national_certs": [],
-                })
-
-            # TODO add contact(s)
-
-            if row["as_or_cidr"].startswith("AS"):
-                asn = int(row["as_or_cidr"][2:])
-                new_org["asns"].append({"asn": asn,
-                                        "annotations": []})
-
-                if row["comment"]:
-                    new_org["comment"] += ", AS{:d}:'{:s}'".format(
-                                            asn, row["comment"])
-
-            else:
-                # use ipaddress module for a simple validation
-                cidr = ipaddress.ip_network(row["as_or_cidr"]).compressed
-                new_org["networks"].append({"address": cidr,
-                                            "comment": row["comment"]})
+            add_info_from_row(orgs_by_name, line_number, row)
 
     # TODO do real import, until then just pretty print:
     pprint.pprint(orgs_by_name)
