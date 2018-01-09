@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
-"""Import manual contacts from .csv file.
+"""Import manual contacts from .csv file to an intelmq-cb-mailgen contactdb.
 
-Takes contacts from a special .csv files and a parameter for a tag.
+Takes contacts from a special .csv file and a parameter for a tag.
 Just imports, does **not** check if the data is in the contactdb already.
 
 Example input:
     example-contacts-1.csv
 
+A tool to be used as part of an intelmq-cb-mailgen
+(https://github.com/Intevation/intelmq-mailgen-release) setup.
 
-Copyright (C) 2017 by Bundesamt für Sicherheit in der Informationstechnik
+
+Copyright (C) 2017,2018 by Bundesamt für Sicherheit in der Informationstechnik
 
 Software engineering by Intevation GmbH
 
@@ -93,7 +96,6 @@ def main():
                 cidr = ipaddress.ip_network(row["as_or_cidr"]).compressed
                 new_org["networks"].append({"address": cidr,
                                             "comment": row["comment"]})
-
 
     # TODO do real import, until then just pretty print:
     pprint.pprint(orgs_by_name)
