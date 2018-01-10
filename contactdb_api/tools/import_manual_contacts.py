@@ -207,7 +207,7 @@ def main():
         # we need to build our own opener and use it directly, because
         # Python 3.4 and 3.5's urlopen will build its own and disregard the
         # opener we've installed previously, so we could not add auth_handler.
-        # See
+        # See https://bugs.python.org/issue18543
         # https://hg.python.org/cpython/file/3.4/Lib/urllib/request.py#l141
         # https://hg.python.org/cpython/file/3.5/Lib/urllib/request.py#l143
         context = ssl._create_stdlib_context(
