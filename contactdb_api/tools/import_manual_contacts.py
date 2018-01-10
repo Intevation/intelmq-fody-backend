@@ -53,17 +53,25 @@ import argparse
 import csv
 import datetime
 from email.utils import getaddresses
+import getpass
 import ipaddress
 import json
 import logging
 import pprint
 import sys
+import urllib.error
+import urllib.request
 
 log = logging.getLogger(__name__)
 logging.basicConfig(format='%(levelname)s:%(message)s',
                     level=logging.INFO)
 
-import_comment = "import_" + datetime.date.today().strftime("%Y%m%d")
+#import http
+#http.client.HTTPConnection.debuglevel = 1
+
+ENDPOINT = '/api/contactdb/org/manual/commit'
+
+IMPORT_COMMENT = "import_" + datetime.date.today().strftime("%Y%m%d")
 
 
 def add_info_from_row(orgs_by_name, line_number, row, tag):
@@ -91,7 +99,7 @@ def add_info_from_row(orgs_by_name, line_number, row, tag):
     new_org = orgs_by_name.setdefault(row["organization"], {
         "annotations": [{"tag": tag}],
         "asns": [],
-        "comment": import_comment,
+        "comment": IMPORT_COMMENT,
         "contacts": contacts,
         "first_handle": "",
         "fqdns": [],
@@ -134,12 +142,19 @@ def main():
     parser = argparse.ArgumentParser(epilog=__doc__.format(
                 scriptname=sys.argv[0]),
                 formatter_class=argparse.RawTextHelpFormatter)
+
+    parser.add_argument("--cafile", type=str,
+                        help="path to a cert.pem for verifying the peer")
     parser.add_argument("--debug", action="store_true",
                         help="set loglevel to DEBUG")
     parser.add_argument("--dry-run", action="store_true",
                         help="just print resulting org-objects")
     parser.add_argument("--dump-json", action="store_true",
                         help="output json commands when dry-running")
+    parser.add_argument("--baseurl", type=str,
+                        help="use as base url for uploading (no trailing /)")
+    parser.add_argument("--user", type=str, help="enable basic auth for user")
+
     parser.add_argument("filename", help="file to import")
     parser.add_argument("tag", help="tag to be used for importing")
 
@@ -161,22 +176,51 @@ def main():
             log.debug(row)
             add_info_from_row(orgs_by_name, line_number, row, args.tag)
 
+    # stats
+    log.info("number_of_lines = {}".format(line_number))
+
+    # build data to submit to backend api
     orgs = list(orgs_by_name.values())
     fody_backend_commands = ["create"] * len(orgs)
+    request_data = {"commands": fody_backend_commands, "orgs": orgs}
 
     if args.dry_run:
         if args.dump_json:
-            print(json.dumps({"commands": fody_backend_commands,
-                              "orgs": orgs}, sort_keys=True, indent=4))
+            print(json.dumps(request_data, sort_keys=True, indent=4))
         else:
             pprint.pprint(orgs_by_name)
 
     else:
-        # TODO real import
-        raise NotImplementedError
+        # do the import
+        if not args.baseurl:
+            sys.exit("Baseurl needed for upload")
 
-    # stats
-    log.info("number_of_lines = {}".format(line_number))
+        if args.user:
+            log.debug("Enabling basic auth.")
+            password = getpass.getpass("Password for {}:".format(args.user))
 
+            password_mgr = urllib.request.HTTPPasswordMgrWithDefaultRealm()
+            password_mgr.add_password(realm=None, uri=args.baseurl,
+                                      user=args.user, passwd=password)
+            auth_handler = urllib.request.HTTPBasicAuthHandler(password_mgr)
+            opener = urllib.request.build_opener(auth_handler)
+            urllib.request.install_opener(opener)
+
+
+        request = urllib.request.Request(args.baseurl + ENDPOINT)
+        request.add_header("Content-Type", "application/json")
+
+        try:
+            # FIXME: does not work on python 3.4.2 or 3.5.2 with cafile
+            # auth fails
+            f = urllib.request.urlopen(
+                    request, data=json.dumps(request_data).encode("utf-8"),
+                    cafile=args.cafile, cadefault=True)
+        except urllib.error.HTTPError as err:
+            log.error("Upload failed. %d (%s): %s",
+                      err.code, err.reason, err.read().decode('utf-8'))
+            sys.exit("Upload failed.")
+
+        log.info("Upload successful: %d: %s", f.code, f.read().decode('utf-8'))
 
 main()
