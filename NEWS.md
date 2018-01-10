@@ -2,6 +2,8 @@
 (TODO)
 
  * Contactdb: Fixes search by email address so it filters out duplicates.
+ * Contactdb: Adds `tools/import_manual_contacts.py` to import manual contacts
+     from a .csv file via TLS.
 
 
 ## 0.5.2 to 0.5.3

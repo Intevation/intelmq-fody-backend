@@ -13,9 +13,9 @@ Examples::
             example-contacts-1.csv "Targetgroup:CRITIS"
 
 Details:
-    All rows with the same value in `organization` will be added to the same
-    organisation. It is assumed that the `contact` value is the same for all
-    those rows: a list of plain email addresses, see example-contacts-1.csv.
+    Rows with the same value in `organization` **and** plain email addresses
+    in `contact` will be added to the same organisation.
+    See example-contacts-1.csv.
 
     An "import_YYYYMMDD" comment is added to the organisation.
 
@@ -92,8 +92,13 @@ def add_info_from_row(orgs_by_name, line_number, row, tag):
         log.error("No email addresses found in line %d", line_number)
         raise ValueError("is no list email addressses", row["contact"])
 
+    # use the name combined with the plain email addresses
+    # as keys to a dictionary
+    # to find out to which object we want to add the infos of our row
+    dict_key = row["organization"]
     contacts = []
     for realname, email_addr in email_addresses:
+        dict_key += "::" + email_addr
         # /!\ we assume no realnames
         contacts.append({
             "comment": "",
@@ -105,7 +110,7 @@ def add_info_from_row(orgs_by_name, line_number, row, tag):
             })
 
     # find or add organization
-    new_org = orgs_by_name.setdefault(row["organization"], {
+    new_org = orgs_by_name.setdefault(dict_key, {
         "annotations": [{"tag": tag}],
         "asns": [],
         "comment": IMPORT_COMMENT,
@@ -187,6 +192,7 @@ def main():
 
     # stats
     log.info("number_of_lines = {}".format(line_number))
+    log.info("number_of_orgs = {}".format(len(orgs_by_name)))
 
     # build data to submit to backend api
     orgs = list(orgs_by_name.values())
@@ -202,7 +208,7 @@ def main():
     else:
         # do the import
         if not args.baseurl:
-            sys.exit("Baseurl needed for upload")
+            sys.exit("Baseurl needed for upload. Otherwise use --dry-run.")
 
         # we need to build our own opener and use it directly, because
         # Python 3.4 and 3.5's urlopen will build its own and disregard the
