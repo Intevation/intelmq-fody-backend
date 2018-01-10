@@ -4,8 +4,13 @@
 Takes contacts from a special .csv file and a parameter for a tag.
 Just imports, does **not** check if the data is in the contactdb already.
 
-Example:
+Examples::
+
     {scriptname} example-contacts-1.csv "Targetgroup:CRITIS"
+
+    {scriptname} --baseurl https://example.intevation.de:8000 \\
+            --cafile example.intevation-cert.pem --user intevation \\
+            example-contacts-1.csv "Targetgroup:CRITIS"
 
 Details:
     All rows with the same value in `organization` will be added to the same
@@ -14,12 +19,15 @@ Details:
 
     An "import_YYYYMMDD" comment is added to the organisation.
 
-    The result of --dry-run --dump-json can be used to manually upload, e.g.
-      curl http://localhost:8070/api/contactdb/org/manual/commit \
+    The result of --dry-run --dump-json can be used to manually upload, e.g.::
+
+    curl http://localhost:8070/api/contactdb/org/manual/commit \\
                 --header "Content-Type:application/json" --data @z
-     or with TLS and basic auth
-      curl https://example.intevation.de:8000/api/contactdb/org/manual/commit \
-              --cacert example.intevation-cert.pem --basic --user intevation
+
+    or with TLS and basic auth::
+
+    curl https://example.intevation.de:8000/api/contactdb/org/manual/commit \\
+              --cacert example.intevation-cert.pem --basic --user intevation \\
               --header "Content-Type:application/json" --data @z
 
 Context:
@@ -58,6 +66,7 @@ import ipaddress
 import json
 import logging
 import pprint
+import ssl
 import sys
 import urllib.error
 import urllib.request
@@ -66,8 +75,8 @@ log = logging.getLogger(__name__)
 logging.basicConfig(format='%(levelname)s:%(message)s',
                     level=logging.INFO)
 
-#import http
-#http.client.HTTPConnection.debuglevel = 1
+# import http
+# http.client.HTTPConnection.debuglevel = 1
 
 ENDPOINT = '/api/contactdb/org/manual/commit'
 
@@ -195,6 +204,19 @@ def main():
         if not args.baseurl:
             sys.exit("Baseurl needed for upload")
 
+        # we need to build our own opener and use it directly, because
+        # Python 3.4 and 3.5's urlopen will build its own and disregard the
+        # opener we've installed previously, so we could not add auth_handler.
+        # See
+        # https://hg.python.org/cpython/file/3.4/Lib/urllib/request.py#l141
+        # https://hg.python.org/cpython/file/3.5/Lib/urllib/request.py#l143
+        context = ssl._create_stdlib_context(
+            cert_reqs=ssl.CERT_REQUIRED, cafile=args.cafile)
+        https_handler = urllib.request.HTTPSHandler(
+            context=context, check_hostname=True)
+
+        opener = urllib.request.build_opener(https_handler)
+
         if args.user:
             log.debug("Enabling basic auth.")
             password = getpass.getpass("Password for {}:".format(args.user))
@@ -203,24 +225,21 @@ def main():
             password_mgr.add_password(realm=None, uri=args.baseurl,
                                       user=args.user, passwd=password)
             auth_handler = urllib.request.HTTPBasicAuthHandler(password_mgr)
-            opener = urllib.request.build_opener(auth_handler)
-            urllib.request.install_opener(opener)
 
+            opener = urllib.request.build_opener(auth_handler, https_handler)
 
         request = urllib.request.Request(args.baseurl + ENDPOINT)
         request.add_header("Content-Type", "application/json")
 
         try:
-            # FIXME: does not work on python 3.4.2 or 3.5.2 with cafile
-            # auth fails
-            f = urllib.request.urlopen(
-                    request, data=json.dumps(request_data).encode("utf-8"),
-                    cafile=args.cafile, cadefault=True)
+            f = opener.open(request, json.dumps(request_data).encode("utf-8"))
+
         except urllib.error.HTTPError as err:
             log.error("Upload failed. %d (%s): %s",
                       err.code, err.reason, err.read().decode('utf-8'))
             sys.exit("Upload failed.")
 
         log.info("Upload successful: %d: %s", f.code, f.read().decode('utf-8'))
+
 
 main()
