@@ -1,5 +1,4 @@
-## 0.5.3 to 0.5.4 (unreleased)
-(TODO)
+## 0.5.3 to 0.6.0
 
  * Contactdb:
    * Fixes search by email address so it filters out duplicates.
