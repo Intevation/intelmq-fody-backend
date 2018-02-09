@@ -327,12 +327,15 @@ def __db_query_org(org_id: int, table_variant: str) -> dict:
 
         # insert networks
         # we need the `network_id`s to query annotations.
+        # According to the postgresql 9.5:
+        #   "IPv4 addresses will always sort before IPv6 addresses"
         operation_str = """
             SELECT n.network{0}_id AS network_id, address, comment
                 FROM network{0} AS n
                 JOIN organisation_to_network{0} AS otn
                     ON n.network{0}_id = otn.network{0}_id
                 WHERE otn.organisation{0}_id = %s
+                ORDER BY n.address
             """.format(table_variant)
 
         description, results = _db_query(operation_str, (org_id,))

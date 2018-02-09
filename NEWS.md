@@ -1,9 +1,12 @@
 ## 0.5.3 to 0.5.4 (unreleased)
 (TODO)
 
- * Contactdb: Fixes search by email address so it filters out duplicates.
- * Contactdb: Adds `tools/import_manual_contacts.py` to import manual contacts
+ * Contactdb:
+   * Fixes search by email address so it filters out duplicates.
+   * Adds `tools/import_manual_contacts.py` to import manual contacts
      from a .csv file via TLS.
+   * Adds sorting to some attribute list when serving an org. Attributes
+     sorted are contacts, asns, networks, fqdns, national_certs and tags.
 
 
 ## 0.5.2 to 0.5.3
