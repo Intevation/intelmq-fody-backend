@@ -60,7 +60,7 @@ try:
 
     def to_Json(obj: object):
         return obj
-except:
+except ImportError:
     def Json(obj):
         return json.dumps(obj)
 
