@@ -299,6 +299,7 @@ def __db_query_org(org_id: int, table_variant: str) -> dict:
         operation_str = """
             SELECT * FROM organisation_to_asn{0}
                 WHERE organisation{0}_id = %s
+                ORDER BY asn
             """.format(table_variant)
 
         description, results = _db_query(operation_str, (org_id,))
@@ -308,6 +309,7 @@ def __db_query_org(org_id: int, table_variant: str) -> dict:
         operation_str = """
             SELECT * FROM contact{0}
                 WHERE organisation{0}_id = %s
+                ORDER BY lower(email)
             """.format(table_variant)
 
         description, results = _db_query(operation_str, (org_id,))
@@ -317,6 +319,7 @@ def __db_query_org(org_id: int, table_variant: str) -> dict:
         operation_str = """
             SELECT * FROM national_cert{0}
                 WHERE organisation{0}_id = %s
+                ORDER BY lower(country_code)
             """.format(table_variant)
 
         description, results = _db_query(operation_str, (org_id,))
@@ -343,6 +346,7 @@ def __db_query_org(org_id: int, table_variant: str) -> dict:
                 JOIN organisation_to_fqdn{0} AS of
                     ON f.fqdn{0}_id = of.fqdn{0}_id
                 WHERE of.organisation{0}_id = %s
+                ORDER BY lower(fqdn)
             """.format(table_variant)
 
         description, results = _db_query(operation_str, (org_id,))
@@ -389,7 +393,8 @@ def __db_query_annotations(table: str, column_name: str,
         all annotations, even if one occurs several times
     """
     operation_str = """
-        SELECT json_agg(annotation) FROM {0}_annotation
+        SELECT json_agg(annotation ORDER BY annotation->>'tag')
+            FROM {0}_annotation
             WHERE {1} = %s
     """.format(table, column_name)
     description, results = _db_query(operation_str, (column_value,))
