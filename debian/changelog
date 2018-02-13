@@ -1,3 +1,14 @@
+intelmq-fody-backend (0.6.0) unstable; urgency=medium
+
+  * Contactdb:
+    * Fixes search by email address so it filters out duplicates.
+    * Adds `tools/import_manual_contacts.py` to import manual contacts
+      from a .csv file via TLS.
+    * Adds sorting to some attribute list when serving an org. Attributes
+      sorted are contacts, asns, networks, fqdns, national_certs and tags.
+
+ -- Sascha Wilde <wilde@intevation.de>  Tue, 13 Feb 2018 13:17:13 +0100
+
 intelmq-fody-backend (0.5.3) unstable; urgency=medium
 
   * New release
