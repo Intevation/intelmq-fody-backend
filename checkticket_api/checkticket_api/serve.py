@@ -34,15 +34,15 @@ Author(s):
     * Dustin Demuth <dustin@intevation.de>
 """
 
-# The intelmqmail module needs an UTF-8 locale, so we set a common one
-# available in Ubuntu 14.04/LTS here explicitely. This also removes the
-# necessity to configure the calling http server to set the locale correctly.
 import os
-os.environ['LANG']= 'en_US.UTF-8'
-
 from psycopg2.extras import DictConnection
 import hug
 import logging
+
+# The intelmqmail module needs an UTF-8 locale, so we set a common one
+# available in Ubuntu 14.04/LTS here explicitely. This also removes the
+# necessity to configure the calling http server to set the locale correctly.
+os.environ['LANG'] = 'en_US.UTF-8'
 
 log = logging.getLogger(__name__)
 # adding a custom log level for even more details when diagnosing
@@ -66,6 +66,7 @@ config = None
 conn = None
 cur = None
 
+
 @hug.startup()
 def setup(api):
     global config, conn, cur
@@ -76,8 +77,8 @@ def setup(api):
 
 
 @hug.cli()
-@hug.get(ENDPOINT_PREFIX  + '/getEventIDsForTicket')
-def getEventIDsForTicket(ticket:hug.types.length(17, 18)):
+@hug.get(ENDPOINT_PREFIX + '/getEventIDsForTicket')
+def getEventIDsForTicket(ticket: hug.types.length(17, 18)):
     global cur
     event_ids = []
     try:
@@ -86,9 +87,10 @@ def getEventIDsForTicket(ticket:hug.types.length(17, 18)):
                     "   WHERE sent.intelmq_ticket = %s;", (ticket,))
         event_ids = cur.fetchone()["a"]
     finally:
-        cur.connection.commit() # end transaction
+        cur.connection.commit()  # end transaction
 
     return event_ids
+
 
 class ListOfIds(hug.types.Multiple):
     """Only accept a list of numbers."""
@@ -99,8 +101,8 @@ class ListOfIds(hug.types.Multiple):
 
 
 @hug.cli()
-@hug.get(ENDPOINT_PREFIX  + '/getEvents')
-def getEvents(ids:ListOfIds()):
+@hug.get(ENDPOINT_PREFIX + '/getEvents')
+def getEvents(ids: ListOfIds()):
     global cur
     events = []
 
@@ -109,15 +111,16 @@ def getEvents(ids:ListOfIds()):
         rows = cur.fetchall()
         for row in rows:
             # remove None entries from the resulting dict
-            event = {k:v for k,v in row.items() if v != None}
+            event = {k: v for k, v in row.items() if v is not None}
             events.append(event)
     finally:
-        cur.connection.commit() # end transaction
+        cur.connection.commit()  # end transaction
 
     return events
 
+
 @hug.get(ENDPOINT_PREFIX + '/getEventsForTicket')
-def getEventsForTicket(ticket:hug.types.length(17, 18), limit:int=None):
+def getEventsForTicket(ticket: hug.types.length(17, 18), limit: int=None):
     """Get events for given ticket up to optional `limit`."""
     return getEvents(getEventIDsForTicket(ticket)[0:limit])
 
@@ -129,9 +132,10 @@ def getLastTicketNumber():
     try:
         last_ticket_number = db.last_ticket_number(cur)
     finally:
-        cur.connection.commit() # end transaction
+        cur.connection.commit()  # end transaction
 
     return last_ticket_number
+
 
 def main():
     # expose only one function to the cli
