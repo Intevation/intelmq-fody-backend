@@ -82,7 +82,8 @@ def getEventIDsForTicket(ticket: hug.types.length(17, 18)):
     global cur
     event_ids = []
     try:
-        cur.execute("SELECT array_agg(d.events_id) AS a FROM directives AS d "
+        cur.execute("SELECT array_agg(d.events_id ORDER BY d.events_id) AS a"
+                    "   FROM directives AS d "
                     "   JOIN sent ON d.sent_id = sent.id "
                     "   WHERE sent.intelmq_ticket = %s;", (ticket,))
         event_ids = cur.fetchone()["a"]

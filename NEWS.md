@@ -1,8 +1,10 @@
 ## 0.6.0 to 0.6.1 (unreleased)
 (TODO)
 
- * Checkticket: Adds optional `limit` parameter to endpoint
-   `./getEventsForTicket`.
+ * Checkticket:
+   * Adds optional `limit` parameter to endpoint `./getEventsForTicket`.
+   * Changes `getEventIDsForTicket` to returned a sorted list, to make
+     the query result consistent for the same parameter.
 
 
 ## 0.5.3 to 0.6.0
