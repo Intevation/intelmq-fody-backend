@@ -12,7 +12,7 @@ Development: call like
 Several configuration methods are shown within the code.
 
 
-Copyright (C) 2016, 2017 by Bundesamt für Sicherheit in der Informationstechnik
+Copyright (C) 2016-2018 by Bundesamt für Sicherheit in der Informationstechnik
 
 Software engineering by Intevation GmbH
 
@@ -117,8 +117,9 @@ def getEvents(ids:ListOfIds()):
     return events
 
 @hug.get(ENDPOINT_PREFIX + '/getEventsForTicket')
-def getEventsForTicket(ticket:hug.types.length(17, 18)):
-    return getEvents(getEventIDsForTicket(ticket))
+def getEventsForTicket(ticket:hug.types.length(17, 18), limit:int=None):
+    """Get events for given ticket up to optional `limit`."""
+    return getEvents(getEventIDsForTicket(ticket)[0:limit])
 
 
 @hug.get(ENDPOINT_PREFIX + '/getLastTicketNumber')

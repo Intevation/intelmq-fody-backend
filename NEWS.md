@@ -1,6 +1,9 @@
 ## 0.6.0 to 0.6.1 (unreleased)
 (TODO)
 
+ * Checkticket: Adds optional `limit` parameter to endpoint
+   `./getEventsForTicket`.
+
 
 ## 0.5.3 to 0.6.0
 
