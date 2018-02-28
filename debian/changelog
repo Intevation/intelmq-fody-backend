@@ -1,3 +1,43 @@
+intelmq-fody-backend (0.6.0) unstable; urgency=medium
+
+  * Contactdb:
+    * Fixes search by email address so it filters out duplicates.
+    * Adds `tools/import_manual_contacts.py` to import manual contacts
+      from a .csv file via TLS.
+    * Adds sorting to some attribute list when serving an org. Attributes
+      sorted are contacts, asns, networks, fqdns, national_certs and tags.
+
+ -- Sascha Wilde <wilde@intevation.de>  Tue, 13 Feb 2018 13:17:13 +0100
+
+intelmq-fody-backend (0.5.3) unstable; urgency=medium
+
+  * New release
+
+ -- Gernot Schulz <gernot@intevation.de>  Wed, 16 Aug 2017 11:12:58 +0200
+
+intelmq-fody-backend (0.5.2) unstable; urgency=medium
+
+  * Contactdb: Fixes annotation/search for organisation_annotations.
+
+ -- Gernot Schulz <gernot@intevation.de>  Fri, 16 Jun 2017 13:52:33 +0200
+
+intelmq-fody-backend (0.5.1) unstable; urgency=medium
+
+  * Contactdb: Allows tracking of db changes by user.
+  * Contactdb: Adds example script for importing a manual whitelist.
+  * Technical: Module called "intelmq-fody-backend" now
+  * Technical: Compatible with psycopg2 coming with Ubuntu 16.04LTS now.
+
+ -- Sascha Wilde <wilde@intevation.de>  Tue, 06 Jun 2017 12:25:49 +0200
+
+intelmq-fody-backend (0.5.0~rc1) unstable; urgency=medium
+
+  * Added script for import of whitelists.
+  * Renamed python module to intelmq-fody-backend.
+  * Compatible with psycopg2 coming with Ubuntu 16.04LTS now.  
+
+ -- Sascha Wilde <wilde@intevation.de>  Wed, 24 May 2017 15:56:19 +0200
+
 intelmq-fody-backend (0.4.3~rc2) unstable; urgency=low
 
   * Fixed apache config.
