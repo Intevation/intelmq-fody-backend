@@ -1,3 +1,12 @@
+intelmq-fody-backend (0.6.1) unstable; urgency=medium
+
+  * Checkticket:
+    * Adds optional `limit` parameter to endpoint `./getEventsForTicket`.
+    * Changes `getEventIDsForTicket` to returned a sorted list, to make
+      the query result consistent for the same parameter.
+
+ -- Sascha Wilde <wilde@intevation.de>  Wed, 28 Feb 2018 17:57:14 +0100
+
 intelmq-fody-backend (0.6.0) unstable; urgency=medium
 
   * Contactdb:
