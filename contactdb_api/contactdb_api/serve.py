@@ -1151,6 +1151,22 @@ def commit_pending_org_changes(body, request, response):
     return results
 
 
+@hug.get(ENDPOINT_PREFIX + '/email/{email}')
+def get_email_details(email: str):
+    """Lookup status of an email address."""
+    op_str = """SELECT * FROM email_status WHERE email = %s"""
+
+    try:
+        desc, results = _db_query(op_str, (email,))
+    except psycopg2.DatabaseError:
+        __rollback_transaction()
+        raise
+    finally:
+        __commit_transaction()
+
+    return results
+
+
 def main():
     if len(sys.argv) > 1 and sys.argv[1] == '--example-conf':
         print(EXAMPLE_CONF_FILE)
