@@ -3,7 +3,7 @@
 
 Requires hug (http://www.hug.rest/)
 
-Copyright (C) 2017 by Bundesamt für Sicherheit in der Informationstechnik
+Copyright (C) 2017, 2018 by Bundesamt für Sicherheit in der Informationstechnik
 
 Software engineering by Intevation GmbH
 
@@ -1165,6 +1165,41 @@ def get_email_details(email: str):
         __commit_transaction()
 
     return results
+
+
+@hug.put(ENDPOINT_PREFIX + '/email/{email}')
+def put_email(email: str, body, request, response):
+    """Updates the status of email.
+
+    Valid `{"enabled": true}` or `{"enabled": false}`
+    """
+    remote_user = request.env.get("REMOTE_USER")
+    log.info("Got new status for email = " + repr(email)
+             + "; body = " + repr(body)
+             + "; remote_user = " + repr(remote_user))
+
+    if not (body and body.get("enabled") in [True, False]):
+        response.status = HTTP_BAD_REQUEST
+        return
+    status = body["enabled"]
+
+    # using an "upsert" feature that is available since postgresql 9.5
+    # because it is cleanest, e.g.
+    # see https://hashrocket.com/blog/posts/upsert-records-with-postgresql-9-5
+    op_str = """INSERT INTO email_status (email, enabled)
+                    VALUES (%s, %s)
+                ON CONFLICT (email)
+                    DO UPDATE SET (email, enabled, added) = (%s, %s, now())
+             """
+    try:
+        n_rows_changed = _db_manipulate(op_str, (email, status, email, status))
+    except psycopg2.DatabaseError:
+        __rollback_transaction()
+        raise
+    finally:
+        __commit_transaction()
+
+    return n_rows_changed
 
 
 def main():
