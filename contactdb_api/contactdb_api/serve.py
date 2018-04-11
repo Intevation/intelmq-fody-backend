@@ -1153,7 +1153,12 @@ def commit_pending_org_changes(body, request, response):
 
 @hug.get(ENDPOINT_PREFIX + '/email/{email}')
 def get_email_details(email: str):
-    """Lookup status of an email address."""
+    """Lookup status of an email address.
+
+    Returns:
+        A single email_status object. With enabled==True as default,
+          if no entry in the table is found.
+    """
     op_str = """SELECT * FROM email_status WHERE email = %s"""
 
     try:
@@ -1164,7 +1169,10 @@ def get_email_details(email: str):
     finally:
         __commit_transaction()
 
-    return results
+    if len(results) > 0:
+        return results[0]
+    else:
+        return {"email": email, "enabled": True}
 
 
 @hug.put(ENDPOINT_PREFIX + '/email/{email}')
