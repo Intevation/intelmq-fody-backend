@@ -892,6 +892,27 @@ def searchcontact(email: str):
     return query_results
 
 
+@hug.get(ENDPOINT_PREFIX + '/searchdisabledcontact')
+def searchdisabledcontact(email: str):
+    """Search for entries where string is part of a disabled email address.
+
+    Uses a case-insensitive substring search.
+    """
+    try:
+        query_results = __db_query_organisation_ids("""
+            SELECT array_agg(DISTINCT c.organisation{0}_id) AS organisation_ids
+                FROM contact{0} AS c
+                LEFT OUTER JOIN email_status es ON c.email = es.email
+                WHERE c.email ILIKE %s AND es.enabled = false
+            """, ("%"+email+"%",))
+    except psycopg2.DatabaseError:
+        __rollback_transaction()
+        raise
+    finally:
+        __commit_transaction()
+    return query_results
+
+
 @hug.get(ENDPOINT_PREFIX + '/searchcidr')
 def searchcidr(address: str, response):
     """Search for orgs related to the cidr.

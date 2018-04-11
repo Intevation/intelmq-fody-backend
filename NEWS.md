@@ -1,8 +1,8 @@
 ## 0.6.1 to 0.6.2 (unreleased)
 (TODO)
  * Contactdb:
-   * Adds get and put endpoints for ./email/ to support a separate
-     email_status table.
+   * Adds GET and PUT endpoints for ./email/ and an additional endpointCGET
+    /searchdisabledcontactto to support the seperate email_status table.
 
 ### Upgrade
  * Requirements: Check that we have postgresql v>=9.5.
