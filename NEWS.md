@@ -3,6 +3,9 @@
  * Contactdb:
    * Adds GET and PUT endpoints for ./email/ and an additional endpointCGET
     /searchdisabledcontactto to support the seperate email_status table.
+ * Events:
+   * Additional configuration parameter `database table` to set the
+     table name of the events table. Default is `events`.
 
 ### Upgrade
  * Requirements: Check that we have postgresql v>=9.5.
