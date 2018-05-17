@@ -3,7 +3,7 @@
 
 Requires hug (http://www.hug.rest/)
 
-Copyright (C) 2017 by Bundesamt für Sicherheit in der Informationstechnik
+Copyright (C) 2017, 2018 by Bundesamt für Sicherheit in der Informationstechnik
 
 Software engineering by Intevation GmbH
 
@@ -60,7 +60,7 @@ try:
 
     def to_Json(obj: object):
         return obj
-except:
+except ImportError:
     def Json(obj):
         return json.dumps(obj)
 
@@ -299,6 +299,7 @@ def __db_query_org(org_id: int, table_variant: str) -> dict:
         operation_str = """
             SELECT * FROM organisation_to_asn{0}
                 WHERE organisation{0}_id = %s
+                ORDER BY asn
             """.format(table_variant)
 
         description, results = _db_query(operation_str, (org_id,))
@@ -308,6 +309,7 @@ def __db_query_org(org_id: int, table_variant: str) -> dict:
         operation_str = """
             SELECT * FROM contact{0}
                 WHERE organisation{0}_id = %s
+                ORDER BY lower(email)
             """.format(table_variant)
 
         description, results = _db_query(operation_str, (org_id,))
@@ -317,6 +319,7 @@ def __db_query_org(org_id: int, table_variant: str) -> dict:
         operation_str = """
             SELECT * FROM national_cert{0}
                 WHERE organisation{0}_id = %s
+                ORDER BY lower(country_code)
             """.format(table_variant)
 
         description, results = _db_query(operation_str, (org_id,))
@@ -324,12 +327,15 @@ def __db_query_org(org_id: int, table_variant: str) -> dict:
 
         # insert networks
         # we need the `network_id`s to query annotations.
+        # According to the postgresql 9.5:
+        #   "IPv4 addresses will always sort before IPv6 addresses"
         operation_str = """
             SELECT n.network{0}_id AS network_id, address, comment
                 FROM network{0} AS n
                 JOIN organisation_to_network{0} AS otn
                     ON n.network{0}_id = otn.network{0}_id
                 WHERE otn.organisation{0}_id = %s
+                ORDER BY n.address
             """.format(table_variant)
 
         description, results = _db_query(operation_str, (org_id,))
@@ -343,6 +349,7 @@ def __db_query_org(org_id: int, table_variant: str) -> dict:
                 JOIN organisation_to_fqdn{0} AS of
                     ON f.fqdn{0}_id = of.fqdn{0}_id
                 WHERE of.organisation{0}_id = %s
+                ORDER BY lower(fqdn)
             """.format(table_variant)
 
         description, results = _db_query(operation_str, (org_id,))
@@ -389,7 +396,8 @@ def __db_query_annotations(table: str, column_name: str,
         all annotations, even if one occurs several times
     """
     operation_str = """
-        SELECT json_agg(annotation) FROM {0}_annotation
+        SELECT json_agg(annotation ORDER BY annotation->>'tag')
+            FROM {0}_annotation
             WHERE {1} = %s
     """.format(table, column_name)
     description, results = _db_query(operation_str, (column_value,))
@@ -577,7 +585,7 @@ def __fix_ntms_to_org(ntms_should: list, ntms_are: list,
             """.format(table_name, id_column_name)
         _db_manipulate(operation_str, (org_id, new_entry_id))
 
-    # update and link existing networks
+    # update and link existing entries
     existing = [n for n in ntms_are if n[column_name] in values_should]
     for entry_is in existing:
         # find entry_should
@@ -600,7 +608,7 @@ def __fix_ntms_to_org(ntms_should: list, ntms_are: list,
                                    table_name, id_column_name,
                                    entry_is[id_column_name])
 
-    # delete networks that are not linked anymore
+    # delete entries that are not linked anymore
     operation_str = """
         DELETE FROM {0} AS t
             WHERE NOT EXISTS (
@@ -828,8 +836,10 @@ def pong():
 @hug.get(ENDPOINT_PREFIX + '/searchasn')
 def searchasn(asn: int):
     try:
+        # as an asn can only be associated once with an org_id,
+        # we do not need DISTINCT
         query_results = __db_query_organisation_ids("""
-            SELECT DISTINCT array_agg(organisation{0}_id) as organisation_ids
+            SELECT array_agg(organisation{0}_id) as organisation_ids
                 FROM organisation_to_asn{0}
                 WHERE asn=%s
             """, (asn,))
@@ -848,8 +858,9 @@ def searchorg(name: str):
     Search is an case-insensitive substring search.
     """
     try:
+        # each org_id only has one name, so we do not need DISTINCT
         query_results = __db_query_organisation_ids("""
-            SELECT DISTINCT array_agg(o.organisation{0}_id) AS organisation_ids
+            SELECT array_agg(o.organisation{0}_id) AS organisation_ids
                 FROM organisation{0} AS o
                 WHERE name ILIKE %s
             """, ("%"+name+"%",))
@@ -869,9 +880,30 @@ def searchcontact(email: str):
     """
     try:
         query_results = __db_query_organisation_ids("""
-            SELECT DISTINCT array_agg(c.organisation{0}_id) AS organisation_ids
+            SELECT array_agg(DISTINCT c.organisation{0}_id) AS organisation_ids
                 FROM contact{0} AS c
                 WHERE c.email ILIKE %s
+            """, ("%"+email+"%",))
+    except psycopg2.DatabaseError:
+        __rollback_transaction()
+        raise
+    finally:
+        __commit_transaction()
+    return query_results
+
+
+@hug.get(ENDPOINT_PREFIX + '/searchdisabledcontact')
+def searchdisabledcontact(email: str):
+    """Search for entries where string is part of a disabled email address.
+
+    Uses a case-insensitive substring search.
+    """
+    try:
+        query_results = __db_query_organisation_ids("""
+            SELECT array_agg(DISTINCT c.organisation{0}_id) AS organisation_ids
+                FROM contact{0} AS c
+                LEFT OUTER JOIN email_status es ON c.email = es.email
+                WHERE c.email ILIKE %s AND es.enabled = false
             """, ("%"+email+"%",))
     except psycopg2.DatabaseError:
         __rollback_transaction()
@@ -1138,6 +1170,65 @@ def commit_pending_org_changes(body, request, response):
     log.info("Commit successful, results = {}; "
              "remote_user = {}".format(results, remote_user))
     return results
+
+
+@hug.get(ENDPOINT_PREFIX + '/email/{email}')
+def get_email_details(email: str):
+    """Lookup status of an email address.
+
+    Returns:
+        A single email_status object. With enabled==True as default,
+          if no entry in the table is found.
+    """
+    op_str = """SELECT * FROM email_status WHERE email = %s"""
+
+    try:
+        desc, results = _db_query(op_str, (email,))
+    except psycopg2.DatabaseError:
+        __rollback_transaction()
+        raise
+    finally:
+        __commit_transaction()
+
+    if len(results) > 0:
+        return results[0]
+    else:
+        return {"email": email, "enabled": True}
+
+
+@hug.put(ENDPOINT_PREFIX + '/email/{email}')
+def put_email(email: str, body, request, response):
+    """Updates the status of email.
+
+    Valid `{"enabled": true}` or `{"enabled": false}`
+    """
+    remote_user = request.env.get("REMOTE_USER")
+    log.info("Got new status for email = " + repr(email)
+             + "; body = " + repr(body)
+             + "; remote_user = " + repr(remote_user))
+
+    if not (body and body.get("enabled") in [True, False]):
+        response.status = HTTP_BAD_REQUEST
+        return
+    status = body["enabled"]
+
+    # using an "upsert" feature that is available since postgresql 9.5
+    # because it is cleanest, e.g.
+    # see https://hashrocket.com/blog/posts/upsert-records-with-postgresql-9-5
+    op_str = """INSERT INTO email_status (email, enabled)
+                    VALUES (%s, %s)
+                ON CONFLICT (email)
+                    DO UPDATE SET (email, enabled, added) = (%s, %s, now())
+             """
+    try:
+        n_rows_changed = _db_manipulate(op_str, (email, status, email, status))
+    except psycopg2.DatabaseError:
+        __rollback_transaction()
+        raise
+    finally:
+        __commit_transaction()
+
+    return n_rows_changed
 
 
 def main():

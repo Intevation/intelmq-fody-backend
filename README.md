@@ -5,6 +5,7 @@
  * intelmq-mailgen
  * python-dateutil
  * typing
+ * postgresql v>=9.5
 
 # License
 This software is Free Software available under the terms of
