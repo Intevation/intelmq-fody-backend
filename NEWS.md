@@ -1,5 +1,4 @@
-## 0.6.1 to 0.6.2 (unreleased)
-(TODO)
+## 0.6.1 to 0.6.2
  * Contactdb:
    * Adds GET and PUT endpoints for ./email/ and an additional endpointCGET
     /searchdisabledcontactto to support the seperate email_status table.

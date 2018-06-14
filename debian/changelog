@@ -1,3 +1,11 @@
+intelmq-fody-backend (0.6.2) unstable; urgency=medium
+
+  * Contactdb:
+    * Adds GET and PUT endpoints for ./email/ and an additional endpointCGET
+      /searchdisabledcontactto to support the separate email_status table.
+
+ -- Sascha Wilde <wilde@intevation.de>  Thu, 14 Jun 2018 11:08:15 +0200
+
 intelmq-fody-backend (0.6.1) unstable; urgency=medium
 
   * Checkticket:
