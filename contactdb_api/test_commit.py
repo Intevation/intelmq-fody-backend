@@ -69,7 +69,8 @@ def semi_automatic():
     # generic code for an Basic Auth connection
     password_mgr = urllib.request.HTTPPasswordMgrWithDefaultRealm()
     password_mgr.add_password(realm=None, uri=BASEURL,
-                              user='intelmq', passwd='intelmq')
+                              user=os.getenv('TESTUSER', 'intelmq'),
+                              passwd=os.getenv('TESTPASSWORD', 'intelmq'))
     auth_handler = urllib.request.HTTPBasicAuthHandler(password_mgr)
     opener = urllib.request.build_opener(auth_handler)
     urllib.request.install_opener(opener)
@@ -78,7 +79,7 @@ def semi_automatic():
     request = urllib.request.Request(BASEURL + ENDPOINT)
     request.add_header("Content-Type", "application/json")
 
-    # test1
+    # test1 commits test data
     # print(json.loads(DATA)["orgs"][0])
     f = urllib.request.urlopen(request, DATA.encode('utf-8'))
     result = f.read().decode('utf-8')
@@ -130,6 +131,7 @@ def semi_automatic():
     f = urllib.request.urlopen(request, data_update.encode('utf-8'))
     print(f.read().decode('utf-8'))
 
+    # cleanup
     if not os.getenv("TESTKEEP"):
         # as stuff may have changed, we re-read before deletion
         f = urllib.request.urlopen(request2)
