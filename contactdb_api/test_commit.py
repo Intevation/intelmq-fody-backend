@@ -6,6 +6,7 @@ Until we do not have an server automatically setup,
 the functions in here must be run manually.
 """
 
+import copy
 import json
 import os
 import urllib.error
@@ -63,6 +64,20 @@ DATA = json.dumps({
               'sector_id': None,
               'ti_handle': ''}]}
 )
+
+ORG_TEMPLATE = {
+    'annotations': [],
+    'asns': [],
+    'comment': '',
+    'contacts': [],
+    'first_handle': '',
+    'fqdns': [],
+    'name': 'test_commit.py Contact',
+    'national_certs': [],
+    'networks': [],
+    'ripe_org_hdl': '',
+    'sector_id': None,
+    'ti_handle': ''}
 
 
 def semi_automatic():
@@ -141,6 +156,24 @@ def semi_automatic():
         data_delete = json.dumps({'commands': ['delete'], 'orgs': [org]})
         f = urllib.request.urlopen(request, data_delete.encode('utf-8'))
         print(f.read().decode('utf-8'))
+
+    # test to commit same cidr twice
+    org = copy.deepcopy(ORG_TEMPLATE)
+    org['networks'] = [{'address': '192.0.0.1',
+                        'annotations': [],
+                        'comment':'one'},
+                       {'address': '192.0.0.1',
+                        'annotations': [],
+                        'comment':'two'}]
+    data = json.dumps({
+        'commands':  ['create'],
+        'orgs': [org]
+        })
+
+    f = urllib.request.urlopen(request, data.encode('utf-8'))
+    result = f.read().decode('utf-8')
+    new_org_id = json.loads(result)[0][1]
+    print(result)
 
 
 if __name__ == '__main__':

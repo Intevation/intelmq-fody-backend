@@ -565,7 +565,16 @@ def __fix_ntms_to_org(ntms_should: list, ntms_are: list,
     # create and link missing entries
     missing = [n for n in ntms_should
                if n[column_name] not in values_are]
+
+    values_already_added = []
     for entry in missing:
+        if entry[column_name] in values_already_added:
+            # do not add a value twice,
+            # let the first one win throw away the others.
+            # TODO once better error reporting is implemented: throw error
+            log.info("%s already exits, throwing away %s.", column_name, entry)
+            continue
+
         # we have to freshly create an entry
         operation_str = """
             INSERT INTO {0} ({1}, comment)
@@ -584,6 +593,8 @@ def __fix_ntms_to_org(ntms_should: list, ntms_are: list,
                 (organisation_id, {1}) VALUES (%s, %s)
             """.format(table_name, id_column_name)
         _db_manipulate(operation_str, (org_id, new_entry_id))
+
+        values_already_added.append(entry[column_name])
 
     # update and link existing entries
     existing = [n for n in ntms_are if n[column_name] in values_should]
