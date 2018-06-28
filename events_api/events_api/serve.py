@@ -430,8 +430,8 @@ def query_prepare_stats(q, interval='day'):
 
     trunc = "date_trunc('%s', \"time.observation\")" % (interval,)
 
-    q_string = "SELECT {trunc}, count(*) FROM {table}".format(trunc=trunc,
-                                                              table=QUERY_TABLE_NAME)
+    q_string = """SELECT {trunc}, count(*) FROM {table}
+               """.format(trunc=trunc, table=QUERY_TABLE_NAME)
 
     params = []
     # now iterate over q (which had to be created with query_build_query
