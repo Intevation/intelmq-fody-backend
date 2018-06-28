@@ -59,6 +59,7 @@ EXAMPLE_CONF_FILE = r"""
 {
   "libpg conninfo":
     "host=localhost dbname=intelmq-events user=eventapiuser password='USER\\'s DB PASSWORD'",
+  "database table": "events",
   "logging_level": "INFO",
   "subqueries": {
      "all_ips": {
@@ -141,7 +142,7 @@ def __rollback_transaction():
 QUERY_EVENT_SUBQUERY = {
     # queryname: ['sqlstatement', 'description', 'label', 'Expected-Type']
     'id': {
-        'sql': 'events.id = %s',
+        'sql': 'id = %s',
         'description': 'Query for an Event matching this ID.',
         'label': 'EventID',
         'exp_type': 'integer'
@@ -396,7 +397,7 @@ def query_prepare_export(q):
     Returns: A Tuple consisting of a query string and an array of parameters.
 
     """
-    q_string = "SELECT * FROM events"
+    q_string = "SELECT * FROM {table}".format(table=QUERY_TABLE_NAME)
     params = []
     # now iterate over q (which had to be created with query_build_query
     # previously) and should be a list of tuples and concatenate
@@ -429,7 +430,8 @@ def query_prepare_stats(q, interval='day'):
 
     trunc = "date_trunc('%s', \"time.observation\")" % (interval,)
 
-    q_string = "SELECT {}, count(*) FROM events".format(trunc)
+    q_string = """SELECT {trunc}, count(*) FROM {table}
+               """.format(trunc=trunc, table=QUERY_TABLE_NAME)
 
     params = []
     # now iterate over q (which had to be created with query_build_query
@@ -485,6 +487,9 @@ def setup(api):
 
     global QUERY_EVENT_SUBQUERY
     QUERY_EVENT_SUBQUERY.update(config.get('subqueries', {}))
+
+    global QUERY_TABLE_NAME
+    QUERY_TABLE_NAME = config.get('database table', 'events')
 
 
 @hug.get(ENDPOINT_PREFIX, examples="id=1")
