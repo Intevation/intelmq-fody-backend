@@ -4,6 +4,9 @@
  * Contactdb:
   * Disallows creating CIDRs or FQDNs with the same value in a single contact;
     only the first will be inserted. If this happens it shows in loglevel INFO.
+ * Events:
+   * Additional configuration parameter `database table` to set the
+     table name of the events table. Default is `events`.
 
 
 ## 0.6.1 to 0.6.2
