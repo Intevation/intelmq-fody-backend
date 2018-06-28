@@ -530,10 +530,8 @@ def showSubqueries():
 
     # Remove the SQL Statement from the SQ Object.
     for k, v in subquery_copy.items():
-        try:
+        if 'sql' in v:
             del(v['sql'])
-        except:
-            pass
 
     return subquery_copy
 
