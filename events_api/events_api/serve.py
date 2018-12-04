@@ -464,7 +464,12 @@ def query(prepared_query):
 
     # psycopgy2.4 does not offer 'with' for cursor()
     # FUTURE use with
-    cur = eventdb_conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        cur = eventdb_conn.cursor(cursor_factory=RealDictCursor)
+    except (psycopg2.InterfaceError, psycopg2.InternalError,
+            psycopg2.OperationalError, AttributeError):
+        setup(None)
+        cur = eventdb_conn.cursor(cursor_factory=RealDictCursor)
 
     operation = prepared_query[0]
     parameters = prepared_query[1]
