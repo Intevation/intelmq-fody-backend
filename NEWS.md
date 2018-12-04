@@ -7,6 +7,7 @@
  * Events:
    * Additional configuration parameter `database table` to set the
      table name of the events table. Default is `events`.
+   * Optional field `placeholder` for subqueries.
 
 
 ## 0.6.1 to 0.6.2
