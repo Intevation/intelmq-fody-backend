@@ -1,4 +1,3 @@
-
 # Requirements
  * hug
  * psycopg2 >=2.4.5
@@ -35,7 +34,7 @@ You might want to use an Apache-Config similar to the example included as
 [config/apache-example/001-fody.conf](config/apache-example/001-fody.conf)
 
 # Track db changes by user
-As with v0.4 and v0.5 only `contactdb_api` offers to write changes to the db.
+Only the module `contactdb_api` exposes the ability to write changes to the db.
 
 If you want to be able to find out which user did which particular change:
  1. Use basic authentication and maintain one userid and password per user.
