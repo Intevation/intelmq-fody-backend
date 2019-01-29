@@ -115,6 +115,11 @@ EXAMPLE_CONF_FILE = r"""
                    "de-provider-xarf",
                    "cert.at-realtime-xmpp",
                    "erhalte-de"],
+  "email_tags": {
+    "Format": ["csv_inline",
+               "csv_attachment"
+              ]
+  },
   "libpg conninfo":
     "host=localhost dbname=contactdb user=apiuser password='USER\\'s DB PASSWORD'",
   "logging_level": "INFO"
@@ -1128,6 +1133,8 @@ def get_annotation_hints():
 
     if 'common_tags' in config:
         hints['tags'] = config['common_tags']
+    if 'email_tags' in config:
+        hints['email_tags'] = config['email_tags']
 
     return hints
 
@@ -1183,46 +1190,59 @@ def commit_pending_org_changes(body, request, response):
     return results
 
 
+def known_email_tag(category, tag):
+    known = config['email_tags'].get(category)
+    return known is not None and tag in known
+
+
+
 @hug.get(ENDPOINT_PREFIX + '/email/{email}')
 def get_email_details(email: str):
-    """Lookup status of an email address.
+    """Lookup status/tags of an email address.
 
     Returns:
-        A single email_status object. With enabled==True as default,
-          if no entry in the table is found.
+
+        A single email_status object, which has the following key/value
+        pairs:
+
+           enabled: Boolean, indicating whether notifications should be
+                    sent to that address.
+
+           tags: Object with tag categories as keys and one tag for each
+                 key.
+
+        If the email address is not known, enabled will be true and tags
+        will have an empty object.
     """
     op_str = """SELECT * FROM email_status WHERE email = %s"""
 
     try:
-        desc, results = _db_query(op_str, (email,))
+        statuses = _db_query(op_str, (email,))[1]
+        annotations = __db_query_annotations("email", "email", email)
     except psycopg2.DatabaseError:
         __rollback_transaction()
         raise
     finally:
         __commit_transaction()
 
-    if len(results) > 0:
-        return results[0]
+    if len(statuses) > 0:
+        result = statuses[0]
     else:
-        return {"email": email, "enabled": True}
+        result = {"email": email, "enabled": True}
+
+    categorized = {}
+    for annotation in annotations:
+        if "tag" in annotation and len(annotation) == 1:
+            split = annotation["tag"].split(":", 1)
+            if len(split) == 2:
+                category, tag = split
+                categorized[category] = tag
+    result["tags"] = categorized
+
+    return result
 
 
-@hug.put(ENDPOINT_PREFIX + '/email/{email}')
-def put_email(email: str, body, request, response):
-    """Updates the status of email.
-
-    Valid `{"enabled": true}` or `{"enabled": false}`
-    """
-    remote_user = request.env.get("REMOTE_USER")
-    log.info("Got new status for email = " + repr(email)
-             + "; body = " + repr(body)
-             + "; remote_user = " + repr(remote_user))
-
-    if not (body and body.get("enabled") in [True, False]):
-        response.status = HTTP_BAD_REQUEST
-        return
-    status = body["enabled"]
-
+def _set_email_status(email, enabled):
     # using an "upsert" feature that is available since postgresql 9.5
     # because it is cleanest, e.g.
     # see https://hashrocket.com/blog/posts/upsert-records-with-postgresql-9-5
@@ -1231,8 +1251,56 @@ def put_email(email: str, body, request, response):
                 ON CONFLICT (email)
                     DO UPDATE SET (email, enabled, added) = (%s, %s, now())
              """
+    return _db_manipulate(op_str, (email, enabled, email, enabled))
+
+def _set_email_tags(email, tags):
+    __fix_annotations_to_table([{"tag": "%s:%s" % item}
+                                for item in tags.items()], "cut",
+                               "email", "email", email)
+    return 0
+
+
+@hug.put(ENDPOINT_PREFIX + '/email/{email}')
+def put_email(email: str, body, request, response):
+    """Updates status and/or tags of email.
+
+    The body should be a JSON object with one or both of the following
+    key/value pairs:
+
+       enabled: Boolean
+
+       tags: Object mapping tag categories to tags. Each category has
+             one tag. All categories/tags not mentioned in this object
+             will be removed from set of tags associated with the email
+             address.
+    """
+    remote_user = request.env.get("REMOTE_USER")
+    log.info("Got new status for email = " + repr(email)
+             + "; body = " + repr(body)
+             + "; remote_user = " + repr(remote_user))
+
+    if not body:
+        response.status = HTTP_BAD_REQUEST
+        return
+
+    status = body.get("enabled")
+    if status is not None and status not in [True, False]:
+        response.status = HTTP_BAD_REQUEST
+        return
+
+    tags = body.get("tags")
+    if tags is not None:
+        for category, tag in tags.items():
+            if not known_email_tag(category, tag):
+                response.status = HTTP_BAD_REQUEST
+                return
+
     try:
-        n_rows_changed = _db_manipulate(op_str, (email, status, email, status))
+        n_rows_changed = 0
+        if status is not None:
+            n_rows_changed += _set_email_status(email, status)
+        if tags is not None:
+            n_rows_changed += _set_email_tags(email, tags)
     except psycopg2.DatabaseError:
         __rollback_transaction()
         raise
