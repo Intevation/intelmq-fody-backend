@@ -1111,6 +1111,15 @@ def get_manual_asn_details(number: int, response):
         return asn
 
 
+def _load_known_email_tags():
+    all_tags = _db_query("""SELECT category_name AS category,
+                                   array_agg(tag_name) AS tags
+                              FROM category JOIN tag
+                                ON tag.category_id = category.category_id
+                          GROUP BY category_name""")[1]
+    return dict((row["category"], row["tags"]) for row in all_tags)
+
+
 @hug.get(ENDPOINT_PREFIX + '/annotation/hints')
 def get_annotation_hints():
     """Return all hints helpful to build a good interface to annotations.
@@ -1133,8 +1142,7 @@ def get_annotation_hints():
 
     if 'common_tags' in config:
         hints['tags'] = config['common_tags']
-    if 'email_tags' in config:
-        hints['email_tags'] = config['email_tags']
+    hints['email_tags'] = _load_known_email_tags()
 
     return hints
 
