@@ -141,6 +141,11 @@ class CommitError(Error):
     pass
 
 
+class UnknownTagError(Error):
+    """Exception raised when the client supplies an unknown tag."""
+    pass
+
+
 # Using a global object for the database connection
 # must be initialised once
 contactdb_conn = None
@@ -1224,9 +1229,15 @@ def get_email_details(email: str):
     """
     op_str = """SELECT * FROM email_status WHERE email = %s"""
 
+    tags_query = """SELECT category_name, tag_name
+                      FROM email_tag
+                      JOIN tag USING (tag_id)
+                      JOIN category USING (category_id)
+                     WHERE email = %s"""
+
     try:
         statuses = _db_query(op_str, (email,))[1]
-        annotations = __db_query_annotations("email", "email", email)
+        tags = _db_query(tags_query, (email,))[1]
     except psycopg2.DatabaseError:
         __rollback_transaction()
         raise
@@ -1238,14 +1249,8 @@ def get_email_details(email: str):
     else:
         result = {"email": email, "enabled": True}
 
-    categorized = {}
-    for annotation in annotations:
-        if "tag" in annotation and len(annotation) == 1:
-            split = annotation["tag"].split(":", 1)
-            if len(split) == 2:
-                category, tag = split
-                categorized[category] = tag
-    result["tags"] = categorized
+    result["tags"] = dict((row["category_name"], row["tag_name"])
+                          for row in tags)
 
     return result
 
@@ -1261,11 +1266,23 @@ def _set_email_status(email, enabled):
              """
     return _db_manipulate(op_str, (email, enabled, email, enabled))
 
+
 def _set_email_tags(email, tags):
-    __fix_annotations_to_table([{"tag": "%s:%s" % item}
-                                for item in tags.items()], "cut",
-                               "email", "email", email)
-    return 0
+    _db_manipulate("DELETE FROM email_tag WHERE email = %s", (email,))
+    total_rows_changed = 0
+    for category, tag in tags.items():
+        num_rows = _db_manipulate("""INSERT INTO email_tag (email, tag_id)
+                                     SELECT %s, tag_id
+                                       FROM tag
+                                       JOIN category USING (category_id)
+                                      WHERE category_name = %s
+                                        AND tag_name = %s""",
+                                  (email, category, tag))
+        if num_rows < 1:
+            raise UnknownTagError("Unknown Tag: category: %r, tag: %r"
+                                  % (category, tag))
+        total_rows_changed += num_rows
+    return total_rows_changed
 
 
 @hug.put(ENDPOINT_PREFIX + '/email/{email}')
@@ -1298,8 +1315,11 @@ def put_email(email: str, body, request, response):
 
     tags = body.get("tags")
     if tags is not None:
+        # the actual tag values are checked by _set_email_tags, but we
+        # can check that tags is a dictionary mapping strings to
+        # strings.
         for category, tag in tags.items():
-            if not known_email_tag(category, tag):
+            if not isinstance(category, str) or not isinstance(tag, str):
                 response.status = HTTP_BAD_REQUEST
                 return
 
@@ -1309,6 +1329,10 @@ def put_email(email: str, body, request, response):
             n_rows_changed += _set_email_status(email, status)
         if tags is not None:
             n_rows_changed += _set_email_tags(email, tags)
+    except UnknownTagError:
+        __rollback_transaction()
+        response.status = HTTP_BAD_REQUEST
+        return
     except psycopg2.DatabaseError:
         __rollback_transaction()
         raise
