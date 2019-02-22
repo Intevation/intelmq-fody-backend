@@ -115,11 +115,6 @@ EXAMPLE_CONF_FILE = r"""
                    "de-provider-xarf",
                    "cert.at-realtime-xmpp",
                    "erhalte-de"],
-  "email_tags": {
-    "Format": ["csv_inline",
-               "csv_attachment"
-              ]
-  },
   "libpg conninfo":
     "host=localhost dbname=contactdb user=apiuser password='USER\\'s DB PASSWORD'",
   "logging_level": "INFO"
