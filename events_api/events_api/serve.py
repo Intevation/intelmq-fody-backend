@@ -67,8 +67,16 @@ EXAMPLE_CONF_FILE = r"""
        "sql": "(\"source.ip\" = %s OR \"source.local_ip\" = %s OR \"destination.ip\" = %s OR \"destination.local_ip\" = %s)",
        "description": "Queries (source|destination).(local_)ip",
        "label": "Query all IPs",
-       "ext_type": "integer"
-     }
+       "ext_type": "integer",
+       "placeholder": "127.0.0.1"
+     },
+     "source-fqdn_is": {
+        "sql": ""source.fqdn" = %s",
+        "description": "",
+        "label": "Source FQDN",
+        "exp_type": "string",
+        "placeholder": "%.com"
+    }
    }
 }
 """  # noqa
