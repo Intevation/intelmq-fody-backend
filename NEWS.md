@@ -8,6 +8,7 @@
    * Additional configuration parameter `database table` to set the
      table name of the events table. Default is `events`.
    * Optional field `placeholder` for subqueries.
+   * New requirement `intelmq` (library only).
 
 
 ## 0.6.1 to 0.6.2
