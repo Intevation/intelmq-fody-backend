@@ -1112,13 +1112,22 @@ def get_manual_asn_details(number: int, response):
 
 
 def _load_known_email_tags():
+    # Note: we determine the name of the default tag with min as the
+    # aggregation function because due to the filter and the constraint
+    # that there is only one default tag per category there will be only
+    # one value.
     all_tags = _db_query("""SELECT category_name AS category,
                                    json_object_agg(tag_name, tag_description)
-                                   AS tags
+                                   AS tags,
+                                   coalesce(min(tag_name) FILTER (WHERE is_default),
+                                            '')
+                                    AS default_tag
                               FROM category JOIN tag
                                 ON tag.category_id = category.category_id
                           GROUP BY category_name""")[1]
-    return dict((row["category"], to_Json(row["tags"])) for row in all_tags)
+    return dict((row["category"], dict(tags=to_Json(row["tags"]),
+                                       default_tag=row["default_tag"]))
+                for row in all_tags)
 
 
 @hug.get(ENDPOINT_PREFIX + '/annotation/hints')
