@@ -1124,10 +1124,11 @@ def _load_known_email_tags():
                                     AS default_tag
                               FROM category JOIN tag
                                 ON tag.category_id = category.category_id
-                          GROUP BY category_name""")[1]
-    return dict((row["category"], dict(tags=to_Json(row["tags"]),
-                                       default_tag=row["default_tag"]))
-                for row in all_tags)
+                          GROUP BY category_name, category_order
+                          ORDER BY category_order""")[1]
+    return [(row["category"], dict(tags=to_Json(row["tags"]),
+                                   default_tag=row["default_tag"]))
+            for row in all_tags]
 
 
 @hug.get(ENDPOINT_PREFIX + '/annotation/hints')
