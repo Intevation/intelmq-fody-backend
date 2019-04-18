@@ -57,7 +57,6 @@ except ImportError as err:
     log.error(err)
 
 ENDPOINT_PREFIX = '/api/checkticket'
-ENDPOINT_NAME = 'Checkticket'
 
 # We are using global variables for postgresql db connection
 # TODO: should be checked that parallel requests via hug/falcon behave well
