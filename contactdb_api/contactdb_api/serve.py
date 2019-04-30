@@ -1116,16 +1116,17 @@ def _load_known_email_tags():
     # aggregation function because due to the filter and the constraint
     # that there is only one default tag per category there will be only
     # one value.
-    all_tags = _db_query("""SELECT category_name AS category,
-                                   json_object_agg(tag_name, tag_description)
-                                   AS tags,
-                                   coalesce(min(tag_name) FILTER (WHERE is_default),
-                                            '')
-                                    AS default_tag
-                              FROM category JOIN tag
-                                ON tag.category_id = category.category_id
-                          GROUP BY category_name, category_order
-                          ORDER BY category_order""")[1]
+    all_tags = _db_query("""
+        SELECT category_name AS category,
+               json_object_agg(tag_name,
+                               CASE WHEN tag_description = '' THEN tag_name
+                                    ELSE tag_description
+                               END) AS tags,
+               coalesce(min(tag_name) FILTER (WHERE is_default), '')
+               AS default_tag
+          FROM category JOIN tag ON tag.category_id = category.category_id
+      GROUP BY category_name, category_order
+      ORDER BY category_order""")[1]
     return [(row["category"], dict(tags=to_Json(row["tags"]),
                                    default_tag=row["default_tag"]))
             for row in all_tags]
