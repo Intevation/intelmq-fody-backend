@@ -1114,20 +1114,20 @@ def get_manual_asn_details(number: int, response):
 def _load_known_email_tags():
     # Note: we determine the name of the default tag with min as the
     # aggregation function because due to the filter and the constraint
-    # that there is only one default tag per category there will be only
+    # that there is only one default tag per tag_name there will be only
     # one value.
     all_tags = _db_query("""
-        SELECT category_name AS category,
-               json_object_agg(tag_name,
-                               CASE WHEN tag_description = '' THEN tag_name
+        SELECT tag_name,
+               json_object_agg(tag_value,
+                               CASE WHEN tag_description = '' THEN tag_value
                                     ELSE tag_description
                                END) AS tags,
                coalesce(min(tag_name) FILTER (WHERE is_default), '')
                AS default_tag
-          FROM category JOIN tag ON tag.category_id = category.category_id
-      GROUP BY category_name, category_order
-      ORDER BY category_order""")[1]
-    return [(row["category"], dict(tags=to_Json(row["tags"]),
+          FROM tag_name JOIN tag ON tag.tag_name_id = tag_name.tag_name_id
+      GROUP BY tag_name, tag_name_order
+      ORDER BY tag_name_order""")[1]
+    return [(row["tag_name"], dict(tags=to_Json(row["tags"]),
                                    default_tag=row["default_tag"]))
             for row in all_tags]
 
@@ -1236,10 +1236,10 @@ def get_email_details(email: str):
     """
     op_str = """SELECT * FROM email_status WHERE email = %s"""
 
-    tags_query = """SELECT category_name, tag_name
+    tags_query = """SELECT tag_name, tag_value
                       FROM email_tag
                       JOIN tag USING (tag_id)
-                      JOIN category USING (category_id)
+                      JOIN tag_name USING (tag_name_id)
                      WHERE email = %s"""
 
     try:
@@ -1256,7 +1256,7 @@ def get_email_details(email: str):
     else:
         result = {"email": email, "enabled": True}
 
-    result["tags"] = dict((row["category_name"], row["tag_name"])
+    result["tags"] = dict((row["tag_name"], row["tag_value"])
                           for row in tags)
 
     return result
@@ -1277,17 +1277,17 @@ def _set_email_status(email, enabled):
 def _set_email_tags(email, tags):
     _db_manipulate("DELETE FROM email_tag WHERE email = %s", (email,))
     total_rows_changed = 0
-    for category, tag in tags.items():
+    for tag_name, tag_value in tags.items():
         num_rows = _db_manipulate("""INSERT INTO email_tag (email, tag_id)
                                      SELECT %s, tag_id
                                        FROM tag
-                                       JOIN category USING (category_id)
-                                      WHERE category_name = %s
-                                        AND tag_name = %s""",
-                                  (email, category, tag))
+                                       JOIN tag_name USING (tag_name_id)
+                                      WHERE tag_name = %s
+                                        AND tag_value = %s""",
+                                  (email, tag_name, tag_value))
         if num_rows < 1:
-            raise UnknownTagError("Unknown Tag: category: %r, tag: %r"
-                                  % (category, tag))
+            raise UnknownTagError("Unknown Tag: tag_name: %r, tag_value: %r"
+                                  % (tag_name, tag_value))
         total_rows_changed += num_rows
     return total_rows_changed
 
