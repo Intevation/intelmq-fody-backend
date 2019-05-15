@@ -1,3 +1,15 @@
+intelmq-fody-backend (0.6.3) unstable; urgency=medium
+
+  * Contactdb:
+   * Contacts: Add handling of email tags.
+   * Disallows creating CIDRs or FQDNs with the same value in a single contact;
+     only the first will be inserted. If this happens it shows in loglevel INFO.
+  * Events:
+   * Additional configuration parameter `database table` to set the
+     table name of the events table. Default is `events`.
+
+ -- Sascha Wilde <wilde@intevation.de>  Wed, 15 May 2019 17:00:10 +0200
+
 intelmq-fody-backend (0.6.2) unstable; urgency=medium
 
   * Contactdb:
@@ -51,7 +63,7 @@ intelmq-fody-backend (0.5.0~rc1) unstable; urgency=medium
 
   * Added script for import of whitelists.
   * Renamed python module to intelmq-fody-backend.
-  * Compatible with psycopg2 coming with Ubuntu 16.04LTS now.  
+  * Compatible with psycopg2 coming with Ubuntu 16.04LTS now.
 
  -- Sascha Wilde <wilde@intevation.de>  Wed, 24 May 2017 15:56:19 +0200
 

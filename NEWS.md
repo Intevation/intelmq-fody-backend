@@ -1,5 +1,4 @@
-## 0.6.2 to 0.6.3 (unreleased)
-**TODO**
+## 0.6.2 to 0.6.3
 
  * Contactdb:
   * Disallows creating CIDRs or FQDNs with the same value in a single contact;
@@ -7,7 +6,7 @@
  * Events:
    * Additional configuration parameter `database table` to set the
      table name of the events table. Default is `events`.
-
+ * Contacts: Add handling of email tags.
 
 ## 0.6.1 to 0.6.2
  * Contactdb:
