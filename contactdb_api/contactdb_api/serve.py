@@ -1122,7 +1122,7 @@ def _load_known_email_tags():
                                CASE WHEN tag_description = '' THEN tag_value
                                     ELSE tag_description
                                END) AS tags,
-               coalesce(min(tag_name) FILTER (WHERE is_default), '')
+               coalesce(min(tag_value) FILTER (WHERE is_default), '')
                AS default_tag
           FROM tag_name JOIN tag ON tag.tag_name_id = tag_name.tag_name_id
       GROUP BY tag_name, tag_name_order
