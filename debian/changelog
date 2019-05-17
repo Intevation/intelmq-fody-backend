@@ -1,3 +1,9 @@
+intelmq-fody-backend (0.6.3.1) unstable; urgency=medium
+
+  * Use correct column name when determining the default tags
+
+ -- Sascha Wilde <wilde@intevation.de>  Fri, 17 May 2019 15:01:44 +0200
+
 intelmq-fody-backend (0.6.3) unstable; urgency=medium
 
   * Contactdb:
