@@ -1,3 +1,9 @@
+## 0.6.3 to 0.6.3.1
+
+ * Contactdb:
+   * Fix handling of email tags, by returing the correct default tags.
+
+
 ## 0.6.2 to 0.6.3
 
  * Contactdb:
@@ -7,6 +13,10 @@
    * Additional configuration parameter `database table` to set the
      table name of the events table. Default is `events`.
  * Contacts: Add handling of email tags.
+
+### Upgrade
+ *  Requirements: intelmq-certbund-contact>=0.9.4 on the db server.
+
 
 ## 0.6.1 to 0.6.2
  * Contactdb:
