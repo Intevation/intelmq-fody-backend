@@ -1063,6 +1063,16 @@ def search_annotation(tag: str):
         if len(results) == 1 and results[0]["organisation_ids"] is not None:
             query_results["manual"] = results[0]["organisation_ids"]
 
+        # search for email tags
+        op_str = """
+            SELECT email from email_tag
+             WHERE tag_id IN (
+                 SELECT tag_id from tag where tag_description ILIKE %s
+                 )
+            """
+        desc, results = _db_query(op_str, ("%" + tag + "%",))
+        # log.log(DD, "desc, result = %s, %s", desc, results)
+
     except psycopg2.DatabaseError:
         __rollback_transaction()
         raise
