@@ -3,7 +3,8 @@
 
 Requires hug (http://www.hug.rest/)
 
-Copyright (C) 2017, 2018 by Bundesamt für Sicherheit in der Informationstechnik
+Copyright (C) 2017, 2018, 2019 by
+Bundesamt für Sicherheit in der Informationstechnik
 
 Software engineering by Intevation GmbH
 
@@ -22,6 +23,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 Author(s):
     * Bernhard E. Reiter <bernhard@intevation.de>
+    * Bernhard Herzog <bernhard.herzog@intevation.de>
 
 
 Design rationale:
@@ -1208,12 +1210,6 @@ def commit_pending_org_changes(body, request, response):
     log.info("Commit successful, results = {}; "
              "remote_user = {}".format(results, remote_user))
     return results
-
-
-def known_email_tag(category, tag):
-    known = config['email_tags'].get(category)
-    return known is not None and tag in known
-
 
 
 @hug.get(ENDPOINT_PREFIX + '/email/{email}')
