@@ -1,3 +1,10 @@
+## 0.6.3.1 to 0.6.4 (unreleased)
+
+ * Contactdb:
+   * Enhance endpoint `./annotation/search?tag=` to additionally search for
+     email tags and return organisations with those email addresses.
+
+
 ## 0.6.3 to 0.6.3.1
 
  * Contactdb:

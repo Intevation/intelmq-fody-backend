@@ -1012,9 +1012,26 @@ def searchnational(countrycode: hug.types.length(2, 3)):
     return query_results
 
 
+def join_org_ids(q1: list, q2: list):
+    """Merge two query_results with `manual` and `auto` lists.
+
+    Returning a new object where org_ids are unique and numerically ordered.
+    """
+
+    new_query_results = {}
+    new_query_results["auto"] = list(set(q1["auto"] + q2["auto"]))
+    new_query_results["auto"].sort(key=int)
+    new_query_results["manual"] = list(set(q1["manual"] + q2["manual"]))
+    new_query_results["manual"].sort(key=int)
+
+    return new_query_results
+
+
 @hug.get(ENDPOINT_PREFIX + '/annotation/search')
 def search_annotation(tag: str):
     """Search for orgs that are attached to a matching annotation.
+
+    Searches both annotations in manual entries and email 'tags'.
     """
     try:
         # we only have the manual tables with annotations, thus we
@@ -1071,7 +1088,11 @@ def search_annotation(tag: str):
                  )
             """
         desc, results = _db_query(op_str, ("%" + tag + "%",))
-        # log.log(DD, "desc, result = %s, %s", desc, results)
+
+        # find org ids for each email address and join them
+        for result in results:
+            additional_org_ids = searchcontact(result["email"])
+            query_results = join_org_ids(query_results, additional_org_ids)
 
     except psycopg2.DatabaseError:
         __rollback_transaction()
