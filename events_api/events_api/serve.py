@@ -3,7 +3,7 @@
 
 Requires hug (http://www.hug.rest/)
 
-Copyright (C) 2017 by Bundesamt für Sicherheit in der Informationstechnik
+Copyright (C) 2017-2019 by Bundesamt für Sicherheit in der Informationstechnik
 
 Software engineering by Intevation GmbH
 
@@ -21,7 +21,8 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 Author(s):
-    * Bernhard E. Reiter <bernhard@intevation.de>
+    * Bernhard E. Reiter <bernhard.reiter@intevation.de>
+    * Bernhard Herzog <bernhard.herzog@intevation.de>
     * Dustin Demuth <dustin.demuth@intevation.de>
 
 TODO:
@@ -334,6 +335,15 @@ QUERY_EVENT_SUBQUERY = {
         'label': 'Feed Name contains',
         'exp_type': 'string'
     },
+    # from table directives
+    'recipient_group': {
+        'sql': 'json_object(aggregate_identifier) ->> \'recipient_group\''
+               'ILIKE %s',
+        'description': 'Value for recipient_group tag'
+                       'as set by the rule expert.',
+        'label': 'Recipient group tag contains',
+        'exp_type': 'string',
+    },
 }
 
 
@@ -397,10 +407,14 @@ def query_prepare_export(q):
 
     """
     q_string = "SELECT * FROM {table}".format(table=QUERY_TABLE_NAME)
-    params = []
+    # join tables similiar to tickets backend to allow more filters
+    q_string += " JOIN directives on directives.events_id = events.id "
+    q_string += " JOIN sent on sent.id = directives.sent_id "
+
     # now iterate over q (which had to be created with query_build_query
     # previously) and should be a list of tuples and concatenate
     # the resulting query and a list of query parameters.
+    params = []
     counter = 0
     for subquerytuple in q:
         if counter > 0:
@@ -410,6 +424,7 @@ def query_prepare_export(q):
             q_string = q_string + " WHERE " + subquerytuple[0]
             params.extend((subquerytuple[1], ) * subquerytuple[0].count('%s'))
         counter += 1
+
     return q_string, params
 
 
@@ -431,6 +446,9 @@ def query_prepare_stats(q, interval='day'):
 
     q_string = """SELECT {trunc}, count(*) FROM {table}
                """.format(trunc=trunc, table=QUERY_TABLE_NAME)
+    # join tables similiar to tickets backend to allow more filters
+    q_string += " JOIN directives on directives.events_id = events.id "
+    q_string += " JOIN sent on sent.id = directives.sent_id "
 
     params = []
     # now iterate over q (which had to be created with query_build_query

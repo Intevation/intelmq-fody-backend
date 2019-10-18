@@ -14,8 +14,8 @@ If there is none yet, you can create one with something like:
 
 ```sh
 createuser eventapiuser --pwprompt
-psql -c "GRANT SELECT ON events TO eventapiuser;" intelmq-events
-
+psql -c "GRANT SELECT ON  ALL TABLES IN SCHEMA public TO eventapiuser;" \
+    intelmq-events
 ```
 
 ### LogLevel DDEBUG

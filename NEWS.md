@@ -1,5 +1,11 @@
 ## 0.6.3.1 to 0.6.4 (unreleased)
 
+ * Events:
+   * Enhance endpoints `./search?`, `./export?` to allow searching by
+     columns from joined `directives` and `sent` tables for symmetry with the
+     tickets backend. Add example for searching for `recipient_group` in
+     `aggregate_identifier`.
+
  * Contactdb:
    * Enhance endpoint `./annotation/search?tag=` to additionally search for
      email tags and return organisations with those email addresses.
