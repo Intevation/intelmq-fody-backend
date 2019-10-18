@@ -29,7 +29,6 @@ TODO:
       OR-Queries can be introduced later.
 
 """
-
 import json
 import logging
 import os
@@ -389,12 +388,12 @@ def query_build_query(params):
 
 
 def query_prepare_export(q):
-    """ Prepares a Query-string in order to Export Everything from the DB
+    """Prepares a query-string in order to export everything from the DB.
 
     Args:
-        q: An array of Tuples created with query_build_query
+        q: An array of tuples created with query_build_query.
 
-    Returns: A Tuple consisting of a query string and an array of parameters.
+    Returns: A tuple consisting of a query string and an array of parameters.
 
     """
     q_string = "SELECT * FROM {table}".format(table=QUERY_TABLE_NAME)
