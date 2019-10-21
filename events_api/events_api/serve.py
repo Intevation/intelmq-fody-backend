@@ -335,7 +335,11 @@ QUERY_EVENT_SUBQUERY = {
         'label': 'Feed Name contains',
         'exp_type': 'string'
     },
-    # from table directives
+}
+
+QUERY_EVENT_SUBQUERY_MAILGEN = {
+    # queries that need the intelmq-cb-mailgen extra tabels
+    # queryname: ['sqlstatement', 'description', 'label', 'Expected-Type']
     'recipient_group': {
         'sql': 'json_object(aggregate_identifier) ->> \'recipient_group\''
                'ILIKE %s',
@@ -348,7 +352,7 @@ QUERY_EVENT_SUBQUERY = {
 
 
 def query_get_subquery(q: str):
-    """ Return the query-Statement from the QUERY_EVENT_SUBQUERY
+    """Return the query-Statement from the QUERY_EVENT_SUBQUERY
 
     Basically this is a getter for the dict...
 
@@ -397,6 +401,18 @@ def query_build_query(params):
     return queries
 
 
+def _join_mailgen_tables(querystring: str) -> str:
+    """Add SQL JOIN commands for extra mailgen tables, if they exist."""
+    global QUERY_JOIN_MAILGEN_TABLES
+
+    if QUERY_JOIN_MAILGEN_TABLES:
+        # join tables similiar to tickets backend to allow more filters
+        querystring += " JOIN directives on directives.events_id = events.id "
+        querystring += " JOIN sent on sent.id = directives.sent_id "
+
+    return querystring
+
+
 def query_prepare_export(q):
     """Prepares a query-string in order to export everything from the DB.
 
@@ -407,9 +423,7 @@ def query_prepare_export(q):
 
     """
     q_string = "SELECT * FROM {table}".format(table=QUERY_TABLE_NAME)
-    # join tables similiar to tickets backend to allow more filters
-    q_string += " JOIN directives on directives.events_id = events.id "
-    q_string += " JOIN sent on sent.id = directives.sent_id "
+    q_string = _join_mailgen_tables(q_string)
 
     # now iterate over q (which had to be created with query_build_query
     # previously) and should be a list of tuples and concatenate
@@ -438,7 +452,6 @@ def query_prepare_stats(q, interval='day'):
     Returns: A tuple consisting of a query string and an array of parameters.
 
     """
-
     if interval not in ('month', 'week', 'day', 'hour'):
         raise ValueError
 
@@ -446,9 +459,7 @@ def query_prepare_stats(q, interval='day'):
 
     q_string = """SELECT {trunc}, count(*) FROM {table}
                """.format(trunc=trunc, table=QUERY_TABLE_NAME)
-    # join tables similiar to tickets backend to allow more filters
-    q_string += " JOIN directives on directives.events_id = events.id "
-    q_string += " JOIN sent on sent.id = directives.sent_id "
+    q_string = _join_mailgen_tables(q_string)
 
     params = []
     # now iterate over q (which had to be created with query_build_query
@@ -480,7 +491,7 @@ def query(prepared_query):
     global eventdb_conn
 
     # psycopgy2.4 does not offer 'with' for cursor()
-    # FUTURE use with
+    # FUTURE: use with
     cur = eventdb_conn.cursor(cursor_factory=RealDictCursor)
 
     operation = prepared_query[0]
@@ -502,11 +513,38 @@ def setup(api):
     open_db_connection(config["libpg conninfo"])
     log.debug("Initialised DB connection for events_api.")
 
-    global QUERY_EVENT_SUBQUERY
-    QUERY_EVENT_SUBQUERY.update(config.get('subqueries', {}))
-
     global QUERY_TABLE_NAME
     QUERY_TABLE_NAME = config.get('database table', 'events')
+
+    global QUERY_JOIN_MAILGEN_TABLES
+    QUERY_JOIN_MAILGEN_TABLES = _db_has_mailgen_tables()
+
+    # assemble all possible subqueries
+    global QUERY_EVENT_SUBQUERY
+    if QUERY_JOIN_MAILGEN_TABLES:
+        QUERY_EVENT_SUBQUERY.update(QUERY_EVENT_SUBQUERY_MAILGEN)
+
+    # it is fine to add the configured subqueries unconditionally
+    # as the operator of the system knows if this is intelmq-cb-mailgen or not
+    QUERY_EVENT_SUBQUERY.update(config.get('subqueries', {}))
+
+
+def _db_has_mailgen_tables():
+    """Query the database to check if the mailgen tables exist."""
+    global eventdb_conn
+
+    # psycopgy2.4 does not offer 'with' for cursor()
+    # FUTURE: use with
+    cur = eventdb_conn.cursor(cursor_factory=RealDictCursor)
+
+    #  tables `directives` and `sent` go together, so we check only one of them
+    cur.execute("SELECT to_regclass('public.directives')")
+    # this should always work if the connection to the db is okay
+    if cur.fetchone()['to_regclass'] == 'directives':
+        log.debug("Found intelmq-cb-mailgen table `directives`.")
+        return True
+    else:
+        return False
 
 
 @hug.get(ENDPOINT_PREFIX, examples="id=1")

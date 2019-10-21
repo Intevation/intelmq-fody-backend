@@ -1,5 +1,12 @@
 Server side API of eventdb interface for intelmq-fody.
 
+The module can be used on an events table created by an
+`intelmq/bots/outputs/postgresql/`.
+
+If there are additional tables from running a `intelmq-cb-mailgen` setup,
+additional features are offered.
+
+
 ## Configuration
 Uses environment variable ```EVENTDB_SERVE_CONF_FILE``` to read
 a configuration file, otherwise falls back to

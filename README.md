@@ -1,3 +1,7 @@
+# Documentation
+
+Each contained module has an additional `README.md` to follow.
+
 # Requirements
  * hug
  * psycopg2 >=2.4.5
