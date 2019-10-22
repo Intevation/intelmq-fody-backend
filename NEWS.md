@@ -1,4 +1,4 @@
-## 0.6.3.1 to 0.6.4 (unreleased)
+## 0.6.3.1 to 0.6.4
 
  * Events:
    * Enhance endpoints `./search?`, `./export?` to allow searching by
@@ -9,6 +9,10 @@
  * Contactdb:
    * Enhance endpoint `./annotation/search?tag=` to additionally search for
      email tags and return organisations with those email addresses.
+
+### Upgrade
+ * Optional: Add an index for "`recipient_group` to directives (2019-10)", see
+   https://github.com/Intevation/intelmq-mailgen/blob/master/sql/updates.txt
 
 
 ## 0.6.3 to 0.6.3.1
