@@ -48,6 +48,7 @@ import dateutil.parser
 import copy
 
 from psycopg2.extras import RealDictCursor
+import intelmq.lib.harmonization as harmonization
 
 
 log = logging.getLogger(__name__)
@@ -66,8 +67,16 @@ EXAMPLE_CONF_FILE = r"""
        "sql": "(\"source.ip\" = %s OR \"source.local_ip\" = %s OR \"destination.ip\" = %s OR \"destination.local_ip\" = %s)",
        "description": "Queries (source|destination).(local_)ip",
        "label": "Query all IPs",
-       "ext_type": "integer"
-     }
+       "ext_type": "integer",
+       "placeholder": "127.0.0.1"
+     },
+     "source-fqdn_is": {
+        "sql": ""source.fqdn" = %s",
+        "description": "",
+        "label": "Source FQDN",
+        "exp_type": "string",
+        "placeholder": "%.com"
+    }
    }
 }
 """  # noqa
@@ -145,87 +154,101 @@ QUERY_EVENT_SUBQUERY = {
         'sql': 'id = %s',
         'description': 'Query for an Event matching this ID.',
         'label': 'EventID',
-        'exp_type': 'integer'
+        'exp_type': 'integer',
+        'placeholder': '42'
     },
     # Time
     'time-observation_before': {
         'sql': '"time.observation" < %s',
         'description': '',
         'label': 'Observation Time before',
-        'exp_type': 'datetime'
+        'exp_type': 'datetime',
+        'placeholder': harmonization.DateTime.generate_datetime_now()
     },
     'time-observation_before_encl': {
         'sql': '"time.observation" <= %s',
         'description': '',
         'label': 'Observation Time before, including',
-        'exp_type': 'datetime'
+        'exp_type': 'datetime',
+        'placeholder': harmonization.DateTime.generate_datetime_now()
     },
     'time-observation_after': {
         'sql': '"time.observation" > %s',
         'description': '',
         'label': 'Observation Time after',
-        'exp_type': 'datetime'
+        'exp_type': 'datetime',
+        'placeholder': harmonization.DateTime.generate_datetime_now()
     },
     'time-observation_after_encl': {
         'sql': '"time.observation" > %s',
         'description': '',
         'label': 'Observation Time after, including',
-        'exp_type': 'datetime'
+        'exp_type': 'datetime',
+        'placeholder': harmonization.DateTime.generate_datetime_now()
     },
     'time-source_before': {
         'sql': '"time.source" < %s',
         'description': '',
         'label': 'Source Time before',
-        'exp_type': 'datetime'
+        'exp_type': 'datetime',
+        'placeholder': harmonization.DateTime.generate_datetime_now()
     },
     'time-source_before_encl': {
         'sql': '"time.source" <= %s',
         'description': '',
         'label': 'Source Time before, including',
-        'exp_type': 'datetime'
+        'exp_type': 'datetime',
+        'placeholder': harmonization.DateTime.generate_datetime_now()
     },
     'time-source_after': {
         'sql': '"time.source" > %s',
         'description': '',
         'label': 'Source Time after',
-        'exp_type': 'datetime'
+        'exp_type': 'datetime',
+        'placeholder': harmonization.DateTime.generate_datetime_now()
     },
     'time-source_after_encl': {
         'sql': '"time.source" > %s',
         'description': '',
         'label': 'Source Time after, including',
-        'exp_type': 'datetime'
+        'exp_type': 'datetime',
+        'placeholder': harmonization.DateTime.generate_datetime_now()
     },
     # Source
     'source-ip_in_sn': {
         'sql': '"source.ip" <<= %s',
         'description': '',
         'label': 'Source IP-Network',
-        'exp_type': 'cidr'
+        'exp_type': 'cidr',
+        'placeholder': '10.0.0.0/8'
     },
     'source-ip_is': {
         'sql': '"source.ip" = %s',
         'description': '',
         'label': 'Source IP-Address',
-        'exp_type': 'ip'
+        'exp_type': 'ip',
+        'placeholder': '10.0.0.1'
     },
     'source-asn_is': {
         'sql': '"source.asn" = %s',
         'description': '',
         'label': 'Source ASN',
-        'exp_type': 'integer'
+        'exp_type': 'integer',
+        'placeholder': '64496'
     },
     'source-fqdn_is': {
         'sql': '"source.fqdn" = %s',
         'description': '',
         'label': 'Source FQDN',
-        'exp_type': 'string'
+        'exp_type': 'string',
+        'placeholder': 'example.com'
     },
     'source-fqdn_icontains': {
         'sql': '"source.fqdn" ILIKE %s',
         'description': '',
         'label': 'Source FQDN contains',
-        'exp_type': 'string'
+        'exp_type': 'string',
+        'placeholder': '%.example.com'
     },
 
     # Destinations
@@ -233,31 +256,36 @@ QUERY_EVENT_SUBQUERY = {
         'sql': '"destination.ip" <<= %s',
         'description': '',
         'label': 'Destination IP-Network',
-        'exp_type': 'cidr'
+        'exp_type': 'cidr',
+        'placeholder': '10.0.0.0/8'
     },
     'destination-ip_is': {
         'sql': '"destination.ip" = %s',
         'description': '',
         'label': 'Destination IP-Address',
-        'exp_type': 'ip'
+        'exp_type': 'ip',
+        'placeholder': '10.0.0.1'
     },
     'destination-asn_is': {
         'sql': '"destination.asn" = %s',
         'description': '',
         'label': 'Destination ASN',
-        'exp_type': 'integer'
+        'exp_type': 'integer',
+        'placeholder': '64496'
     },
     'destination-fqdn_is': {
         'sql': '"destination.fqdn" = %s',
         'description': '',
         'label': 'Destination FQDN',
-        'exp_type': 'string'
+        'exp_type': 'string',
+        'placeholder': 'example.com'
     },
     'destination-fqdn_icontains': {
         'sql': '"destination.fqdn" ILIKE %s',
         'description': '',
         'label': 'Destination FQDN contains',
-        'exp_type': 'string'
+        'exp_type': 'string',
+        'placeholder': '%.example.com'
     },
 
     # Classification
@@ -265,7 +293,8 @@ QUERY_EVENT_SUBQUERY = {
         'sql': '"classification.taxonomy" = %s',
         'description': '',
         'label': 'Classification Taxonomy',
-        'exp_type': 'string'
+        'exp_type': 'string',
+        'placeholder': 'vulnerable'
     },
     'classification-taxonomy_icontains': {
         'sql': '"classification.taxonomy" ILIKE %s',
@@ -275,13 +304,14 @@ QUERY_EVENT_SUBQUERY = {
     },
     'classification-type_is': {
         'sql': '"classification.type" = %s',
-        'description': '',
+        'description': 'One of ' + ', '.join(harmonization.ClassificationType.allowed_values),
         'label': 'Classification Type',
-        'exp_type': 'string'
+        'exp_type': 'string',
+        'placeholder': 'vulnerable service'
     },
     'classification-type_icontains': {
         'sql': '"classification.type" ILIKE %s',
-        'description': '',
+        'description': 'One of ' + ', '.join(harmonization.ClassificationType.allowed_values),
         'label': 'Classification Type contains',
         'exp_type': 'string'
     },
@@ -289,13 +319,15 @@ QUERY_EVENT_SUBQUERY = {
         'sql': '"classification.identifier" = %s',
         'description': '',
         'label': 'Classification Identifier',
-        'exp_type': 'string'
+        'exp_type': 'string',
+        'placeholder': 'open-snmp'
     },
     'classification-identifier_icontains': {
         'sql': '"classification.identifier" ILIKE %s',
         'description': '',
         'label': 'Classification Identifier contains',
-        'exp_type': 'string'
+        'exp_type': 'string',
+        'placeholder': 'open-%'
     },
     'malware-name_is': {
         'sql': '"malware.name" = %s',
@@ -315,13 +347,15 @@ QUERY_EVENT_SUBQUERY = {
         'sql': '"feed.provider" = %s',
         'description': '',
         'label': 'Feed Provider',
-        'exp_type': 'string'
+        'exp_type': 'string',
+        'placeholder': 'Shadowserver'
     },
     'feed-provider_icontains': {
         'sql': '"feed.provider" ILIKE %s',
         'description': '',
         'label': 'Feed Provider contains',
-        'exp_type': 'string'
+        'exp_type': 'string',
+        'placeholder': 'Shadowserver'
     },
     'feed-name_is': {
         'sql': '"feed.name" = %s',

@@ -1,3 +1,10 @@
+## 0.6.4 to development
+
+ * Events:
+   * Optional field `placeholder` for subqueries.
+   * New requirement `intelmq` (library only).
+
+
 ## 0.6.3.1 to 0.6.4
 
  * Events:
