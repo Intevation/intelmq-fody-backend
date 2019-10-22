@@ -1,3 +1,6 @@
+# Documentation
+
+Each contained module has an additional `README.md` to follow.
 
 # Requirements
  * hug
@@ -35,7 +38,7 @@ You might want to use an Apache-Config similar to the example included as
 [config/apache-example/001-fody.conf](config/apache-example/001-fody.conf)
 
 # Track db changes by user
-As with v0.4 and v0.5 only `contactdb_api` offers to write changes to the db.
+Only the module `contactdb_api` exposes the ability to write changes to the db.
 
 If you want to be able to find out which user did which particular change:
  1. Use basic authentication and maintain one userid and password per user.
@@ -55,6 +58,10 @@ error.log:[Fri May 05 14:19:26.882299 2017] [:error] [pid 2075] 2017-05-05 14:19
 
 
 # Development
+When releasing, update the `NEWS.md` file and (usually) all
+`setup.py` files. Note the versioning scheme remark
+in the toplevel `setup.py` file.
+
 ## Version number
 Originally fody-backend had been designed with sub-modules
 that could potentially also be used separately.
