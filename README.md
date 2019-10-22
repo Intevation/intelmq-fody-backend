@@ -1,3 +1,7 @@
+# Documentation
+
+Each contained module has an additional `README.md` to follow.
+
 # Requirements
  * hug
  * psycopg2 >=2.4.5
@@ -54,6 +58,10 @@ error.log:[Fri May 05 14:19:26.882299 2017] [:error] [pid 2075] 2017-05-05 14:19
 
 
 # Development
+When releasing, update the `NEWS.md` file and (usually) all
+`setup.py` files. Note the versioning scheme remark
+in the toplevel `setup.py` file.
+
 ## Version number
 Originally fody-backend had been designed with sub-modules
 that could potentially also be used separately.

@@ -3,7 +3,8 @@
 
 Requires hug (http://www.hug.rest/)
 
-Copyright (C) 2017, 2018 by Bundesamt für Sicherheit in der Informationstechnik
+Copyright (C) 2017, 2018, 2019 by
+Bundesamt für Sicherheit in der Informationstechnik
 
 Software engineering by Intevation GmbH
 
@@ -22,6 +23,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 Author(s):
     * Bernhard E. Reiter <bernhard@intevation.de>
+    * Bernhard Herzog <bernhard.herzog@intevation.de>
 
 
 Design rationale:
@@ -133,6 +135,11 @@ class Error(Exception):
 class CommitError(Error):
     """Exception raises if a commit action fails.
     """
+    pass
+
+
+class UnknownTagError(Error):
+    """Exception raised when the client supplies an unknown tag."""
     pass
 
 
@@ -1005,9 +1012,26 @@ def searchnational(countrycode: hug.types.length(2, 3)):
     return query_results
 
 
+def join_org_ids(q1: list, q2: list):
+    """Merge two query_results with `manual` and `auto` lists.
+
+    Returning a new object where org_ids are unique and numerically ordered.
+    """
+
+    new_query_results = {}
+    new_query_results["auto"] = list(set(q1["auto"] + q2["auto"]))
+    new_query_results["auto"].sort(key=int)
+    new_query_results["manual"] = list(set(q1["manual"] + q2["manual"]))
+    new_query_results["manual"].sort(key=int)
+
+    return new_query_results
+
+
 @hug.get(ENDPOINT_PREFIX + '/annotation/search')
 def search_annotation(tag: str):
     """Search for orgs that are attached to a matching annotation.
+
+    Searches both annotations in manual entries and email 'tags'.
     """
     try:
         # we only have the manual tables with annotations, thus we
@@ -1055,6 +1079,20 @@ def search_annotation(tag: str):
 
         if len(results) == 1 and results[0]["organisation_ids"] is not None:
             query_results["manual"] = results[0]["organisation_ids"]
+
+        # search for email tags
+        op_str = """
+            SELECT email from email_tag
+             WHERE tag_id IN (
+                 SELECT tag_id from tag where tag_description ILIKE %s
+                 )
+            """
+        desc, results = _db_query(op_str, ("%" + tag + "%",))
+
+        # find org ids for each email address and join them
+        for result in results:
+            additional_org_ids = searchcontact(result["email"])
+            query_results = join_org_ids(query_results, additional_org_ids)
 
     except psycopg2.DatabaseError:
         __rollback_transaction()
@@ -1106,6 +1144,27 @@ def get_manual_asn_details(number: int, response):
         return asn
 
 
+def _load_known_email_tags():
+    # Note: we determine the name of the default tag with min as the
+    # aggregation function because due to the filter and the constraint
+    # that there is only one default tag per tag_name there will be only
+    # one value.
+    all_tags = _db_query("""
+        SELECT tag_name,
+               json_object_agg(tag_value,
+                               CASE WHEN tag_description = '' THEN tag_value
+                                    ELSE tag_description
+                               END) AS tags,
+               coalesce(min(tag_value) FILTER (WHERE is_default), '')
+               AS default_tag
+          FROM tag_name JOIN tag ON tag.tag_name_id = tag_name.tag_name_id
+      GROUP BY tag_name, tag_name_order
+      ORDER BY tag_name_order""")[1]
+    return [(row["tag_name"], dict(tags=to_Json(row["tags"]),
+                                   default_tag=row["default_tag"]))
+            for row in all_tags]
+
+
 @hug.get(ENDPOINT_PREFIX + '/annotation/hints')
 def get_annotation_hints():
     """Return all hints helpful to build a good interface to annotations.
@@ -1128,6 +1187,7 @@ def get_annotation_hints():
 
     if 'common_tags' in config:
         hints['tags'] = config['common_tags']
+    hints['email_tags'] = _load_known_email_tags()
 
     return hints
 
@@ -1185,44 +1245,51 @@ def commit_pending_org_changes(body, request, response):
 
 @hug.get(ENDPOINT_PREFIX + '/email/{email}')
 def get_email_details(email: str):
-    """Lookup status of an email address.
+    """Lookup status/tags of an email address.
 
     Returns:
-        A single email_status object. With enabled==True as default,
-          if no entry in the table is found.
+
+        A single email_status object, which has the following key/value
+        pairs:
+
+           enabled: Boolean, indicating whether notifications should be
+                    sent to that address.
+
+           tags: Object with tag categories as keys and one tag for each
+                 key.
+
+        If the email address is not known, enabled will be true and tags
+        will have an empty object.
     """
     op_str = """SELECT * FROM email_status WHERE email = %s"""
 
+    tags_query = """SELECT tag_name, tag_value
+                      FROM email_tag
+                      JOIN tag USING (tag_id)
+                      JOIN tag_name USING (tag_name_id)
+                     WHERE email = %s"""
+
     try:
-        desc, results = _db_query(op_str, (email,))
+        statuses = _db_query(op_str, (email,))[1]
+        tags = _db_query(tags_query, (email,))[1]
     except psycopg2.DatabaseError:
         __rollback_transaction()
         raise
     finally:
         __commit_transaction()
 
-    if len(results) > 0:
-        return results[0]
+    if len(statuses) > 0:
+        result = statuses[0]
     else:
-        return {"email": email, "enabled": True}
+        result = {"email": email, "enabled": True}
+
+    result["tags"] = dict((row["tag_name"], row["tag_value"])
+                          for row in tags)
+
+    return result
 
 
-@hug.put(ENDPOINT_PREFIX + '/email/{email}')
-def put_email(email: str, body, request, response):
-    """Updates the status of email.
-
-    Valid `{"enabled": true}` or `{"enabled": false}`
-    """
-    remote_user = request.env.get("REMOTE_USER")
-    log.info("Got new status for email = " + repr(email)
-             + "; body = " + repr(body)
-             + "; remote_user = " + repr(remote_user))
-
-    if not (body and body.get("enabled") in [True, False]):
-        response.status = HTTP_BAD_REQUEST
-        return
-    status = body["enabled"]
-
+def _set_email_status(email, enabled):
     # using an "upsert" feature that is available since postgresql 9.5
     # because it is cleanest, e.g.
     # see https://hashrocket.com/blog/posts/upsert-records-with-postgresql-9-5
@@ -1231,8 +1298,75 @@ def put_email(email: str, body, request, response):
                 ON CONFLICT (email)
                     DO UPDATE SET (email, enabled, added) = (%s, %s, now())
              """
+    return _db_manipulate(op_str, (email, enabled, email, enabled))
+
+
+def _set_email_tags(email, tags):
+    _db_manipulate("DELETE FROM email_tag WHERE email = %s", (email,))
+    total_rows_changed = 0
+    for tag_name, tag_value in tags.items():
+        num_rows = _db_manipulate("""INSERT INTO email_tag (email, tag_id)
+                                     SELECT %s, tag_id
+                                       FROM tag
+                                       JOIN tag_name USING (tag_name_id)
+                                      WHERE tag_name = %s
+                                        AND tag_value = %s""",
+                                  (email, tag_name, tag_value))
+        if num_rows < 1:
+            raise UnknownTagError("Unknown Tag: tag_name: %r, tag_value: %r"
+                                  % (tag_name, tag_value))
+        total_rows_changed += num_rows
+    return total_rows_changed
+
+
+@hug.put(ENDPOINT_PREFIX + '/email/{email}')
+def put_email(email: str, body, request, response):
+    """Updates status and/or tags of email.
+
+    The body should be a JSON object with one or both of the following
+    key/value pairs:
+
+       enabled: Boolean
+
+       tags: Object mapping tag categories to tags. Each category has
+             one tag. All categories/tags not mentioned in this object
+             will be removed from set of tags associated with the email
+             address.
+    """
+    remote_user = request.env.get("REMOTE_USER")
+    log.info("Got new status for email = " + repr(email)
+             + "; body = " + repr(body)
+             + "; remote_user = " + repr(remote_user))
+
+    if not body:
+        response.status = HTTP_BAD_REQUEST
+        return
+
+    status = body.get("enabled")
+    if status is not None and status not in [True, False]:
+        response.status = HTTP_BAD_REQUEST
+        return
+
+    tags = body.get("tags")
+    if tags is not None:
+        # the actual tag values are checked by _set_email_tags, but we
+        # can check that tags is a dictionary mapping strings to
+        # strings.
+        for category, tag in tags.items():
+            if not isinstance(category, str) or not isinstance(tag, str):
+                response.status = HTTP_BAD_REQUEST
+                return
+
     try:
-        n_rows_changed = _db_manipulate(op_str, (email, status, email, status))
+        n_rows_changed = 0
+        if status is not None:
+            n_rows_changed += _set_email_status(email, status)
+        if tags is not None:
+            n_rows_changed += _set_email_tags(email, tags)
+    except UnknownTagError:
+        __rollback_transaction()
+        response.status = HTTP_BAD_REQUEST
+        return
     except psycopg2.DatabaseError:
         __rollback_transaction()
         raise
