@@ -345,7 +345,7 @@ QUERY_EVENT_SUBQUERY_MAILGEN = {
                'ILIKE %s',
         'description': 'Value for recipient_group tag'
                        'as set by the rule expert.',
-        'label': 'Recipient group tag contains',
+        'label': 'Recipient Group Tag contains',
         'exp_type': 'string',
     },
 }
