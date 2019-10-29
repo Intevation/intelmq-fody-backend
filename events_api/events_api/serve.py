@@ -142,7 +142,7 @@ def __rollback_transaction():
 QUERY_EVENT_SUBQUERY = {
     # queryname: ['sqlstatement', 'description', 'label', 'Expected-Type']
     'id': {
-        'sql': 'id = %s',
+        'sql': 'events.id = %s',
         'description': 'Query for an Event matching this ID.',
         'label': 'EventID',
         'exp_type': 'integer'

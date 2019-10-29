@@ -1,6 +1,9 @@
 ## 0.6.4 to 0.6.5 (unreleased)
 **todo**
 
+ * Events:
+   * Fix subquery for "EventID" (broken since 0.6.4).
+
 
 ## 0.6.3.1 to 0.6.4
 
