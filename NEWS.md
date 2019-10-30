@@ -1,6 +1,9 @@
 ## 0.6.4 to 0.6.5 (unreleased)
 **todo**
 
+ * Tickets:
+   * Change default parameters for `./stats` to include the full yesterday
+     (based on what is the TimeZone of the database.)
  * Events:
    * Fix subquery for "EventID" (broken since 0.6.4).
 

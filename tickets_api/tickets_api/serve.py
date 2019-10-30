@@ -703,9 +703,17 @@ def stats(response, **params):
     # evaluation take place? Based upon this timeframe a good timeresolution
     # will be suggested and used, if no other resolution was provided...
 
-    time_after = params.get("sent-at_after", now - datetime.timedelta(days=1))
+    # for the default: make sure the previous 24h are included
+    # postgresl will interpret timestamps as being in the db wide TimeZone
+    time_after = params.get(
+        "sent-at_after",
+        datetime.datetime(
+            year=now.year, month=now.month, day=now.day
+        ) - datetime.timedelta(days=1))
+
+    # for the default: it is okay to go more in the future
     time_before = params.get(
-            "sent-at_before", now + datetime.timedelta(days=1))
+        "sent-at_before", now + datetime.timedelta(days=1))
 
     # Convert to datetime....
     if type(time_after) == str:
