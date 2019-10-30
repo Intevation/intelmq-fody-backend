@@ -7,7 +7,7 @@ reading `/etc/intelmq/contactdb-serve.conf`.
 
 Contents see
 ```sh
-python3 -m contactdb_api --example-conf
+python3 -m contactdb_api.contactdb_api --example-conf
 ```
 There must be a database user which can write to contactdb.
 If there is none yet, you can create one with something like:
@@ -26,7 +26,7 @@ for more details than `DEBUG`.
 ## Run diagnostic mode main()
 
 ```sh
-python3 -m contactdb_api
+python3 -m contactdb_api.contactdb_api
 ```
 
 ## Run tests

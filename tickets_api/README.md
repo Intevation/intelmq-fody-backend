@@ -9,7 +9,7 @@ reading `/etc/intelmq/tickets-serve.conf`.
 
 Contents see
 ```sh
-python3 -m tickets_api --example-conf
+python3 -m tickets_api.tickets_api --example-conf
 ```
 There must be a database user which can read from the eventdb.
 If there is none yet, you can create one with something like:
