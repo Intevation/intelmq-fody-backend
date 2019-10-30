@@ -50,7 +50,8 @@ try:
     def add_contactdb_api():
         return[contactdb_api.contactdb_api.serve]
 
-    ENDPOINTS[contactdb_api.contactdb_api.serve.ENDPOINT_NAME] = contactdb_api.contactdb_api.serve.ENDPOINT_PREFIX
+    ENDPOINTS[contactdb_api.contactdb_api.serve.ENDPOINT_NAME] = (
+        contactdb_api.contactdb_api.serve.ENDPOINT_PREFIX)
 
 except ImportError as err:
     log.warning(err)
@@ -63,7 +64,8 @@ try:
     def add_events_api():
         return[events_api.events_api.serve]
 
-    ENDPOINTS[events_api.events_api.serve.ENDPOINT_NAME] = events_api.events_api.serve.ENDPOINT_PREFIX
+    ENDPOINTS[events_api.events_api.serve.ENDPOINT_NAME] = (
+        events_api.events_api.serve.ENDPOINT_PREFIX)
 
 except ImportError as err:
     log.warning(err)
@@ -76,7 +78,8 @@ try:
     def add_tickets_api():
         return[tickets_api.tickets_api.serve]
 
-    ENDPOINTS[tickets_api.tickets_api.serve.ENDPOINT_NAME] = tickets_api.tickets_api.serve.ENDPOINT_PREFIX
+    ENDPOINTS[tickets_api.tickets_api.serve.ENDPOINT_NAME] = (
+        tickets_api.tickets_api.serve.ENDPOINT_PREFIX)
 
 except ImportError as err:
     log.warning(err)
@@ -89,22 +92,24 @@ try:
     def add_checkticket_api():
         return[checkticket_api.checkticket_api.serve]
 
-    ENDPOINTS[checkticket_api.checkticket_api.serve.ENDPOINT_NAME] = checkticket_api.checkticket_api.serve.ENDPOINT_PREFIX
+    ENDPOINTS[checkticket_api.checkticket_api.serve.ENDPOINT_NAME] = (
+        checkticket_api.checkticket_api.serve.ENDPOINT_PREFIX)
 
 except ImportError as err:
     log.warning(err)
+
 
 @hug.startup()
 def setup(api):
     pass
 
-# TODO for now show the full api documentation that hug generates
-#@hug.get("/")
-#def get_endpoints():
-#    return ENDPOINTS
+#  TODO for now show the full api documentation that hug generates
+# @hug.get("/")
+# def get_endpoints():
+#     return ENDPOINTS
 
 
 if __name__ == '__main__':
     # expose only one function to the cli
     setup(hug.API('cli'))
-    get_endpoints()
+    # get_endpoints()

@@ -41,7 +41,7 @@ def time_stats_api_call(url, user, password):
     log.debug("Sending request at %f", start_time)
     result = requests.get(url, auth=(user, password))
     # Useful for debugging:
-    #print(repr(result.content))
+    # print(repr(result.content))
     end_time = time.monotonic()
     log.debug("Finished request at %f", end_time)
     return (result.status_code, end_time - start_time)
