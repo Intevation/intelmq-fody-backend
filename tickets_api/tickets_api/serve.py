@@ -3,7 +3,7 @@
 
 Requires hug (http://www.hug.rest/)
 
-Copyright (C) 2017 by Bundesamt für Sicherheit in der Informationstechnik
+Copyright (C) 2017, 2019 by Bundesamt für Sicherheit in der Informationstechnik
 
 Software engineering by Intevation GmbH
 
@@ -25,7 +25,8 @@ Author(s):
     * Dustin Demuth <dustin.demuth@intevation.de>
 
 TODO:
-    - To start, all queries will be AND concatenated. OR-Queries can be introduced later.
+    - To start, all queries will be AND concatenated. OR-Queries can be
+      introduced later.
     - THIS SCRIPT CONTAINS A LOT OF DUPLICATED CODE FROM THE EVENTS-API!
 
 """
@@ -40,7 +41,7 @@ import sys
 # except:
 #    pass
 
-from falcon import HTTP_BAD_REQUEST, HTTP_NOT_FOUND, HTTP_SERVICE_UNAVAILABLE, HTTP_INTERNAL_SERVER_ERROR
+from falcon import HTTP_BAD_REQUEST, HTTP_INTERNAL_SERVER_ERROR
 import hug
 import psycopg2
 import datetime
@@ -60,10 +61,11 @@ EXAMPLE_CONF_FILE = r"""
     "host=localhost dbname=eventdb user=apiuser password='USER\\'s DB PASSWORD'",
   "logging_level": "INFO"
 }
-"""
+""" # noqa
 
 ENDPOINT_PREFIX = '/api/tickets'
 ENDPOINT_NAME = 'Tickets'
+
 
 def read_configuration() -> dict:
     """Read configuration file.
@@ -127,6 +129,7 @@ def __rollback_transaction():
     global eventdb_conn
     log.log(DD, "Calling rollback()")
     eventdb_conn.rollback()
+
 
 QUERY_EVENT_SUBQUERY = {
     # TODO BEGINNING OF EVENTS-API COPY
@@ -375,6 +378,7 @@ QUERY_EVENT_SUBQUERY = {
     },
 }
 
+
 # TODO DUPLICATE OF EVENTS-API
 def query_get_subquery(q: str):
     """ Return the query-Statement from the QUERY_EVENT_SUBQUERY
@@ -399,7 +403,7 @@ def query_get_subquery(q: str):
 
 # TODO DUPLICATE OF EVENTS-API
 def query_build_subquery(q: str, p: str):
-    """Resolves the Query-Operaton and the Parameter into a tuple of SQL and the parameter
+    """Resolve Query-Operator and the Parameter into tuple of SQL and parameter.
 
     Args:
         q: the column which should match the search value
@@ -442,7 +446,8 @@ def query_prepare_export(q):
                " JOIN sent on sent.id = directives.sent_id "
     params = []
     # now iterate over q (which had to be created with query_build_query
-    # previously) and should be a list of tuples an concatenate the resulting query.
+    # previously) and should be a list of tuples
+    # an concatenate the resulting query.
     # and a list of query parameters
     counter = 0
     for subquerytuple in q:
@@ -483,7 +488,8 @@ def query_prepare_search(q):
 
     params = []
     # now iterate over q (which had to be created with query_build_query
-    # previously) and should be a list of tuples an concatenate the resulting query.
+    # previously) and should be a list of tuples
+    # an concatenate the resulting query.
     # and a list of query parameters
     counter = 0
     for subquerytuple in q:
@@ -497,7 +503,7 @@ def query_prepare_search(q):
     return q_string, params
 
 
-def query_prepare_stats(q, interval = 'day'):
+def query_prepare_stats(q, interval='day'):
     """ Prepares a Query-string for statistics
 
     Args:
@@ -518,13 +524,15 @@ def query_prepare_stats(q, interval = 'day'):
                " JOIN directives on directives.events_id = events.id " \
                " JOIN sent on sent.id = directives.sent_id " % (trunc, )
 
-    # SELECT date_trunc('day', sent_at), count(intelmq_ticket) FROM sent GROUP BY date_trunc('day', sent_at);
+    # SELECT date_trunc('day', sent_at),
+    #   count(intelmq_ticket) FROM sent GROUP BY date_trunc('day', sent_at);
     # Would be much faster, but do not just want to count the tickets, but also
     # might need to filter for certain attributes....
 
     params = []
     # now iterate over q (which had to be created with query_build_query
-    # previously) and should be a list of tuples an concatenate the resulting query.
+    # previously) and should be a list of tuples
+    # an concatenate the resulting query.
     # and a list of query parameters
     counter = 0
     for subquerytuple in q:
@@ -544,7 +552,8 @@ def query(prepared_query):
     """ Queries the Database for Events
 
     Args:
-        prepared_query: A QueryString, Paramater pair created with query_prepare
+        prepared_query: A QueryString, Paramater pair created
+                        with query_prepare
 
     Returns: The results of the databasequery in JSON-Format.
 
@@ -576,8 +585,9 @@ def setup(api):
 
 
 @hug.get(ENDPOINT_PREFIX, examples="id=1")
-def getTicket(response, id: int = None, ticketnumber: hug.types.length(17, 18) = None):
-    """Return Events and Directives associated to a ticketnumber or sent-id
+def getTicket(response, id: int = None,
+              ticketnumber: hug.types.length(17, 18) = None):
+    """Return events and directives associated to a ticketnumber or sent-id.
 
     Args:
         response: A HUG response object...
@@ -601,9 +611,9 @@ def getTicket(response, id: int = None, ticketnumber: hug.types.length(17, 18) =
 
     result = query(prep)
 
-    # Hug cannot serialize datetime.timedelta objects.
-    # Therefor we need to do it on our own...
-    # A issue is open for this see: https://github.com/timothycrosley/hug/issues/468
+    # Hug v2.2.0 cannot serialize datetime.timedelta objects.
+    # Therefor we need to do it on our own... until we have v2.3.0
+    # See: https://github.com/timothycrosley/hug/issues/468
     for elem in result:
         if not elem.get("notification_interval") is None:
             td = elem.get("notification_interval")
@@ -625,25 +635,24 @@ def showSubqueries():
     subquery_copy = copy.deepcopy(QUERY_EVENT_SUBQUERY)
 
     # Remove the SQL Statement from the SQ Object.
-    for k,v in subquery_copy.items():
-        try:
+    for k, v in subquery_copy.items():
+        if 'sql' in v:
             del(v['sql'])
-        except:
-            pass
 
     return subquery_copy
 
 
-@hug.get(ENDPOINT_PREFIX + '/search', examples="sent-at_after=2017-03-01&sent-at_before=2017-03-01")
+@hug.get(ENDPOINT_PREFIX + '/search',
+         examples="sent-at_after=2017-03-01&sent-at_before=2017-03-01")
 def search(response, **params):
-    """Search for events and tickets
+    """Search for events and tickets.
 
     Args:
         response: A HUG response object...
         **params: Queries from QUERY_EVENT_SUBQUERY
 
-    Returns: A subset of the most likely most important fields of the events and their tickets which are matching the query.
-
+    Returns: A subset of the most likely most important fields
+             of the events and their tickets which are matching the query.
     """
     for param in params:
         # Test if the parameters are sane....
@@ -651,7 +660,8 @@ def search(response, **params):
             query_get_subquery(param)
         except ValueError:
             response.status = HTTP_BAD_REQUEST
-            return {"error": "At least one of the queryparameters is not allowed: %s" % (param, )}
+            return {"error": "At least one of the queryparameters" +
+                    " is not allowed: %s" % (param, )}
 
     if not params:
         response.status = HTTP_BAD_REQUEST
@@ -670,29 +680,32 @@ def search(response, **params):
         return {"error": "The query could not be processed."}
 
 
-@hug.get(ENDPOINT_PREFIX + '/stats', examples="malware-name_is=nymaim&recipient-address_icontains=%telekom%&timeres=day")
+@hug.get(ENDPOINT_PREFIX + '/stats',
+         examples="malware-name_is=nymaim&" +
+         "recipient-address_icontains=%telekom%&timeres=day")
 def stats(response, **params):
-    """ This interface returns a statistic of all tickets matching the query parameters
+    """Return a statistic of all tickets matching the query parameters.
 
     Args:
         response: A HUG response object...
         **params: Queries from QUERY_EVENT_SUBQUERY
 
-    Returns: If existing a statistical view on the amount of tickets per time-frame
-
+    Returns: If existing a statistical view on the amount of tickets
+             per time-frame
     """
     now = datetime.datetime.now()
 
-    DAY = datetime.timedelta(1,0)
-    WEEK = datetime.timedelta(7,0)
-    MONTH = datetime.timedelta(30,0)
+    DAY = datetime.timedelta(1, 0)
+    WEEK = datetime.timedelta(7, 0)
+    MONTH = datetime.timedelta(30, 0)
 
-    # The Timebox of the resulting query. For which timeframe should an evaluation take place?
-    # based upon this timeframe a good timeresolution will be suggested and used, if
-    # no other resolution was provided...
+    # The Timebox of the resulting query. For which timeframe should an
+    # evaluation take place? Based upon this timeframe a good timeresolution
+    # will be suggested and used, if no other resolution was provided...
 
     time_after = params.get("sent-at_after", now - datetime.timedelta(days=1))
-    time_before = params.get("sent-at_before", now + datetime.timedelta(days=1))
+    time_before = params.get(
+            "sent-at_before", now + datetime.timedelta(days=1))
 
     # Convert to datetime....
     if type(time_after) == str:
@@ -756,7 +769,11 @@ def stats(response, **params):
             query_get_subquery(param)
         except ValueError:
             response.status = HTTP_BAD_REQUEST
-            return {"error": "At least one of the queryparameters is not allowed: %s" % (param, )}
+            return {
+                "error":
+                "At least one of the queryparameters is not allowed: %s" %
+                    (param, )
+            }
 
     if not params:
         response.status = HTTP_BAD_REQUEST
@@ -765,7 +782,6 @@ def stats(response, **params):
     querylist = query_build_query(params)
 
     prep = query_prepare_stats(querylist, timeres)
-
 
     try:
         results = query(prep)
@@ -785,11 +801,11 @@ def stats(response, **params):
         response.status = HTTP_INTERNAL_SERVER_ERROR
         return {"error": "Something went wrong."}
 
-    return {'timeres': timeres, 'total': totalcount ,'results': results}
+    return {'timeres': timeres, 'total': totalcount, 'results': results}
 
 
 @hug.get(ENDPOINT_PREFIX + '/getRecipient')
-def getDirective(response, ticketnumber:hug.types.length(17, 18)):
+def getDirective(response, ticketnumber: hug.types.length(17, 18)):
 
     result = None
 
@@ -806,9 +822,9 @@ def getDirective(response, ticketnumber:hug.types.length(17, 18)):
         response.status = HTTP_INTERNAL_SERVER_ERROR
         return {"error": "The query could not be processed."}
 
-    # Hug cannot serialize datetime.timedelta objects.
-    # Therefor we need to do it on our own...
-    # A issue is open for this see: https://github.com/timothycrosley/hug/issues/468
+    # Hug v2.2.0 cannot serialize datetime.timedelta objects.
+    # Therefor we need to do it on our own... until we have v2.3.0
+    # See: https://github.com/timothycrosley/hug/issues/468
     for elem in result:
         if not elem.get("notification_interval") is None:
             td = elem.get("notification_interval")
@@ -816,6 +832,7 @@ def getDirective(response, ticketnumber:hug.types.length(17, 18)):
                 elem["notification_interval"] = td.total_seconds()
 
     return result
+
 
 def main():
     """ Main function of this module
