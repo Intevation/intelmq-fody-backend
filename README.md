@@ -22,11 +22,18 @@ Because of https://github.com/Intevation/intelmq-fody-backend/issues/12
 make sure to restart the serving process(es) each time you have
 restarted postgresql.
 
-## Run with hug
-```
+## Run with hug interactively
+
+For development purposes it is possible to run the backend interactively. The intelmq-fody frontend expects the backend at port 8002.
+
+```bash
 hug -f intelmq_fody_backend/serve.py -p 8002
 ```
 
+It is also possible to only run a single backend, for example the events API:
+```bash
+hug -f events_api/events_api/serve.py -p 8002
+```
 
 ## Run with Apache and WSGI
 ```
