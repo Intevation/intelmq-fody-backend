@@ -367,13 +367,13 @@ QUERY_EVENT_SUBQUERY = {
     'recipient-address_is': {
         'sql': 'directives.recipient_address = %s',
         'description': '',
-        'label': 'Recipient email address',
+        'label': 'Recipient Email Address',
         'exp_type': 'email'
     },
     'recipient-address_icontains': {
         'sql': 'directives.recipient_address ILIKE %s',
         'description': '',
-        'label': 'Recipient email address contains',
+        'label': 'Recipient Email Address contains',
         'exp_type': 'string'
     },
 }
