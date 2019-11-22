@@ -570,12 +570,17 @@ def getEvent(response, id: int=None):
     prep = query_prepare_export(querylist)
 
     try:
-        return query(prep)
+        rows = query(prep)
     except psycopg2.Error as e:
         log.error(e)
         __rollback_transaction()
         response.status = HTTP_INTERNAL_SERVER_ERROR
         return {"error": "The query could not be processed."}
+
+    for row in rows:
+        change_notification_interval_to_int(row)
+
+    return rows
 
 
 @hug.get(ENDPOINT_PREFIX + '/subqueries')
@@ -589,6 +594,24 @@ def showSubqueries():
             del(v['sql'])
 
     return subquery_copy
+
+
+def change_notification_interval_to_int(result_row):
+    """Change timedelta to seconds to prepare for hug's serialisation.
+
+    Mutates dict in place for hard coded element `notification_interval`.
+    (The hardcoding should make this faster, as it is envisioned
+    to be used in a loop.)
+
+    Solution taken from module `tickets_api`.
+
+    Hug v2.2.0 cannot serialize datetime.timedelta objects.
+    Therefor we need to do it on our own... until we FUTURE have v2.3.0
+    See: https://github.com/timothycrosley/hug/issues/468
+    """
+    td = result_row.get("notification_interval")
+    if td and isinstance(td, datetime.timedelta):
+        result_row["notification_interval"] = td.total_seconds()
 
 
 @hug.get(ENDPOINT_PREFIX + '/search',
@@ -636,6 +659,7 @@ def search(response, **params):
     for row in rows:
         # remove None entries from the resulting dict
         event = {k: v for k, v in row.items() if v is not None}
+        change_notification_interval_to_int(event)
         events.append(event)
     return events
 
@@ -794,12 +818,17 @@ def export(response, **params):
     prep = query_prepare_export(querylist)
 
     try:
-        return query(prep)
+        rows = query(prep)
     except psycopg2.Error as e:
         log.error(e)
         __rollback_transaction()
         response.status = HTTP_INTERNAL_SERVER_ERROR
         return {"error": "The query could not be processed."}
+
+    for row in rows:
+        change_notification_interval_to_int(row)
+
+    return rows
 
 
 def main():

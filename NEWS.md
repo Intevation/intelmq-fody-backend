@@ -6,6 +6,7 @@
      (based on what is the TimeZone of the database.)
  * Events:
    * Fix subquery for "EventID" (broken since 0.6.4).
+   * Fix support for hug v==2.2.0 in three endpoints.
 
 
 ## 0.6.3.1 to 0.6.4
