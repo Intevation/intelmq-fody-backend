@@ -666,7 +666,6 @@ def search(response, **params):
 
 @hug.get(ENDPOINT_PREFIX + '/stats',
          examples="malware-name_is=nymaim&timeres=day")
-# @hug.post(ENDPOINT_PREFIX + '/export')
 def stats(response, **params):
     """Return distribution of events for query parameters.
 
@@ -784,51 +783,6 @@ def stats(response, **params):
         return {"error": "Something went wrong."}
 
     return {'timeres': timeres, 'total': totalcount, 'results': results}
-
-
-@hug.get(ENDPOINT_PREFIX + '/export',
-         examples="time-observation_after=2017-03-01"
-                  "&time-observation_before=2017-03-01")
-# @hug.post(ENDPOINT_PREFIX + '/export')
-def export(response, **params):
-    """ This interface exports all events matching the query parameters
-
-    Args:
-        response: A HUG response object...
-        **params: Queries from QUERY_EVENT_SUBQUERY
-
-    Returns: If existing all events of the EventDB matching the query
-
-    """
-    for param in params:
-        # Test if the parameters are sane....
-        try:
-            query_get_subquery(param)
-        except ValueError:
-            response.status = HTTP_BAD_REQUEST
-            return {"error":
-                    "At least one of the queryparameters is not allowed"}
-
-    if not params:
-        response.status = HTTP_BAD_REQUEST
-        return {"error": "Queries without parameters are not supported"}
-
-    querylist = query_build_query(params)
-
-    prep = query_prepare_export(querylist)
-
-    try:
-        rows = query(prep)
-    except psycopg2.Error as e:
-        log.error(e)
-        __rollback_transaction()
-        response.status = HTTP_INTERNAL_SERVER_ERROR
-        return {"error": "The query could not be processed."}
-
-    for row in rows:
-        change_notification_interval_to_int(row)
-
-    return rows
 
 
 def main():

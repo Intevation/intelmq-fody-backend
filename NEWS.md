@@ -1,10 +1,11 @@
-## 0.6.4 to 0.6.5 (unreleased)
+## 0.6.4 to 0.7.0 (unreleased)
 **todo**
 
  * Tickets:
    * Change default parameters for `./stats` to include the full yesterday
      (based on what is the TimeZone of the database.)
  * Events:
+   * Remove endpoint `/export`, as similar to `/search` and assumed unused.
    * Fix subquery for "EventID" (broken since 0.6.4).
    * Fix support for hug v==2.2.0 in three endpoints.
 
