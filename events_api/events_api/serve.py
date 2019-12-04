@@ -402,13 +402,27 @@ def query_build_query(params):
 
 
 def _join_mailgen_tables(querystring: str) -> str:
-    """Add SQL JOIN commands for extra mailgen tables, if they exist."""
+    """Change query string to join extra mailgen tables, if they exist.
+
+    * Add JOIN commands.
+    * If all columns are selected, change the SELECT part as well
+      to add the mailgen tables as row_to_json entries starting with
+      `mailgen_`.
+    """
     global QUERY_JOIN_MAILGEN_TABLES
 
     if QUERY_JOIN_MAILGEN_TABLES:
         # join tables similiar to tickets backend to allow more filters
         querystring += " JOIN directives on directives.events_id = events.id "
         querystring += " JOIN sent on sent.id = directives.sent_id "
+
+        if querystring.startswith("SELECT * "):
+            # querystring = "SELECT events.* " + querystring[len("SELECT * "):]
+            querystring = (
+                "SELECT events.*, "
+                + "row_to_json(directives.*) AS mailgen_directives, "
+                + "row_to_json(sent.*) AS mailgen_sent "
+                + querystring[len("SELECT * "):])
 
     return querystring
 
