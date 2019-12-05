@@ -1,16 +1,15 @@
-## 0.6.4 to 0.7.0 (unreleased)
-**todo**
+## 0.6.4 to 0.7.0
 
  * Tickets:
-   * Change default parameters for `./stats` to include the full yesterday
+   * Change default parameters for `./stats?` to include the full last day
      (based on what is the timezone of the database.)
    * Cleanup code: Remove unused and broken `?id=` ability, change
      `/?ticketnumber=` ability to return mailgen tables like `events/search`.
 
  * Events:
-   * Change `/search` endpoint to return `mailgen_directives` and
-     `mailgen_sent` tables as JSON string values for easier handling in clients.
-   * Remove endpoint `/export`, as too similar to `/search` and assumed unused.
+   * Change `./search?` to return the columns from `mailgen_directives` and
+     `mailgen_sent` tables as JSON values for easier handling in clients.
+   * Remove `./export?`, as too similar to `./search?` and assumed unused.
    * Fix subquery for "EventID" (broken since 0.6.4).
    * Fix support for hug v==2.2.0 in three endpoints.
 

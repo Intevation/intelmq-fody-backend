@@ -67,6 +67,7 @@ Originally fody-backend had been designed with sub-modules
 that could potentially also be used separately.
 Example how to change all version numbers:
 ```sh
+grep -r "^    version=" .
 grep -rl "^    version=" . | xargs sed -i 's/0.4.4.dev0/0.5.0.dev0/'
 ```
 
