@@ -18,6 +18,8 @@ for details.
 
 # Operating manual
 
+See [events_api/README.md](events_api/README.md) for usage hints for statistics.
+
 Because of https://github.com/Intevation/intelmq-fody-backend/issues/12
 make sure to restart the serving process(es) each time you have
 restarted postgresql.

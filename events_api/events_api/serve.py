@@ -3,7 +3,7 @@
 
 Requires hug (http://www.hug.rest/)
 
-Copyright (C) 2017-2019 by Bundesamt für Sicherheit in der Informationstechnik
+Copyright (C) 2017-2020 by Bundesamt für Sicherheit in der Informationstechnik
 
 Software engineering by Intevation GmbH
 
@@ -338,7 +338,7 @@ QUERY_EVENT_SUBQUERY = {
 }
 
 QUERY_EVENT_SUBQUERY_MAILGEN = {
-    # queries that need the intelmq-cb-mailgen extra tabels
+    # queries that need the intelmq-cb-mailgen extra tables
     # queryname: ['sqlstatement', 'description', 'label', 'Expected-Type']
     'recipient_group': {
         'sql': 'json_object(aggregate_identifier) ->> \'recipient_group\''
@@ -471,7 +471,9 @@ def query_prepare_stats(q, interval='day'):
 
     trunc = "date_trunc('%s', \"time.observation\")" % (interval,)
 
-    q_string = """SELECT {trunc}, count(*) FROM {table}
+    # The `DISTINCT` makes sure each event is counted only once in case
+    # several directives for the same event were joined
+    q_string = """SELECT {trunc}, count(DISTINCT events.id) FROM {table}
                """.format(trunc=trunc, table=QUERY_TABLE_NAME)
     q_string = _join_mailgen_tables(q_string)
 

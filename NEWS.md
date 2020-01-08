@@ -1,5 +1,8 @@
-## 0.7.0 to 0.7.1 (unrelease)
-**todo**
+## 0.7.0 to 0.7.1
+
+ * Events: Fix `./stats?` to count events only once in case of
+   `intelmq-cb-mailgen` setups. Note that several entries can be returned
+   with the corresponding `./search?` call. See usage hint for the reason.
 
 
 ## 0.6.4 to 0.7.0
