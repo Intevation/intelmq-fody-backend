@@ -1,10 +1,25 @@
-## 0.6.4 to 0.6.5 (unreleased)
+## 0.7.1 to 0.7.2 (unreleased)
 **todo**
 
+## 0.7.0 to 0.7.1
+
+ * Events: Fix `./stats?` to count events only once in case of
+   `intelmq-cb-mailgen` setups. Note that several entries can be returned
+   with the corresponding `./search?` call. See usage hint for the reason.
+
+
+## 0.6.4 to 0.7.0
+
  * Tickets:
-   * Change default parameters for `./stats` to include the full yesterday
-     (based on what is the TimeZone of the database.)
+   * Change default parameters for `./stats?` to include the full last day
+     (based on what is the timezone of the database.)
+   * Cleanup code: Remove unused and broken `?id=` ability, change
+     `/?ticketnumber=` ability to return mailgen tables like `events/search`.
+
  * Events:
+   * Change `./search?` to return the columns from `mailgen_directives` and
+     `mailgen_sent` tables as JSON values for easier handling in clients.
+   * Remove `./export?`, as too similar to `./search?` and assumed unused.
    * Fix subquery for "EventID" (broken since 0.6.4).
    * Fix support for hug v==2.2.0 in three endpoints.
 

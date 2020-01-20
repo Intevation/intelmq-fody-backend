@@ -1,3 +1,15 @@
+intelmq-fody-backend (0.7.1) stable; urgency=medium
+
+  * New release.
+
+ -- Bernhard E. Reiter <bernhard@intevation.de>  Wed, 08 Jan 2020 15:25:18 +0100
+
+intelmq-fody-backend (0.7.0) stable; urgency=medium
+
+  * New release.
+
+ -- Bernhard E. Reiter <bernhard@intevation.de>  Thu, 05 Dec 2019 09:01:08 +0100
+
 intelmq-fody-backend (0.6.3.1) unstable; urgency=medium
 
   * Use correct column name when determining the default tags

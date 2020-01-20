@@ -398,7 +398,7 @@ def query_get_subquery(q: str):
     if s:
         return s
     else:
-        raise ValueError('The Query-Paramter you asked for is not supported.')
+        raise ValueError('The query-parameter you asked for is not supported.')
 
 
 # TODO DUPLICATE OF EVENTS-API
@@ -433,15 +433,19 @@ def query_build_query(params):
 
 
 def query_prepare_export(q):
-    """ Prepares a Query-string in order to Export Everything from the DB
+    """Prepares a Query-string in order to export everything from the DB.
 
     Args:
         q: An array of Tuples created with query_build_query
 
-    Returns: A Tuple consisting of a query sting and an array of parameters.
+    Returns: A Tuple consisting of a query string and an array of parameters.
 
     """
-    q_string = "SELECT * FROM events" \
+    q_string = "SELECT " \
+               "       events.*, " \
+               "       row_to_json(directives.*) AS mailgen_directives, " \
+               "       row_to_json(sent.*) AS mailgen_sent " \
+               "   FROM events" \
                " JOIN directives on directives.events_id = events.id " \
                " JOIN sent on sent.id = directives.sent_id "
     params = []
@@ -467,7 +471,9 @@ def query_prepare_search(q):
     Args:
         q: An array of Tuples created with query_build_query
 
-    Returns: A Tuple consisting of a query sting and an array of parameters.
+    Returns: A tuple consisting of a query string and an array of parameters.
+
+    TODO: make more dynamic, equal to events' `/search` endpoint.
 
     """
     q_string = "SELECT events.id , " \
@@ -584,31 +590,22 @@ def setup(api):
     log.debug("Initialised DB connection for events_api.")
 
 
-@hug.get(ENDPOINT_PREFIX, examples="id=1")
-def getTicket(response, id: int = None,
-              ticketnumber: hug.types.length(17, 18) = None):
-    """Return events and directives associated to a ticketnumber or sent-id.
+@hug.get(ENDPOINT_PREFIX, examples="ticketnumber=20191018-10000289")
+def getTicket(response,
+              ticketnumber: hug.types.length(17, 18)):
+    """Return events and directives associated with a ticketnumber.
 
     Args:
         response: A HUG response object...
-        id: The ID of an event
+        ticketnumber: the ticket number
 
     Returns: If existing one event of the EventDB
 
     """
     param = {}
-    if id:
-        param["sent-id"] = id
-    if ticketnumber:
-        param["ticketnumber"] = ticketnumber
-    else:
-        response.status = HTTP_BAD_REQUEST
-        return {"error": "You need to provide an id or a tickenumber"}
-
+    param["ticketnumber"] = ticketnumber
     querylist = query_build_query(param)
-
     prep = query_prepare_export(querylist)
-
     result = query(prep)
 
     # Hug v2.2.0 cannot serialize datetime.timedelta objects.

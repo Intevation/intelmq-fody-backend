@@ -3,7 +3,7 @@
 
 Requires hug (http://www.hug.rest/)
 
-Copyright (C) 2017-2019 by Bundesamt für Sicherheit in der Informationstechnik
+Copyright (C) 2017-2020 by Bundesamt für Sicherheit in der Informationstechnik
 
 Software engineering by Intevation GmbH
 
@@ -338,7 +338,7 @@ QUERY_EVENT_SUBQUERY = {
 }
 
 QUERY_EVENT_SUBQUERY_MAILGEN = {
-    # queries that need the intelmq-cb-mailgen extra tabels
+    # queries that need the intelmq-cb-mailgen extra tables
     # queryname: ['sqlstatement', 'description', 'label', 'Expected-Type']
     'recipient_group': {
         'sql': 'json_object(aggregate_identifier) ->> \'recipient_group\''
@@ -402,13 +402,27 @@ def query_build_query(params):
 
 
 def _join_mailgen_tables(querystring: str) -> str:
-    """Add SQL JOIN commands for extra mailgen tables, if they exist."""
+    """Change query string to join extra mailgen tables, if they exist.
+
+    * Add JOIN commands.
+    * If all columns are selected, change the SELECT part as well
+      to add the mailgen tables as row_to_json entries starting with
+      `mailgen_`.
+    """
     global QUERY_JOIN_MAILGEN_TABLES
 
     if QUERY_JOIN_MAILGEN_TABLES:
         # join tables similiar to tickets backend to allow more filters
         querystring += " JOIN directives on directives.events_id = events.id "
         querystring += " JOIN sent on sent.id = directives.sent_id "
+
+        if querystring.startswith("SELECT * "):
+            # querystring = "SELECT events.* " + querystring[len("SELECT * "):]
+            querystring = (
+                "SELECT events.*, "
+                + "row_to_json(directives.*) AS mailgen_directives, "
+                + "row_to_json(sent.*) AS mailgen_sent "
+                + querystring[len("SELECT * "):])
 
     return querystring
 
@@ -457,7 +471,9 @@ def query_prepare_stats(q, interval='day'):
 
     trunc = "date_trunc('%s', \"time.observation\")" % (interval,)
 
-    q_string = """SELECT {trunc}, count(*) FROM {table}
+    # The `DISTINCT` makes sure each event is counted only once in case
+    # several directives for the same event were joined
+    q_string = """SELECT {trunc}, count(DISTINCT events.id) FROM {table}
                """.format(trunc=trunc, table=QUERY_TABLE_NAME)
     q_string = _join_mailgen_tables(q_string)
 
@@ -666,7 +682,6 @@ def search(response, **params):
 
 @hug.get(ENDPOINT_PREFIX + '/stats',
          examples="malware-name_is=nymaim&timeres=day")
-# @hug.post(ENDPOINT_PREFIX + '/export')
 def stats(response, **params):
     """Return distribution of events for query parameters.
 
@@ -784,51 +799,6 @@ def stats(response, **params):
         return {"error": "Something went wrong."}
 
     return {'timeres': timeres, 'total': totalcount, 'results': results}
-
-
-@hug.get(ENDPOINT_PREFIX + '/export',
-         examples="time-observation_after=2017-03-01"
-                  "&time-observation_before=2017-03-01")
-# @hug.post(ENDPOINT_PREFIX + '/export')
-def export(response, **params):
-    """ This interface exports all events matching the query parameters
-
-    Args:
-        response: A HUG response object...
-        **params: Queries from QUERY_EVENT_SUBQUERY
-
-    Returns: If existing all events of the EventDB matching the query
-
-    """
-    for param in params:
-        # Test if the parameters are sane....
-        try:
-            query_get_subquery(param)
-        except ValueError:
-            response.status = HTTP_BAD_REQUEST
-            return {"error":
-                    "At least one of the queryparameters is not allowed"}
-
-    if not params:
-        response.status = HTTP_BAD_REQUEST
-        return {"error": "Queries without parameters are not supported"}
-
-    querylist = query_build_query(params)
-
-    prep = query_prepare_export(querylist)
-
-    try:
-        rows = query(prep)
-    except psycopg2.Error as e:
-        log.error(e)
-        __rollback_transaction()
-        response.status = HTTP_INTERNAL_SERVER_ERROR
-        return {"error": "The query could not be processed."}
-
-    for row in rows:
-        change_notification_interval_to_int(row)
-
-    return rows
 
 
 def main():

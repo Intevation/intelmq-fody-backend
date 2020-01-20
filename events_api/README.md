@@ -6,6 +6,17 @@ The module can be used on an events table created by an
 If there are additional tables from running a `intelmq-cb-mailgen` setup,
 additional features are offered.
 
+## Usage Hint for endpoint `./stats?`
+
+In an `intelmq-cb-mailgen` setup one event can have several directives
+which each potentially leads to an outgoing email.
+Each email will be sent at a different datetime.
+As a consequence it is possible that the same event is counted in different
+sending-time periods. Or to state this more general: if subqueries
+are used to restrict the results by columns from the `directives`
+or `sent` tables, the summary count of several of those queries maybe larger
+than the total number of events.
+
 
 ## Configuration
 Uses environment variable ```EVENTDB_SERVE_CONF_FILE``` to read
