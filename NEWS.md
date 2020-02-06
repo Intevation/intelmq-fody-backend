@@ -1,6 +1,10 @@
 ## 0.7.1 to 0.7.2 (unreleased)
 **todo**
 
+ * Events: Fix endpoints that use queries with mailgen tables to also
+   include events that have not been sent yet.
+
+
 ## 0.7.0 to 0.7.1
 
  * Events: Fix `./stats?` to count events only once in case of

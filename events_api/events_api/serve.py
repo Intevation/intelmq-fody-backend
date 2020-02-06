@@ -413,8 +413,9 @@ def _join_mailgen_tables(querystring: str) -> str:
 
     if QUERY_JOIN_MAILGEN_TABLES:
         # join tables similiar to tickets backend to allow more filters
-        querystring += " JOIN directives on directives.events_id = events.id "
-        querystring += " JOIN sent on sent.id = directives.sent_id "
+        querystring += """ LEFT OUTER JOIN directives
+                             ON directives.events_id = events.id"""
+        querystring += " LEFT OUTER JOIN sent ON sent.id = directives.sent_id"
 
         if querystring.startswith("SELECT * "):
             # querystring = "SELECT events.* " + querystring[len("SELECT * "):]
