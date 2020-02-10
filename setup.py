@@ -4,7 +4,7 @@ setup(
     name='intelmq-fody-backend',
     # version shall be compatible with PEP440 and as close to
     # Semantic Versioning 2.0.0 as we can, to be similiar to fody's versioning
-    version='0.7.2.dev0',
+    version='0.7.2',
     packages=[
         'checkticket_api.checkticket_api',
         'contactdb_api.contactdb_api',

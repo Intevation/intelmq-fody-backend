@@ -1,5 +1,4 @@
-## 0.7.1 to 0.7.2 (unreleased)
-**todo**
+## 0.7.1 to 0.7.2
 
  * Events: Fix endpoints that use queries with mailgen tables to also
    include events that have not been sent yet.

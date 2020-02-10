@@ -1,3 +1,9 @@
+intelmq-fody-backend (0.7.2) stable; urgency=medium
+
+  * New release.
+
+ -- Bernhard Reiter <bernhard@intevation.de>  Mon, 10 Feb 2020 10:28:27 +0100
+
 intelmq-fody-backend (0.7.1) stable; urgency=medium
 
   * New release.
