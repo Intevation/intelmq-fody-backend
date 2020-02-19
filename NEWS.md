@@ -1,3 +1,9 @@
+## 0.7.2 to 0.7.3 (unreleased)
+**todo**
+
+ * Events: Add default searchqueries for recipient email addresses.
+
+
 ## 0.7.1 to 0.7.2
 
  * Events: Fix endpoints that use queries with mailgen tables to also

@@ -348,6 +348,18 @@ QUERY_EVENT_SUBQUERY_MAILGEN = {
         'label': 'Recipient Group Tag contains',
         'exp_type': 'string',
     },
+    'recipient-address_is': {
+        'sql': 'directives.recipient_address = %s',
+        'description': '',
+        'label': 'Recipient Email Address',
+        'exp_type': 'email'
+    },
+    'recipient-address_icontains': {
+        'sql': 'directives.recipient_address ILIKE %s',
+        'description': '',
+        'label': 'Recipient Email Address contains',
+        'exp_type': 'string'
+    },
 }
 
 
