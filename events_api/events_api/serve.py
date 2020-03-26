@@ -207,7 +207,7 @@ QUERY_EVENT_SUBQUERY = {
         'exp_type': 'string'
     },
     'source-fqdn_icontains': {
-        'sql': "source.fqdn ILIKE concat('%%', %s', '%%')",
+        'sql': '"source.fqdn" ILIKE concat(\'%%\', %s, \'%%\')',
         'description': '',
         'label': 'Source FQDN contains',
         'exp_type': 'string'
@@ -239,7 +239,7 @@ QUERY_EVENT_SUBQUERY = {
         'exp_type': 'string'
     },
     'destination-fqdn_icontains': {
-        'sql': "destination.fqdn ILIKE concat('%%', %s', '%%')",
+        'sql': '"destination.fqdn" ILIKE concat(\'%%\', %s, \'%%\')',
         'description': '',
         'label': 'Destination FQDN contains',
         'exp_type': 'string'
@@ -253,7 +253,7 @@ QUERY_EVENT_SUBQUERY = {
         'exp_type': 'string'
     },
     'classification-taxonomy_icontains': {
-        'sql': "classification.taxonomy ILIKE concat('%%', %s', '%%')",
+        'sql': '"classification.taxonomy" ILIKE concat(\'%%\', %s, \'%%\')',
         'description': '',
         'label': 'Classification Taxonomy contains',
         'exp_type': 'string'
@@ -265,7 +265,7 @@ QUERY_EVENT_SUBQUERY = {
         'exp_type': 'string'
     },
     'classification-type_icontains': {
-        'sql': "classification.type ILIKE concat('%%', %s', '%%')",
+        'sql': '"classification.type" ILIKE concat(\'%%\', %s, \'%%\')',
         'description': '',
         'label': 'Classification Type contains',
         'exp_type': 'string'
@@ -277,7 +277,7 @@ QUERY_EVENT_SUBQUERY = {
         'exp_type': 'string'
     },
     'classification-identifier_icontains': {
-        'sql': "classification.identifier ILIKE concat('%%', %s', '%%')",
+        'sql': '"classification.identifier" ILIKE concat(\'%%\', %s, \'%%\')',
         'description': '',
         'label': 'Classification Identifier contains',
         'exp_type': 'string'
@@ -289,7 +289,7 @@ QUERY_EVENT_SUBQUERY = {
         'exp_type': 'string'
     },
     'malware-name_icontains': {
-        'sql': "malware.name ILIKE concat('%%', %s', '%%')",
+        'sql': '"malware.name" ILIKE concat(\'%%\', %s, \'%%\')',
         'description': '',
         'label': 'Malware Name contains',
         'exp_type': 'string'
@@ -303,7 +303,7 @@ QUERY_EVENT_SUBQUERY = {
         'exp_type': 'string'
     },
     'feed-provider_icontains': {
-        'sql': "feed.provider ILIKE concat('%%', %s', '%%')",
+        'sql': '"feed.provider" ILIKE concat(\'%%\', %s, \'%%\')',
         'description': '',
         'label': 'Feed Provider contains',
         'exp_type': 'string'
@@ -315,7 +315,7 @@ QUERY_EVENT_SUBQUERY = {
         'exp_type': 'string'
     },
     'feed-name_icontains': {
-        'sql': "feed.name ILIKE concat('%%', %s', '%%')",
+        'sql': '"feed.name" ILIKE concat(\'%%\', %s, \'%%\')',
         'description': '',
         'label': 'Feed Name contains',
         'exp_type': 'string'
@@ -352,6 +352,14 @@ QUERY_EVENT_SUBQUERY_MAILGEN = {
                'ILIKE %s',
         'description': 'Value for recipient_group tag'
                        'as set by the rule expert.',
+        'label': 'Recipient Group Tag',
+        'exp_type': 'string',
+    },
+    'recipient_group_icontains': {
+        'sql': 'json_object(aggregate_identifier) ->> \'recipient_group\''
+               'ILIKE concat(\'%%\', %s, \'%%\')',
+        'description': 'Value for recipient_group tag'
+                       'as set by the rule expert - substring match.',
         'label': 'Recipient Group Tag contains',
         'exp_type': 'string',
     },
@@ -362,7 +370,8 @@ QUERY_EVENT_SUBQUERY_MAILGEN = {
         'exp_type': 'email'
     },
     'recipient-address_icontains': {
-        'sql': "directives.recipient_address ILIKE concat('%%', %s', '%%')",
+        'sql':
+            '"directives.recipient_address" ILIKE concat(\'%%\', %s, \'%%\')',
         'description': '',
         'label': 'Recipient Email Address contains',
         'exp_type': 'string'
