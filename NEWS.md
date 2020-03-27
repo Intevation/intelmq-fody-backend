@@ -1,14 +1,13 @@
-## 0.7.2 to 0.8.0 (unreleased)
-**todo**
+## 0.7.2 to 0.8.0
 
  * Tickets and Events:
    * Improve frontend usability by automatically searching for substrings
-     in case of `_icontains` queries and by searching case-insensitive
+     in case of `_icontains` subqueries and by searching case-insensitive
      for strings in general.
    * Remove `_encl` subqueries as they are not needed.
    * Make subqueries similar (and equal in case of `intelmq-cb-mailgen`
      setups) between Tickets and Events.
- * Events: Add default searchqueries for recipient email addresses.
+ * Events: Add default subqueries for recipient email addresses.
 
 
 ## 0.7.1 to 0.7.2
