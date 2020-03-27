@@ -151,63 +151,63 @@ QUERY_EVENT_SUBQUERY = {
     # For more details see
     # https://github.com/Intevation/intelmq-fody-backend/issues/26
     'id': {
-        'sql': 'events.id = %s',
+        'sql': 'events."id" = %s',
         'description': 'Query for an Event matching this ID.',
         'label': 'EventID',
         'exp_type': 'integer'
     },
     # Time
     'time-observation_before': {
-        'sql': '"time.observation" < %s',
+        'sql': 'events."time.observation" < %s',
         'description': '',
         'label': 'Observation Time before',
         'exp_type': 'datetime'
     },
     'time-observation_after': {
-        'sql': '"time.observation" > %s',
+        'sql': 'events."time.observation" > %s',
         'description': '',
         'label': 'Observation Time after',
         'exp_type': 'datetime'
     },
     'time-source_before': {
-        'sql': '"time.source" < %s',
+        'sql': 'events."time.source" < %s',
         'description': '',
         'label': 'Source Time before',
         'exp_type': 'datetime'
     },
     'time-source_after': {
-        'sql': '"time.source" > %s',
+        'sql': 'events."time.source" > %s',
         'description': '',
         'label': 'Source Time after',
         'exp_type': 'datetime'
     },
     # Source
     'source-ip_in_sn': {
-        'sql': '"source.ip" <<= %s',
+        'sql': 'events."source.ip" <<= %s',
         'description': '',
         'label': 'Source IP-Network',
         'exp_type': 'cidr'
     },
     'source-ip_is': {
-        'sql': '"source.ip" = %s',
+        'sql': 'events."source.ip" = %s',
         'description': '',
         'label': 'Source IP-Address',
         'exp_type': 'ip'
     },
     'source-asn_is': {
-        'sql': '"source.asn" = %s',
+        'sql': 'events."source.asn" = %s',
         'description': '',
         'label': 'Source ASN',
         'exp_type': 'integer'
     },
     'source-fqdn_is': {
-        'sql': '"source.fqdn" ILIKE %s',
+        'sql': 'events."source.fqdn" ILIKE %s',
         'description': '',
         'label': 'Source FQDN',
         'exp_type': 'string'
     },
     'source-fqdn_icontains': {
-        'sql': '"source.fqdn" ILIKE concat(\'%%\', %s, \'%%\')',
+        'sql': 'events."source.fqdn" ILIKE concat(\'%%\', %s, \'%%\')',
         'description': '',
         'label': 'Source FQDN contains',
         'exp_type': 'string'
@@ -215,31 +215,31 @@ QUERY_EVENT_SUBQUERY = {
 
     # Destinations
     'destination-ip_in_sn': {
-        'sql': '"destination.ip" <<= %s',
+        'sql': 'events."destination.ip" <<= %s',
         'description': '',
         'label': 'Destination IP-Network',
         'exp_type': 'cidr'
     },
     'destination-ip_is': {
-        'sql': '"destination.ip" = %s',
+        'sql': 'events."destination.ip" = %s',
         'description': '',
         'label': 'Destination IP-Address',
         'exp_type': 'ip'
     },
     'destination-asn_is': {
-        'sql': '"destination.asn" = %s',
+        'sql': 'events."destination.asn" = %s',
         'description': '',
         'label': 'Destination ASN',
         'exp_type': 'integer'
     },
     'destination-fqdn_is': {
-        'sql': '"destination.fqdn" ILIKE %s',
+        'sql': 'events."destination.fqdn" ILIKE %s',
         'description': '',
         'label': 'Destination FQDN',
         'exp_type': 'string'
     },
     'destination-fqdn_icontains': {
-        'sql': '"destination.fqdn" ILIKE concat(\'%%\', %s, \'%%\')',
+        'sql': 'events."destination.fqdn" ILIKE concat(\'%%\', %s, \'%%\')',
         'description': '',
         'label': 'Destination FQDN contains',
         'exp_type': 'string'
@@ -247,49 +247,51 @@ QUERY_EVENT_SUBQUERY = {
 
     # Classification
     'classification-taxonomy_is': {
-        'sql': '"classification.taxonomy" ILIKE %s',
+        'sql': 'events."classification.taxonomy" ILIKE %s',
         'description': '',
         'label': 'Classification Taxonomy',
         'exp_type': 'string'
     },
     'classification-taxonomy_icontains': {
-        'sql': '"classification.taxonomy" ILIKE concat(\'%%\', %s, \'%%\')',
+        'sql': 'events."classification.taxonomy" '
+               'ILIKE concat(\'%%\', %s, \'%%\')',
         'description': '',
         'label': 'Classification Taxonomy contains',
         'exp_type': 'string'
     },
     'classification-type_is': {
-        'sql': '"classification.type" ILIKE %s',
+        'sql': 'events."classification.type" ILIKE %s',
         'description': '',
         'label': 'Classification Type',
         'exp_type': 'string'
     },
     'classification-type_icontains': {
-        'sql': '"classification.type" ILIKE concat(\'%%\', %s, \'%%\')',
+        'sql': 'events."classification.type" ILIKE concat(\'%%\', %s, \'%%\')',
         'description': '',
         'label': 'Classification Type contains',
         'exp_type': 'string'
     },
     'classification-identifier_is': {
-        'sql': '"classification.identifier" ILIKE %s',
+        'sql': 'events."classification.identifier" ILIKE %s',
         'description': '',
         'label': 'Classification Identifier',
         'exp_type': 'string'
     },
     'classification-identifier_icontains': {
-        'sql': '"classification.identifier" ILIKE concat(\'%%\', %s, \'%%\')',
+        'sql': 'events."classification.identifier" '
+               'ILIKE concat(\'%%\', %s, \'%%\')',
         'description': '',
         'label': 'Classification Identifier contains',
         'exp_type': 'string'
     },
     'malware-name_is': {
-        'sql': '"malware.name" ILIKE %s',
+        'sql': 'events."malware.name" ILIKE %s',
         'description': '',
         'label': 'Malware Name',
         'exp_type': 'string'
     },
     'malware-name_icontains': {
-        'sql': '"malware.name" ILIKE concat(\'%%\', %s, \'%%\')',
+        'sql': 'events."malware.name" ILIKE concat(\'%%\', %s, \'%%\')',
         'description': '',
         'label': 'Malware Name contains',
         'exp_type': 'string'
@@ -297,25 +299,25 @@ QUERY_EVENT_SUBQUERY = {
 
     # Feed
     'feed-provider_is': {
-        'sql': '"feed.provider" ILIKE %s',
+        'sql': 'events."feed.provider" ILIKE %s',
         'description': '',
         'label': 'Feed Provider',
         'exp_type': 'string'
     },
     'feed-provider_icontains': {
-        'sql': '"feed.provider" ILIKE concat(\'%%\', %s, \'%%\')',
+        'sql': 'events."feed.provider" ILIKE concat(\'%%\', %s, \'%%\')',
         'description': '',
         'label': 'Feed Provider contains',
         'exp_type': 'string'
     },
     'feed-name_is': {
-        'sql': '"feed.name" ILIKE %s',
+        'sql': 'events."feed.name" ILIKE %s',
         'description': '',
         'label': 'Feed Name',
         'exp_type': 'string'
     },
     'feed-name_icontains': {
-        'sql': '"feed.name" ILIKE concat(\'%%\', %s, \'%%\')',
+        'sql': 'events."feed.name" ILIKE concat(\'%%\', %s, \'%%\')',
         'description': '',
         'label': 'Feed Name contains',
         'exp_type': 'string'
@@ -328,19 +330,19 @@ QUERY_EVENT_SUBQUERY_MAILGEN = {
 
     # Ticket-Related-Stuff
     'ticketnumber': {
-        'sql': 'sent.intelmq_ticket = %s',
+        'sql': 'sent."intelmq_ticket" = %s',
         'description': '',
         'label': 'Ticketnumber',
         'exp_type': 'string'
     },
     'sent-at_before': {
-        'sql': 'sent.sent_at < %s',
+        'sql': 'sent."sent_at" < %s',
         'description': '',
         'label': 'Sent before',
         'exp_type': 'datetime'
     },
     'sent-at_after': {
-        'sql': 'sent.sent_at > %s',
+        'sql': 'sent."sent_at" > %s',
         'description': '',
         'label': 'Sent after',
         'exp_type': 'datetime'
@@ -348,7 +350,8 @@ QUERY_EVENT_SUBQUERY_MAILGEN = {
 
     # Directive-Related-Stuff
     'recipient_group': {
-        'sql': 'json_object(aggregate_identifier) ->> \'recipient_group\''
+        'sql': 'json_object('
+               '  directives."aggregate_identifier")->> \'recipient_group\' '
                'ILIKE %s',
         'description': 'Value for recipient_group tag'
                        'as set by the rule expert.',
@@ -356,7 +359,8 @@ QUERY_EVENT_SUBQUERY_MAILGEN = {
         'exp_type': 'string',
     },
     'recipient_group_icontains': {
-        'sql': 'json_object(aggregate_identifier) ->> \'recipient_group\''
+        'sql': 'json_object('
+               '  directives."aggregate_identifier")->> \'recipient_group\' '
                'ILIKE concat(\'%%\', %s, \'%%\')',
         'description': 'Value for recipient_group tag'
                        'as set by the rule expert - substring match.',
@@ -364,14 +368,14 @@ QUERY_EVENT_SUBQUERY_MAILGEN = {
         'exp_type': 'string',
     },
     'recipient-address_is': {
-        'sql': 'directives.recipient_address ILIKE %s',
+        'sql': 'directives."recipient_address" ILIKE %s',
         'description': '',
         'label': 'Recipient Email Address',
         'exp_type': 'email'
     },
     'recipient-address_icontains': {
         'sql':
-            '"directives.recipient_address" ILIKE concat(\'%%\', %s, \'%%\')',
+            'directives."recipient_address" ILIKE concat(\'%%\', %s, \'%%\')',
         'description': '',
         'label': 'Recipient Email Address contains',
         'exp_type': 'string'
