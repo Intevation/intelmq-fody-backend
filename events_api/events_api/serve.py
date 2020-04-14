@@ -355,7 +355,7 @@ QUERY_EVENT_SUBQUERY_MAILGEN = {
                'ILIKE %s',
         'description': 'Value for recipient_group tag'
                        'as set by the rule expert.',
-        'label': 'Recipient Group Tag',
+        'label': 'Recipient Group',
         'exp_type': 'string',
     },
     'recipient_group_icontains': {
@@ -364,7 +364,7 @@ QUERY_EVENT_SUBQUERY_MAILGEN = {
                'ILIKE concat(\'%%\', %s, \'%%\')',
         'description': 'Value for recipient_group tag'
                        'as set by the rule expert - substring match.',
-        'label': 'Recipient Group Tag contains',
+        'label': 'Recipient Group contains',
         'exp_type': 'string',
     },
     'recipient-address_is': {

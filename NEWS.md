@@ -1,5 +1,7 @@
 ## 0.8.0 to 0.8.1. (unreleased)
 **todo**
+ * Tickets and Events:
+   Small text improvement delete `Tag` from `Recipient Group Tag` subqueries.
 
 
 ## 0.7.2 to 0.8.0
