@@ -2,6 +2,8 @@
 **todo**
  * Tickets and Events:
    Small text improvement delete `Tag` from `Recipient Group Tag` subqueries.
+ * config/apache-example:
+   Add LogFormat to log time taken to serve the request to the LogFormat.
 
 
 ## 0.7.2 to 0.8.0
