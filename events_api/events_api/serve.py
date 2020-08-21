@@ -598,7 +598,7 @@ def _db_has_mailgen_tables():
 
 @hug.get(ENDPOINT_PREFIX, examples="id=1")
 # @hug.post(ENDPOINT_PREFIX)
-def getEvent(response, id: int=None):
+def getEvent(response, id: int = None):
     """Return one Event identifid by ID
 
     Args:

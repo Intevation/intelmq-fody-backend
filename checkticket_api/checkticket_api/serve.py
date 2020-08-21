@@ -121,7 +121,7 @@ def getEvents(ids: ListOfIds()):
 
 
 @hug.get(ENDPOINT_PREFIX + '/getEventsForTicket')
-def getEventsForTicket(ticket: hug.types.length(17, 18), limit: int=None):
+def getEventsForTicket(ticket: hug.types.length(17, 18), limit: int = None):
     """Get events for given ticket up to optional `limit`."""
     return getEvents(getEventIDsForTicket(ticket)[0:limit])
 

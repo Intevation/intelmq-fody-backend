@@ -168,7 +168,7 @@ def __rollback_transaction():
 
 
 def _db_query(operation: str,
-              parameters: Union[dict, list]=None) -> Tuple[list, list]:
+              parameters: Union[dict, list] = None) -> Tuple[list, list]:
     """Does an database query.
 
     Creates a cursor from the global database connection, runs
@@ -1229,7 +1229,7 @@ def commit_pending_org_changes(body, request, response):
     try:
         for command, org in zip(commands, orgs):
             results.append((command, known_commands[command](org)))
-    except Exception as err:
+    except Exception:
         __rollback_transaction()
         log.info("Commit failed '%s' with '%r' by remote_user = '%s'",
                  command, org, remote_user, exc_info=True)
