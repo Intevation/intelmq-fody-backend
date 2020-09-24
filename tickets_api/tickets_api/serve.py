@@ -697,6 +697,11 @@ def stats(response, **params):
     time_before = params.get(
         "sent-at_before", now + datetime.timedelta(days=1))
 
+    if type(time_after) == list or type(time_before) == list:
+        response.status = HTTP_BAD_REQUEST
+        return {"reason":
+                "Either time_after or time_before given more than once."}
+
     # Convert to datetime....
     if type(time_after) == str:
         time_after = dateutil.parser.parse(time_after)
