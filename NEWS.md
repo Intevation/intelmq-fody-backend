@@ -1,9 +1,9 @@
-## 0.8.0 to 0.8.1. (unreleased)
-**todo**
+## 0.8.0 to 0.8.1
+
  * Tickets and Events:
-   * Small text improvement delete `Tag` from `Recipient Group Tag` subqueries.
    * Indicate a client problem, if stats? endpoints are called with their main
      range selection parameters given more than once.
+   * Small text improvement delete `Tag` from `Recipient Group Tag` subqueries.
  * config/apache-example:
    Add LogFormat to log time taken to serve the request to the LogFormat.
 
