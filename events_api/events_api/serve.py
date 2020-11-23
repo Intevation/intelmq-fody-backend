@@ -401,7 +401,7 @@ def query_get_subquery(q: str):
     if s:
         return s
     else:
-        raise ValueError('The Query-Paramter you asked for is not supported.')
+        raise ValueError('The query parameter you asked for is not supported.')
 
 
 def query_build_subquery(q: str, p: str):
@@ -577,6 +577,24 @@ def setup(api):
     # as the operator of the system knows if this is intelmq-cb-mailgen or not
     QUERY_EVENT_SUBQUERY.update(config.get('subqueries', {}))
 
+    global DB_TIMEZONE
+    DB_TIMEZONE = _db_get_timezone()
+    log.debug("Database says it operates in timezone =`" + DB_TIMEZONE + "`.")
+    if DB_TIMEZONE == "localtime":
+        # this means a postgresql db initialized before 9.5.19 [1] or a system
+        # where initdb could not easily determine the system's full timezone.
+        # But if postgres could not, we also shouldn't try.
+        # [1] since https://www.postgresql.org/docs/9.5/release-9-5-19.html
+        # initdb tries to determine the timezone (search for `TimeZone`).
+        log.error("Could not termine database's timezone. Exiting.")
+        sys.exit("""
+Please set timezone of the database to a full timezone name explicitely.
+Usually this is done in `postgresql.conf`. See PostgreSQL's docs.
+On GNU/Linux systems you can try to replace the timezone= value with that of
+    `timedatectl show --property=Timezone`
+or use the last two elements of where `/etc/localtime` links to.
+""")
+
 
 def _db_has_mailgen_tables():
     """Query the database to check if the mailgen tables exist."""
@@ -594,6 +612,18 @@ def _db_has_mailgen_tables():
         return True
     else:
         return False
+
+
+def _db_get_timezone():
+    """Query the database for its timezone setting."""
+    global eventdb_conn
+
+    # psycopgy2.4 does not offer 'with' for cursor()
+    # FUTURE: use with
+    cur = eventdb_conn.cursor(cursor_factory=RealDictCursor)
+
+    cur.execute("SHOW timezone")
+    return cur.fetchone()['TimeZone']
 
 
 @hug.get(ENDPOINT_PREFIX, examples="id=1")
@@ -642,7 +672,7 @@ def showSubqueries():
         if 'sql' in v:
             del(v['sql'])
 
-    return {"subqueries": subquery_copy}
+    return {"subqueries": subquery_copy, "timezone": DB_TIMEZONE}
 
 
 def change_notification_interval_to_int(result_row):

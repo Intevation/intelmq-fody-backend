@@ -1,5 +1,13 @@
 ## 0.8.1 to 0.9.0 (unreleased)
-**todo**
+
+ * Events: Sends the timezone of the database via the /subqueries endpoint
+   to allow the front end to display how values are interpreted in queries.
+
+### Upgrade
+
+ * Check that `SHOW timezone;` in the database gives a full timezone name,
+   otherwise set it explicitely (find more details in `setup()` of
+   `events_apt/events_api/serve.py).
 
 
 ## 0.8.0 to 0.8.1

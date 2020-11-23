@@ -1,4 +1,4 @@
-Server side API of eventdb interface for intelmq-fody.
+Server side eventdb interface for intelmq-fody.
 
 The module can be used on an events table created by an
 `intelmq/bots/outputs/postgresql/`.
@@ -27,7 +27,7 @@ Contents see
 ```sh
 python3 -m events_api.events_api --example-conf
 ```
-There must be a database user which can read from the eventdb.
+There must be a database user which can read from the eventdb
 If there is none yet, you can create one with something like:
 
 ```sh
@@ -35,6 +35,9 @@ createuser eventapiuser --pwprompt
 psql -c "GRANT SELECT ON  ALL TABLES IN SCHEMA public TO eventapiuser;" \
     intelmq-events
 ```
+
+The database must know its full timezone name, otherwise the backend bails out.
+
 
 ### LogLevel DDEBUG
 
