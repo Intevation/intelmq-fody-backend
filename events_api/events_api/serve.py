@@ -634,7 +634,7 @@ def getEvent(response, id: int = None):
 
 @hug.get(ENDPOINT_PREFIX + '/subqueries')
 def showSubqueries():
-    """Returns the valid subqueries."""
+    """Return whats necessary to do queries, e.g subqueries and db timezone."""
     subquery_copy = copy.deepcopy(QUERY_EVENT_SUBQUERY)
 
     # Remove the SQL Statement from the SQ Object.
@@ -642,7 +642,7 @@ def showSubqueries():
         if 'sql' in v:
             del(v['sql'])
 
-    return subquery_copy
+    return {"subqueries": subquery_copy}
 
 
 def change_notification_interval_to_int(result_row):
