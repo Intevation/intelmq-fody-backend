@@ -1,5 +1,4 @@
-## 0.8.1 to 0.9.0 (unreleased)
-**todo**
+## 0.8.1 to 0.9.0
 
  * Tickets and Events:
    * Send the timezone of the database via the /subqueries endpoint
