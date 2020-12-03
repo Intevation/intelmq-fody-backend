@@ -1,4 +1,4 @@
-Server side API of eventdb interface for intelmq-fody.
+Server side eventdb interface for intelmq-fody.
 
 ## Configuration
 Uses environment variable ```TICKETS_SERVE_CONF_FILE``` to read
@@ -19,6 +19,9 @@ createuser eventapiuser --pwprompt
 psql -c "GRANT SELECT ON  ALL TABLES IN SCHEMA public TO eventapiuser;" \
     intelmq-events
 ```
+
+The database must know its full timezone name, otherwise the backend bails out.
+
 
 ### LogLevel DDEBUG
 

@@ -1,7 +1,9 @@
 ## 0.8.1 to 0.9.0 (unreleased)
+**todo**
 
- * Events: Sends the timezone of the database via the /subqueries endpoint
-   to allow the front end to display how values are interpreted in queries.
+ * Tickets and Events:
+   * Send the timezone of the database via the /subqueries endpoint
+     to allow the front end to display how values are interpreted in queries.
 
 ### Upgrade
 

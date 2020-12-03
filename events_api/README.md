@@ -27,7 +27,7 @@ Contents see
 ```sh
 python3 -m events_api.events_api --example-conf
 ```
-There must be a database user which can read from the eventdb
+There must be a database user which can read from the eventdb.
 If there is none yet, you can create one with something like:
 
 ```sh

@@ -366,7 +366,7 @@ QUERY_EVENT_SUBQUERY = {
 
 # TODO DUPLICATE OF EVENTS-API
 def query_get_subquery(q: str):
-    """ Return the query-Statement from the QUERY_EVENT_SUBQUERY
+    """Return the query-Statement from the QUERY_EVENT_SUBQUERY
 
     Basically this is a getter for the dict...
 
@@ -383,7 +383,7 @@ def query_get_subquery(q: str):
     if s:
         return s
     else:
-        raise ValueError('The query-parameter you asked for is not supported.')
+        raise ValueError('The query parameter you asked for is not supported.')
 
 
 # TODO DUPLICATE OF EVENTS-API
@@ -572,7 +572,41 @@ def setup(api):
     if "logging_level" in config:
         log.setLevel(config["logging_level"])
     open_db_connection(config["libpg conninfo"])
-    log.debug("Initialised DB connection for events_api.")
+    log.debug("Initialised DB connection for tickets_api.")
+
+    # Copy of section in events_api/events_api/serve.py.
+    # Change there there and update it here.
+    global DB_TIMEZONE
+    DB_TIMEZONE = _db_get_timezone()
+    log.debug("Database says it operates in timezone =`" + DB_TIMEZONE + "`.")
+    if DB_TIMEZONE == "localtime":
+        # this means a postgresql db initialized before 9.5.19 [1] or a system
+        # where initdb could not easily determine the system's full timezone.
+        # But if postgres could not, we also shouldn't try.
+        # [1] since https://www.postgresql.org/docs/9.5/release-9-5-19.html
+        # initdb tries to determine the timezone (search for `TimeZone`).
+        log.error("Could not termine database's timezone. Exiting.")
+        sys.exit("""
+Please set timezone of the database to a full timezone name explicitely.
+Usually this is done in `postgresql.conf`. See PostgreSQL's docs.
+On GNU/Linux systems you can try to replace the timezone= value with that of
+    `timedatectl show --property=Timezone`
+or use the last two elements of where `/etc/localtime` links to.
+""")
+
+
+def _db_get_timezone():
+    """Query the database for its timezone setting."""
+    # Copy of function in events_api/events_api/serve.py.
+    # Change there there and update it here.
+    global eventdb_conn
+
+    # psycopgy2.4 does not offer 'with' for cursor()
+    # FUTURE: use with
+    cur = eventdb_conn.cursor(cursor_factory=RealDictCursor)
+
+    cur.execute("SHOW timezone")
+    return cur.fetchone()['TimeZone']
 
 
 @hug.get(ENDPOINT_PREFIX, examples="ticketnumber=20191018-10000289")
@@ -613,7 +647,7 @@ def getTicket(response,
 
 @hug.get(ENDPOINT_PREFIX + '/subqueries')
 def showSubqueries():
-    """Returns the valid subqueries."""
+    """Return whats necessary to do queries, e.g subqueries and db timezone."""
     subquery_copy = copy.deepcopy(QUERY_EVENT_SUBQUERY)
 
     # Remove the SQL Statement from the SQ Object.
@@ -621,7 +655,7 @@ def showSubqueries():
         if 'sql' in v:
             del(v['sql'])
 
-    return subquery_copy
+    return {"subqueries": subquery_copy, "timezone": DB_TIMEZONE}
 
 
 @hug.get(ENDPOINT_PREFIX + '/search',

@@ -577,6 +577,8 @@ def setup(api):
     # as the operator of the system knows if this is intelmq-cb-mailgen or not
     QUERY_EVENT_SUBQUERY.update(config.get('subqueries', {}))
 
+    # Original. If you change it, update the copy
+    # in events_api/events_api/serve.py as well.
     global DB_TIMEZONE
     DB_TIMEZONE = _db_get_timezone()
     log.debug("Database says it operates in timezone =`" + DB_TIMEZONE + "`.")
@@ -616,6 +618,8 @@ def _db_has_mailgen_tables():
 
 def _db_get_timezone():
     """Query the database for its timezone setting."""
+    # Original. If you change it, update the copy
+    # in events_api/events_api/serve.py as well.
     global eventdb_conn
 
     # psycopgy2.4 does not offer 'with' for cursor()
