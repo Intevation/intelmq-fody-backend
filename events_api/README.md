@@ -54,7 +54,7 @@ There is an additional loglevel `DDEBUG`
 for more details than `DEBUG`.
 
 ## Installation
-For a production setup `intelmq-fody-backend` has to be installed
+For a production setup `intelmq_fody_backend` has to be installed
 with a webserver running `wsgi.multithread == False` and will try
 to import the `eventdb\_api` module.
 

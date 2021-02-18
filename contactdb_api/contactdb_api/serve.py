@@ -33,12 +33,12 @@ Design rationale:
     the checkticket endpoints.
 
     We need location and credentials for the database holding the contactdb.
-    serve.py [1] (a hug based backend) solves this problem by reusing
+    The checkticket_api module [1] solves this problem by reusing
     the intelmq-mailgen configuration to access the 'intelmq-events' database.
     This serving part need to access a different database 'contactdb', thus
     we start with our on configuration.
 
-    [1] https://github.com/Intevation/intelmq-mailgen/blob/master/extras/checkticket_api/serve.py # noqa
+    [1] https://github.com/Intevation/intelmq-fody-backend/tree/master/checkticket_api # noqa
 
 """
 import json

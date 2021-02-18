@@ -578,7 +578,7 @@ def setup(api):
     QUERY_EVENT_SUBQUERY.update(config.get('subqueries', {}))
 
     # Original. If you change it, update the copy
-    # in events_api/events_api/serve.py as well.
+    # in tickets_api/tickets_api/serve.py as well.
     global DB_TIMEZONE
     DB_TIMEZONE = _db_get_timezone()
     log.debug("Database says it operates in timezone =`" + DB_TIMEZONE + "`.")
