@@ -49,6 +49,7 @@ import copy
 
 from psycopg2.extras import RealDictCursor
 
+from session import session
 
 log = logging.getLogger(__name__)
 # adding a custom log level for even more details when diagnosing
@@ -630,7 +631,7 @@ def _db_get_timezone():
     return cur.fetchone()['TimeZone']
 
 
-@hug.get(ENDPOINT_PREFIX, examples="id=1")
+@hug.get(ENDPOINT_PREFIX, examples="id=1", requires=session.token_authentication)
 # @hug.post(ENDPOINT_PREFIX)
 def getEvent(response, id: int = None):
     """Return one Event identifid by ID
@@ -666,7 +667,7 @@ def getEvent(response, id: int = None):
     return rows
 
 
-@hug.get(ENDPOINT_PREFIX + '/subqueries')
+@hug.get(ENDPOINT_PREFIX + '/subqueries', requires=session.token_authentication)
 def showSubqueries():
     """Return whats necessary to do queries, e.g subqueries and db timezone."""
     subquery_copy = copy.deepcopy(QUERY_EVENT_SUBQUERY)
@@ -699,7 +700,7 @@ def change_notification_interval_to_int(result_row):
 
 @hug.get(ENDPOINT_PREFIX + '/search',
          examples="time-observation_after=2017-03-01"
-                  "&time-observation_before=2017-03-01")
+                  "&time-observation_before=2017-03-01", requires=session.token_authentication)
 # @hug.post(ENDPOINT_PREFIX + '/search')
 def search(response, **params):
     """Search for events
@@ -748,7 +749,7 @@ def search(response, **params):
 
 
 @hug.get(ENDPOINT_PREFIX + '/stats',
-         examples="malware-name_is=nymaim&timeres=day")
+         examples="malware-name_is=nymaim&timeres=day", requires=session.token_authentication)
 def stats(response, **params):
     """Return distribution of events for query parameters.
 

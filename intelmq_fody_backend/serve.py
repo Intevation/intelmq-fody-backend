@@ -33,14 +33,21 @@ Author(s):
 """
 
 import hug
+import os
 import logging
+import session.config
+import session
 
 # Logging
 logging.basicConfig(format='%(asctime)s %(name)s %(levelname)s - %(message)s')
 log = logging.getLogger(__name__)
-log.setLevel(logging.INFO)  # using INFO as default, otherwise it's WARNING
+log.setLevel(logging.DEBUG)  # using INFO as default, otherwise it's WARNING
+
+log.debug("prepare session config")
+session_config: session.config.Config = session.config.Config(os.environ.get("FODY_SESSION_CONFIG"))
 
 ENDPOINTS = {}
+
 
 # if possible add the contactdb_api to our endpoints
 try:
@@ -101,7 +108,25 @@ except ImportError as err:
 
 @hug.startup()
 def setup(api):
+    log.debug(os.environ.get("FODY_SESSION_CONFIG"))
+    session.session.initialize_sessions(session_config)
     pass
+
+@hug.post("/api/login")
+def login(username: str, password: str):
+    if session.session.session_store is not None:
+        known = session.session.session_store.verify_user(username, password)
+        if known is not None:
+            token = session.session.session_store.new_session({"username": username})
+            return {"login_token": token,
+                    "username": username,
+                    }
+        else:
+            return "Invalid username and/or password"
+    else:
+        return {"login_token": None,
+                "username": ""
+                }
 
 #  TODO for now show the full api documentation that hug generates
 # @hug.get("/")

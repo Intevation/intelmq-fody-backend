@@ -50,6 +50,8 @@ import copy
 
 from psycopg2.extras import RealDictCursor
 
+from session import session
+
 log = logging.getLogger(__name__)
 # adding a custom log level for even more details when diagnosing
 DD = logging.DEBUG-2
@@ -609,7 +611,7 @@ def _db_get_timezone():
     return cur.fetchone()['TimeZone']
 
 
-@hug.get(ENDPOINT_PREFIX, examples="ticketnumber=20191018-10000289")
+@hug.get(ENDPOINT_PREFIX, examples="ticketnumber=20191018-10000289", requires=session.token_authentication)
 def getTicket(response,
               ticketnumber: hug.types.length(17, 18)):
     """Return events and directives associated with a ticketnumber.
@@ -645,7 +647,7 @@ def getTicket(response,
         return {"error": "The query could not be processed."}
 
 
-@hug.get(ENDPOINT_PREFIX + '/subqueries')
+@hug.get(ENDPOINT_PREFIX + '/subqueries', requires=session.token_authentication)
 def showSubqueries():
     """Return whats necessary to do queries, e.g subqueries and db timezone."""
     subquery_copy = copy.deepcopy(QUERY_EVENT_SUBQUERY)
@@ -659,7 +661,7 @@ def showSubqueries():
 
 
 @hug.get(ENDPOINT_PREFIX + '/search',
-         examples="sent-at_after=2017-03-01&sent-at_before=2017-03-01")
+         examples="sent-at_after=2017-03-01&sent-at_before=2017-03-01", requires=session.token_authentication)
 def search(response, **params):
     """Search for events and tickets.
 
@@ -698,7 +700,7 @@ def search(response, **params):
 
 @hug.get(ENDPOINT_PREFIX + '/stats',
          examples="malware-name_is=nymaim&" +
-         "recipient-address_icontains=%telekom%&timeres=day")
+         "recipient-address_icontains=%telekom%&timeres=day", requires=session.token_authentication)
 def stats(response, **params):
     """Return a statistic of all tickets matching the query parameters.
 
@@ -833,7 +835,7 @@ def stats(response, **params):
     return {'timeres': timeres, 'total': totalcount, 'results': results}
 
 
-@hug.get(ENDPOINT_PREFIX + '/getRecipient')
+@hug.get(ENDPOINT_PREFIX + '/getRecipient', requires=session.token_authentication)
 def getDirective(response, ticketnumber: hug.types.length(17, 18)):
 
     result = None
