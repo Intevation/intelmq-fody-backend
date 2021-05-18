@@ -24,8 +24,8 @@ class Config:
         config = False
 
         configfiles = [
-            Path('/etc/intelmq/session-config.json'),
-            Path(__file__).parent.parent / 'etc/intelmq/session-config.json'
+            Path('/etc/intelmq/fody-session.conf'),
+            Path(__file__).parent.parent / 'etc/intelmq/fody-session.conf'
         ]
 
         if filename:
