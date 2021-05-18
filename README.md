@@ -39,6 +39,23 @@ apt-get install libapache2-mod-wsgi-py3
 You might want to use an Apache-Config similar to the example included as
 [config/apache-example/001-fody.conf](config/apache-example/001-fody.conf)
 
+# Authentication
+Authentication for the endpoints exposed by the fody-backend is configured in a json formated file. The fody-backend tires to load the configuration file `/etc/intelmq/fody-session.conf` and `${PREFIX}/etc/intelmq/fody-session.conf`. To override these paths set the environmet variable `FODY_SESSION_CONFIG` to the path pointing to the config file.
+
+If the config file is not found in the given locations the authenticion is disabled.
+
+## Example configuration
+
+```
+{
+	"session_store": "/etc/intelmq/fody-session.sqlite",
+	"session_duration": 86400
+}
+```
+
+* `session_store`: the location of the sqlite database that contains users and sessions.
+* `session_duration`: the maximal duration of a session.
+
 # Track db changes by user
 Only the module `contactdb_api` exposes the ability to write changes to the db.
 
