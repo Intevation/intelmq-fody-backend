@@ -39,6 +39,8 @@ from psycopg2.extras import DictConnection
 import hug
 import logging
 
+from session import session
+
 # The intelmqmail module needs an UTF-8 locale, so we set a common one
 # available in Ubuntu 14.04/LTS here explicitely. This also removes the
 # necessity to configure the calling http server to set the locale correctly.
@@ -77,7 +79,7 @@ def setup(api):
 
 
 @hug.cli()
-@hug.get(ENDPOINT_PREFIX + '/getEventIDsForTicket')
+@hug.get(ENDPOINT_PREFIX + '/getEventIDsForTicket', requires=session.token_authentication)
 def getEventIDsForTicket(ticket: hug.types.length(17, 18)):
     global cur
     event_ids = []
@@ -102,7 +104,7 @@ class ListOfIds(hug.types.Multiple):
 
 
 @hug.cli()
-@hug.get(ENDPOINT_PREFIX + '/getEvents')
+@hug.get(ENDPOINT_PREFIX + '/getEvents', requires=session.token_authentication)
 def getEvents(ids: ListOfIds()):
     global cur
     events = []
@@ -120,13 +122,13 @@ def getEvents(ids: ListOfIds()):
     return events
 
 
-@hug.get(ENDPOINT_PREFIX + '/getEventsForTicket')
+@hug.get(ENDPOINT_PREFIX + '/getEventsForTicket', requires=session.token_authentication)
 def getEventsForTicket(ticket: hug.types.length(17, 18), limit: int = None):
     """Get events for given ticket up to optional `limit`."""
     return getEvents(getEventIDsForTicket(ticket)[0:limit])
 
 
-@hug.get(ENDPOINT_PREFIX + '/getLastTicketNumber')
+@hug.get(ENDPOINT_PREFIX + '/getLastTicketNumber', requires=session.token_authentication)
 def getLastTicketNumber():
     global cur
     last_ticket_number = None

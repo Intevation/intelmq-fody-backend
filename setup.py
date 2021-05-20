@@ -10,6 +10,7 @@ setup(
         'contactdb_api.contactdb_api',
         'events_api.events_api',
         'intelmq_fody_backend',
+        'session',
         'tickets_api.tickets_api',
         ],
     url='',
