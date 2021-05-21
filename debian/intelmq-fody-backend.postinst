@@ -16,6 +16,7 @@ fi
 . /usr/share/debconf/confmodule
 . /usr/share/dbconfig-common/dpkg/postinst.sqlite3
 
+dbc_first_version=0.9.1
 dbc_dbfile_owner="www-data:www-data"
 
 dbc_go intelmq-fody-backend "$@"
