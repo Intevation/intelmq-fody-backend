@@ -12,5 +12,25 @@ if [ "$1" = "configure" ] ; then
     apache2_invoke ensite 001-fody.conf
 fi
 
+# Source debconf library.
+. /usr/share/debconf/confmodule
+. /usr/share/dbconfig-common/dpkg/postinst.sqlite3
+
+dbc_dbfile_owner="www-data:www-data"
+
+dbc_go intelmq-fody-backend "$@"
+
+db_get intelmq-fody-backend/setup
+if [ "$RET" = "true" ]; then
+	db_get intelmq-fody-backend/user
+	ACCOUNT=$RET
+	db_get intelmq-fody-backend/password
+	PASSWORD=$RET
+
+	fody-adduser --user "$ACCOUNT" --password "$PASSWORD"
+	echo "Done Configuring IntelMQ Fody..." >&2
+fi
+db_stop
+
 #DEBHELPER#
 

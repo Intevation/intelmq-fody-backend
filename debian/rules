@@ -4,4 +4,7 @@ export PYBUILD_NAME=intelmq-fody-backend
 %:
 	dh $@ --with python3 --without python2 --buildsystem=pybuild
 
+override_dh_install:
+	dh_install
+	sed -i "s#/etc/.*\.sqlite#/var/lib/dbconfig-common/sqlite3/intelmq-fody-backend/intelmqfodybackend#" debian/intelmq-fody-backend/etc/intelmq/fody-session.conf
 # vim :set noet sts=0 sw=2 ts=2:

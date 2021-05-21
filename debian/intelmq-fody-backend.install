@@ -1,5 +1,8 @@
+#!/usr/bin/dh-exec
 config/apache-example/001-fody.conf etc/apache2/sites-available/
 config/api-examples/* etc/intelmq/
+config/fody-session.conf etc/intelmq/
+config/fody-session.sql => /usr/share/dbconfig-common/data/intelmq-fody-backend/install/sqlite3
 events_api/README.md usr/share/doc/intelmq-fody-backend/events_api/
 contactdb_api/README.md usr/share/doc/intelmq-fody-backend/contactdb_api/
 tickets_api/README.md usr/share/doc/intelmq-fody-backend/tickets_api/

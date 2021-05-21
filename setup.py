@@ -17,5 +17,6 @@ setup(
     license='AGPLv3',
     author='Intevation GmbH',
     author_email='info@intevation.de',
-    description=''
+    description='',
+    scripts = ['fody-adduser']
 )
