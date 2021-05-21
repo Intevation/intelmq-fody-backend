@@ -2,7 +2,7 @@
 set -e
 
 if [ -f /usr/share/debconf/confmodule -a \
-     -f /usr/share/dbconfig-common/dpkg/postrm.sqlite3 ]; then
+     -f /usr/share/dbconfig-common/dpkg/prerm.sqlite3 ]; then
     . /usr/share/debconf/confmodule
     . /usr/share/dbconfig-common/dpkg/prerm.sqlite3
     dbc_go intelmq-fody-backend "$@"
