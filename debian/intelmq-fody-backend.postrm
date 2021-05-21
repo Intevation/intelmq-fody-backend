@@ -5,7 +5,7 @@ if [ -f /usr/share/debconf/confmodule -a \
      -f /usr/share/dbconfig-common/dpkg/postrm.sqlite3 ]; then
     . /usr/share/debconf/confmodule
     . /usr/share/dbconfig-common/dpkg/postrm.sqlite3
-    dbc_go intelmq-api "$@"
+    dbc_go intelmq-fody-backend "$@"
 fi
 if [ "$1" = "remove" ] ; then
   deluser www-fody
