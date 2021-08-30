@@ -1,4 +1,9 @@
 # Documentation
+A backend to serve
+[intelmq-cb-mailgen](https://github.com/Intevation/intelmq-mailgen-release)
+data or just events from an IntelMQ PostgreSQL database
+for the webapp [Fody](https://github.com/intevation/intelmq-fody).
+
 
 Each contained module has an additional `README.md` to follow.
 
@@ -75,6 +80,9 @@ error.log:[Fri May 05 14:19:26.882299 2017] [:error] [pid 2075] 2017-05-05 14:19
 error.log:[Fri May 05 14:19:26.882299 2017] [:error] [pid 2075] 2017-05-05 14:19274,179 contactdb_api.contactdb_api.serve INFO - Commit successful, results = [('create', 126)]; remote_user = 'bernhard.reiter'
 ```
 
+# Links
+* [python-imqfody](https://github.com/3c7/python-imqfody) a python3 module
+  to ease accessing the Fody backend.
 
 # Development
 ## How to release
