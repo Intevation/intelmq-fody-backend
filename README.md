@@ -97,18 +97,18 @@ Update `debian/changelog`, e.g.
 dch --newversion 0.7.0  --check-dirname-level 0 --distribution stable
 ```
 
-### tag version
+### Tag version
 example
 ```sh
 git tag -s v0.7.0 -m "Release v0.7.0"
 git push origin v0.7.0
 ```
 
-### prepare for following development
+### Prepare for following development
 In the mentioned files above, set the version number to the following
 number as pre-version number for development, e.g. `0.7.1.dev0`.
 
 
-## Origin
+## History
 Most of the files within this repository originated from:
 https://github.com/Intevation/intelmq-mailgen/tree/master/extras
