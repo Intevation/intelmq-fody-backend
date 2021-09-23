@@ -1,6 +1,10 @@
-## 0.9.0 to 0.9.1 (unreleased)
+## 0.9.1 to 0.9.2 (unreleased)
 **todo**
 
+## 0.9.0 to 0.9.1
+
+ * Added authorization and session handling.
+ * Added script to add users to the database.
 
 ## 0.8.1 to 0.9.0
 

@@ -1,4 +1,9 @@
 # Documentation
+A backend to serve
+[intelmq-cb-mailgen](https://github.com/Intevation/intelmq-mailgen-release)
+data or just events from an IntelMQ PostgreSQL database
+for the webapp [Fody](https://github.com/intevation/intelmq-fody).
+
 
 Each contained module has an additional `README.md` to follow.
 
@@ -75,6 +80,9 @@ error.log:[Fri May 05 14:19:26.882299 2017] [:error] [pid 2075] 2017-05-05 14:19
 error.log:[Fri May 05 14:19:26.882299 2017] [:error] [pid 2075] 2017-05-05 14:19274,179 contactdb_api.contactdb_api.serve INFO - Commit successful, results = [('create', 126)]; remote_user = 'bernhard.reiter'
 ```
 
+# Links
+* [python-imqfody](https://github.com/3c7/python-imqfody) a python3 module
+  to ease accessing the Fody backend.
 
 # Development
 ## How to release
@@ -97,18 +105,18 @@ Update `debian/changelog`, e.g.
 dch --newversion 0.7.0  --check-dirname-level 0 --distribution stable
 ```
 
-### tag version
+### Tag version
 example
 ```sh
 git tag -s v0.7.0 -m "Release v0.7.0"
 git push origin v0.7.0
 ```
 
-### prepare for following development
+### Prepare for following development
 In the mentioned files above, set the version number to the following
 number as pre-version number for development, e.g. `0.7.1.dev0`.
 
 
-## Origin
+## History
 Most of the files within this repository originated from:
 https://github.com/Intevation/intelmq-mailgen/tree/master/extras

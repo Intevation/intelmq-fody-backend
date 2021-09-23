@@ -1,0 +1,18 @@
+Template: intelmq-fody-backend/setup
+Type: boolean
+Default: true
+Description: Set up an intitial account for Fody?
+
+Template: intelmq-fody-backend/user
+Type: string
+Description: Fody user
+ Please provide a username for the initial Fody account.
+
+Template: intelmq-fody-backend/password
+Type: password
+Description: Fody password
+ Please provide a password for the initial Fody account.
+
+Template: intelmq-fody-backend/password-repeat
+Type: password
+Description: Password confirmation

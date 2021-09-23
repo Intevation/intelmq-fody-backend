@@ -12,5 +12,35 @@ if [ "$1" = "configure" ] ; then
     apache2_invoke ensite 001-fody.conf
 fi
 
+# Source debconf library.
+. /usr/share/debconf/confmodule
+. /usr/share/dbconfig-common/dpkg/postinst.sqlite3
+
+oldversion="$2"
+dbc_first_version=0.9.1
+dbc_dbfile_owner="www-data:www-data"
+
+# If we are upgrading from a version before dbc_first_version, force
+# db creation by pretending its not an upgrade:
+if [ "$oldversion" ] && \
+     dpkg --compare-versions "$dbc_first_version" gt "$oldversion"
+then
+  dbc_go intelmq-fody-backend "$1"
+else  
+  dbc_go intelmq-fody-backend "$@"
+fi
+
+db_get intelmq-fody-backend/setup
+if [ "$RET" = "true" ]; then
+	db_get intelmq-fody-backend/user
+	ACCOUNT=$RET
+	db_get intelmq-fody-backend/password
+	PASSWORD=$RET
+
+	fody-adduser --user "$ACCOUNT" --password "$PASSWORD"
+	echo "Done Configuring IntelMQ Fody..." >&2
+fi
+db_stop
+
 #DEBHELPER#
 
