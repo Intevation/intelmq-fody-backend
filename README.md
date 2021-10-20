@@ -61,6 +61,11 @@ If the config file is not found in the given locations the authenticion is disab
 * `session_store`: the location of the sqlite database that contains users and sessions.
 * `session_duration`: the maximal duration of a session.
 
+If you enable the session_store you will have to create user accounts to be able to access the API functionality. You can do this using fody-adduser:
+```
+fody-adduser --user <username> --password <password>
+```
+
 # Track db changes by user
 Only the module `contactdb_api` exposes the ability to write changes to the db.
 
