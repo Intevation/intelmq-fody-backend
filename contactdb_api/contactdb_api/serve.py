@@ -616,7 +616,7 @@ def __fix_ntms_to_org(ntms_should: list, ntms_are: list,
         # update comment (as the colum is already the one we wanted)
         op_str = """
             UPDATE {0}
-                SET (comment) = (%s)
+                SET (comment) = row(%s)
                 WHERE {1} = %s
             """.format(table_name, id_column_name)
         _db_manipulate(op_str,
