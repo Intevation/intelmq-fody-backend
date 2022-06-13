@@ -1,2 +1,11 @@
+# editors
+*.bak
 *.swp
+*.pyc
+*.log
+*.*~
+# packaging build files
+dist/
+intelmq_fody_backend.egg-info/
+build/
 __pycache__/
