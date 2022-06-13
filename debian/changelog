@@ -1,3 +1,9 @@
+intelmq-fody-backend (0.9.2-1) stable; urgency=medium
+
+  * Fixed compatibility of contactdb_api with PostsgreSQL >= 10.0.
+
+ -- Sebastian Wagner <sebix@sebix.at>  Mon, 13 Jun 2022 16:50:44 +0200
+
 intelmq-fody-backend (0.9.1) stable; urgency=medium
 
   * Added support for authentication and session management.
