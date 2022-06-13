@@ -183,7 +183,7 @@ def _db_query(operation: str,
     from psycopg2 docs section: Basic module usage->Transaction control
     http://initd.org/psycopg/docs/usage.html?#transactions-control
 
-    Thus each endpoint must make sure explicitely call __commit_transaction()
+    Thus each endpoint must make sure explicitly call __commit_transaction()
     or __rollback_transaction() when done with all db operations.
     In case of a command failure __rollback_transaction() must be called
     until new commands will be executed.
@@ -613,7 +613,7 @@ def __fix_ntms_to_org(ntms_should: list, ntms_are: list,
                 entry_should = entry
                 break
 
-        # update comment (as the colum is already the one we wanted)
+        # update comment (as the column is already the one we wanted)
         op_str = """
             UPDATE {0}
                 SET (comment) = row(%s)
@@ -739,7 +739,7 @@ def _update_org(org):
     """Update a contactdb entry.
 
     First updates or creates the linked entries.
-    There is no need to check if other linked entries are similiar,
+    There is no need to check if other linked entries are similar,
     because we use the contactdb in a way that each org as its own
     linked entries.
 
@@ -1193,7 +1193,7 @@ def get_annotation_hints():
     return hints
 
 
-# a way to test this is similiar to
+# a way to test this is similar to
 #   import requests
 #   requests.post('http://localhost:8000/api/contactdb/org/manual/commit', json={'one': 'two'}, auth=('user', 'pass')).json() # noqa
 @hug.post(ENDPOINT_PREFIX + '/org/manual/commit', requires=session.token_authentication)

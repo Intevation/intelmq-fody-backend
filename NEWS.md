@@ -16,7 +16,7 @@
 ### Upgrade
 
  * Check that `SHOW timezone;` in the database gives a full timezone name,
-   otherwise set it explicitely (find more details in `setup()` of
+   otherwise set it explicitly (find more details in `setup()` of
    `events_apt/events_api/serve.py).
 
 
@@ -91,7 +91,7 @@
 ## 0.6.3 to 0.6.3.1
 
  * Contactdb:
-   * Fix handling of email tags, by returing the correct default tags.
+   * Fix handling of email tags, by returning the correct default tags.
 
 
 ## 0.6.2 to 0.6.3
@@ -137,7 +137,7 @@
 
 ## 0.5.2 to 0.5.3
 
- * Events: Changes /search endpoint to return complete events (similiar to
+ * Events: Changes /search endpoint to return complete events (similar to
      checkticket's /getEvents)
  * Events: Enhances subqueries:
    * New subqueries can be added in the config file, see example configuration.

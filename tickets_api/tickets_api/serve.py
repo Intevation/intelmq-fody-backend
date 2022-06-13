@@ -545,7 +545,7 @@ def query(prepared_query):
     """ Queries the Database for Events
 
     Args:
-        prepared_query: A QueryString, Paramater pair created
+        prepared_query: A QueryString, Parameter pair created
                         with query_prepare
 
     Returns: The results of the databasequery in JSON-Format.
@@ -587,9 +587,9 @@ def setup(api):
         # But if postgres could not, we also shouldn't try.
         # [1] since https://www.postgresql.org/docs/9.5/release-9-5-19.html
         # initdb tries to determine the timezone (search for `TimeZone`).
-        log.error("Could not termine database's timezone. Exiting.")
+        log.error("Could not determine database's timezone. Exiting.")
         sys.exit("""
-Please set timezone of the database to a full timezone name explicitely.
+Please set timezone of the database to a full timezone name explicitly.
 Usually this is done in `postgresql.conf`. See PostgreSQL's docs.
 On GNU/Linux systems you can try to replace the timezone= value with that of
     `timedatectl show --property=Timezone`
@@ -630,7 +630,7 @@ def getTicket(response,
     result = query(prep)
 
     # Hug v2.2.0 cannot serialize datetime.timedelta objects.
-    # Therefor we need to do it on our own... until we have v2.3.0
+    # Therefore we need to do it on our own... until we have v2.3.0
     # See: https://github.com/timothycrosley/hug/issues/468
     for elem in result:
         if not elem.get("notification_interval") is None:
@@ -649,7 +649,7 @@ def getTicket(response,
 
 @hug.get(ENDPOINT_PREFIX + '/subqueries', requires=session.token_authentication)
 def showSubqueries():
-    """Return whats necessary to do queries, e.g subqueries and db timezone."""
+    """Return what's necessary to do queries, e.g subqueries and db timezone."""
     subquery_copy = copy.deepcopy(QUERY_EVENT_SUBQUERY)
 
     # Remove the SQL Statement from the SQ Object.
@@ -854,7 +854,7 @@ def getDirective(response, ticketnumber: hug.types.length(17, 18)):
         return {"error": "The query could not be processed."}
 
     # Hug v2.2.0 cannot serialize datetime.timedelta objects.
-    # Therefor we need to do it on our own... until we have v2.3.0
+    # Therefore we need to do it on our own... until we have v2.3.0
     # See: https://github.com/timothycrosley/hug/issues/468
     for elem in result:
         if not elem.get("notification_interval") is None:

@@ -1,7 +1,7 @@
 Template: intelmq-fody-backend/setup
 Type: boolean
 Default: true
-Description: Set up an intitial account for Fody?
+Description: Set up an initial account for Fody?
 
 Template: intelmq-fody-backend/user
 Type: string

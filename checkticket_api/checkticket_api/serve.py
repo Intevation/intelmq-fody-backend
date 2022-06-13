@@ -42,7 +42,7 @@ import logging
 from session import session
 
 # The intelmqmail module needs an UTF-8 locale, so we set a common one
-# available in Ubuntu 14.04/LTS here explicitely. This also removes the
+# available in Ubuntu 14.04/LTS here explicitly. This also removes the
 # necessity to configure the calling http server to set the locale correctly.
 os.environ['LANG'] = 'en_US.UTF-8'
 

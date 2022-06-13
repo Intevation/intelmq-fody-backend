@@ -14,6 +14,6 @@ Depends: ${misc:Depends}, ${python3:Depends}, python3-psycopg2,
  intelmq-mailgen (>= 0.95), dbconfig-sqlite3 | dbconfig-no-thanks
 Conflicts: intelmq-db-api, intelmq-fody-api
 Replaces: intelmq-db-api, intelmq-fody-api
-Description: Backend for DB manipulation via modern web aplications.
+Description: Backend for DB manipulation via modern web applications.
  .
  Backend APIs for accessing IntelMQ databases, as used by Fody.

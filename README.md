@@ -45,7 +45,7 @@ You might want to use an Apache-Config similar to the example included as
 [config/apache-example/001-fody.conf](config/apache-example/001-fody.conf)
 
 # Authentication
-Authentication for the endpoints exposed by the fody-backend is configured in a json formated file. The fody-backend tires to load the configuration file `/etc/intelmq/fody-session.conf` and `${PREFIX}/etc/intelmq/fody-session.conf`. To override these paths set the environmet variable `FODY_SESSION_CONFIG` to the path pointing to the config file.
+Authentication for the endpoints exposed by the fody-backend is configured in a json formatted file. The fody-backend tires to load the configuration file `/etc/intelmq/fody-session.conf` and `${PREFIX}/etc/intelmq/fody-session.conf`. To override these paths set the environment variable `FODY_SESSION_CONFIG` to the path pointing to the config file.
 
 If the config file is not found in the given locations the authenticion is disabled.
 

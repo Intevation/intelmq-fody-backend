@@ -445,7 +445,7 @@ def _join_mailgen_tables(querystring: str) -> str:
     global QUERY_JOIN_MAILGEN_TABLES
 
     if QUERY_JOIN_MAILGEN_TABLES:
-        # join tables similiar to tickets backend to allow more filters
+        # join tables similar to tickets backend to allow more filters
         querystring += """ LEFT OUTER JOIN directives
                              ON directives.events_id = events.id"""
         querystring += " LEFT OUTER JOIN sent ON sent.id = directives.sent_id"
@@ -532,7 +532,7 @@ def query(prepared_query):
     """ Queries the Database for Events
 
     Args:
-        prepared_query: A QueryString, Paramater pair created
+        prepared_query: A QueryString, Parameter pair created
                         with query_prepare
 
     Returns: The results of the databasequery in JSON-Format.
@@ -589,9 +589,9 @@ def setup(api):
         # But if postgres could not, we also shouldn't try.
         # [1] since https://www.postgresql.org/docs/9.5/release-9-5-19.html
         # initdb tries to determine the timezone (search for `TimeZone`).
-        log.error("Could not termine database's timezone. Exiting.")
+        log.error("Could not determine database's timezone. Exiting.")
         sys.exit("""
-Please set timezone of the database to a full timezone name explicitely.
+Please set timezone of the database to a full timezone name explicitly.
 Usually this is done in `postgresql.conf`. See PostgreSQL's docs.
 On GNU/Linux systems you can try to replace the timezone= value with that of
     `timedatectl show --property=Timezone`
@@ -669,7 +669,7 @@ def getEvent(response, id: int = None):
 
 @hug.get(ENDPOINT_PREFIX + '/subqueries', requires=session.token_authentication)
 def showSubqueries():
-    """Return whats necessary to do queries, e.g subqueries and db timezone."""
+    """Return what's necessary to do queries, e.g subqueries and db timezone."""
     subquery_copy = copy.deepcopy(QUERY_EVENT_SUBQUERY)
 
     # Remove the SQL Statement from the SQ Object.
@@ -690,7 +690,7 @@ def change_notification_interval_to_int(result_row):
     Solution taken from module `tickets_api`.
 
     Hug v2.2.0 cannot serialize datetime.timedelta objects.
-    Therefor we need to do it on our own... until we FUTURE have v2.3.0
+    Therefore we need to do it on our own... until we FUTURE have v2.3.0
     See: https://github.com/timothycrosley/hug/issues/468
     """
     td = result_row.get("notification_interval")

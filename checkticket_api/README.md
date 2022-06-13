@@ -1,7 +1,7 @@
 Server side API of IntelMQ for intelmq-fody.
 
 ## Configuration
-This Module requires IntelMQ-Mailgen and uses it's configuraton as well.
+This Module requires IntelMQ-Mailgen and uses it's configuration as well.
 See IntelMQ-Mailgen for further information. 
 
 
