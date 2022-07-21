@@ -15,6 +15,11 @@ Each contained module has an additional `README.md` to follow.
  * typing
  * postgresql v>=9.5
 
+## Locale
+
+The encoding of the locale must be UTF-8.
+To do this, run `dpkg-reconfigure locales` and select, for example, `en_US.UTF-8`.
+
 # License
 This software is Free Software available under the terms of
 the AGPL v3 or later versions of this license.
