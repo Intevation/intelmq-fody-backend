@@ -11,7 +11,8 @@ Architecture: all
 Depends: ${misc:Depends}, ${python3:Depends}, python3-psycopg2,
  python3-hug (>= 2.2.0), python3, apache2, apache2-utils,
  libapache2-mod-wsgi-py3, adduser, intelmq-fody (>= 0.9.4),
- intelmq-mailgen (>= 0.95), dbconfig-sqlite3 | dbconfig-no-thanks
+ intelmq-mailgen (>= 0.95), dbconfig-sqlite3 | dbconfig-no-thanks,
+ python3-dateutil
 Conflicts: intelmq-db-api, intelmq-fody-api
 Replaces: intelmq-db-api, intelmq-fody-api
 Description: Backend for DB manipulation via modern web applications.
