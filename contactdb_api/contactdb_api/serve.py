@@ -1380,7 +1380,7 @@ def put_email(email: str, body, request, response):
 def main():
     if len(sys.argv) > 1 and sys.argv[1] == '--example-conf':
         print(EXAMPLE_CONF_FILE)
-        exit()
+        sys.exit()
 
     config = read_configuration()
     print("config = {}".format(config,))
