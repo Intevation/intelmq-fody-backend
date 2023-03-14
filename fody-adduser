@@ -22,7 +22,7 @@ args = parser.parse_args()
 
 if session_config.session_store is None:
     print("Could not add user- no session store configured in configuration!", file=sys.stderr)
-    exit(1)
+    sys.exit(1)
 
 session_store = session.session.SessionStore(str(session_config.session_store), session_config.session_duration)
 
