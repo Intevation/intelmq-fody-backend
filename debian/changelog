@@ -1,3 +1,52 @@
+intelmq-fody-backend (0.9.2-3) stable; urgency=medium
+
+  * Apache example configuration: exclude intelmq-webinput from rewrite
+    condition, allowin parallel installation
+
+ -- Sebastian Wagner <swagner@intevation.de>  Fri, 22 Dec 2023 12:48:57 +0100
+
+intelmq-fody-backend (0.9.2-2) stable; urgency=medium
+
+  * Add missing requirement python3-dateutil.
+
+ -- Sebastian Wagner <swagner@intevation.de>  Thu, 21 Jul 2022 16:27:40 +0200
+
+intelmq-fody-backend (0.9.2-1) stable; urgency=medium
+
+  * Fixed compatibility of contactdb_api with PostsgreSQL >= 10.0.
+
+ -- Sebastian Wagner <sebix@sebix.at>  Mon, 13 Jun 2022 16:50:44 +0200
+
+intelmq-fody-backend (0.9.1) stable; urgency=medium
+
+  * Added support for authentication and session management.
+
+ -- Sascha Wilde <wilde@intevation.de>  Fri, 21 May 2021 15:31:44 +0200
+
+intelmq-fody-backend (0.9.0) stable; urgency=medium
+
+  * New Relese.
+
+ -- Bernhard E. Reiter <bernhard@intevation.de>  Thu, 03 Dec 2020 16:25:50 +0100
+
+intelmq-fody-backend (0.8.1) stable; urgency=medium
+
+  * New Release.
+
+ -- Bernhard E. Reiter <bernhard@intevation.de>  Thu, 24 Sep 2020 17:33:36 +0200
+
+intelmq-fody-backend (0.8.0) stable; urgency=medium
+
+  * New Release.
+
+ -- Bernhard E. Reiter <bernhard@intevation.de>  Fri, 27 Mar 2020 13:29:06 +0100
+
+intelmq-fody-backend (0.7.2) stable; urgency=medium
+
+  * New release.
+
+ -- Bernhard Reiter <bernhard@intevation.de>  Mon, 10 Feb 2020 10:28:27 +0100
+
 intelmq-fody-backend (0.7.1) stable; urgency=medium
 
   * New release.

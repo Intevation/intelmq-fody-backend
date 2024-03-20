@@ -1,0 +1,63 @@
+#!/usr/bin/env python3
+"""Serve login
+
+Requires hug (http://www.hug.rest/)
+
+Copyright (C) 2017-2020 by Bundesamt für Sicherheit in der Informationstechnik
+
+Software engineering by Intevation GmbH
+
+This program is Free Software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+Author(s):
+    Raimund Renkert <raimund.renkert@intevation.de>
+
+"""
+import json
+import logging
+import os
+import sys
+
+from falcon import HTTP_BAD_REQUEST, HTTP_INTERNAL_SERVER_ERROR
+import hug
+import psycopg2
+import datetime
+import dateutil.parser
+import copy
+
+ENDPOINT_PREFIX = '/api/login'
+ENDPOINT_NAME = 'Login'
+
+@hug.post(ENDPOINT_PREFIX)
+def login(username: str, password: str):
+    if session_store is not None:
+        known = session_store.verify_user(username, password)
+        if known is not None:
+            token = session_store.new_session({"username": username})
+            return {"login_token": token,
+                    "username": username,
+                    }
+        else:
+            return "Invalid username and/or password"
+    else:
+        return {"login_token": "null",
+                "username": ""
+                }
+
+def main():
+    """ Main function of this module
+
+    Returns: Nothing....
+
+    """

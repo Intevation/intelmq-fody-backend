@@ -3,7 +3,7 @@
 
 Requires hug (http://www.hug.rest/)
 
-Copyright (C) 2017, 2019 by Bundesamt für Sicherheit in der Informationstechnik
+Copyright (C) 2017-2020 by Bundesamt für Sicherheit in der Informationstechnik
 
 Software engineering by Intevation GmbH
 
@@ -49,6 +49,8 @@ import dateutil.parser
 import copy
 
 from psycopg2.extras import RealDictCursor
+
+from session import session
 
 log = logging.getLogger(__name__)
 # adding a custom log level for even more details when diagnosing
@@ -135,87 +137,63 @@ QUERY_EVENT_SUBQUERY = {
     # TODO BEGINNING OF EVENTS-API COPY
     # queryname: ['sqlstatement', 'description', 'label', 'Expected-Type']
     'id': {
-        'sql': 'events.id = %s',
+        'sql': 'events."id" = %s',
         'description': 'Query for an Event matching this ID.',
         'label': 'EventID',
         'exp_type': 'integer'
     },
     # Time
     'time-observation_before': {
-        'sql': '"time.observation" < %s',
+        'sql': 'events."time.observation" < %s',
         'description': '',
         'label': 'Observation Time before',
         'exp_type': 'datetime'
     },
-    'time-observation_before_encl': {
-        'sql': '"time.observation" <= %s',
-        'description': '',
-        'label': 'Observation Time before, including',
-        'exp_type': 'datetime'
-    },
     'time-observation_after': {
-        'sql': '"time.observation" > %s',
+        'sql': 'events."time.observation" > %s',
         'description': '',
         'label': 'Observation Time after',
         'exp_type': 'datetime'
     },
-    'time-observation_after_encl': {
-        'sql': '"time.observation" > %s',
-        'description': '',
-        'label': 'Observation Time after, including',
-        'exp_type': 'datetime'
-    },
     'time-source_before': {
-        'sql': '"time.source" < %s',
+        'sql': 'events."time.source" < %s',
         'description': '',
         'label': 'Source Time before',
         'exp_type': 'datetime'
     },
-    'time-source_before_encl': {
-        'sql': '"time.source" <= %s',
-        'description': '',
-        'label': 'Source Time before, including',
-        'exp_type': 'datetime'
-    },
     'time-source_after': {
-        'sql': '"time.source" > %s',
+        'sql': 'events."time.source" > %s',
         'description': '',
         'label': 'Source Time after',
         'exp_type': 'datetime'
     },
-    'time-source_after_encl': {
-        'sql': '"time.source" > %s',
-        'description': '',
-        'label': 'Source Time after, including',
-        'exp_type': 'datetime'
-    },
     # Source
     'source-ip_in_sn': {
-        'sql': '"source.ip" <<= %s',
+        'sql': 'events."source.ip" <<= %s',
         'description': '',
         'label': 'Source IP-Network',
         'exp_type': 'cidr'
     },
     'source-ip_is': {
-        'sql': '"source.ip" = %s',
+        'sql': 'events."source.ip" = %s',
         'description': '',
         'label': 'Source IP-Address',
         'exp_type': 'ip'
     },
     'source-asn_is': {
-        'sql': '"source.asn" = %s',
+        'sql': 'events."source.asn" = %s',
         'description': '',
         'label': 'Source ASN',
         'exp_type': 'integer'
     },
     'source-fqdn_is': {
-        'sql': '"source.fqdn" = %s',
+        'sql': 'events."source.fqdn" ILIKE %s',
         'description': '',
         'label': 'Source FQDN',
         'exp_type': 'string'
     },
     'source-fqdn_icontains': {
-        'sql': '"source.fqdn" ILIKE %s',
+        'sql': 'events."source.fqdn" ILIKE concat(\'%%\', %s, \'%%\')',
         'description': '',
         'label': 'Source FQDN contains',
         'exp_type': 'string'
@@ -223,31 +201,31 @@ QUERY_EVENT_SUBQUERY = {
 
     # Destinations
     'destination-ip_in_sn': {
-        'sql': '"destination.ip" <<= %s',
+        'sql': 'events."destination.ip" <<= %s',
         'description': '',
         'label': 'Destination IP-Network',
         'exp_type': 'cidr'
     },
     'destination-ip_is': {
-        'sql': '"destination.ip" = %s',
+        'sql': 'events."destination.ip" = %s',
         'description': '',
         'label': 'Destination IP-Address',
         'exp_type': 'ip'
     },
     'destination-asn_is': {
-        'sql': '"destination.asn" = %s',
+        'sql': 'events."destination.asn" = %s',
         'description': '',
         'label': 'Destination ASN',
         'exp_type': 'integer'
     },
     'destination-fqdn_is': {
-        'sql': '"destination.fqdn" = %s',
+        'sql': 'events."destination.fqdn" ILIKE %s',
         'description': '',
         'label': 'Destination FQDN',
         'exp_type': 'string'
     },
     'destination-fqdn_icontains': {
-        'sql': '"destination.fqdn" ILIKE %s',
+        'sql': 'events."destination.fqdn" ILIKE concat(\'%%\', %s, \'%%\')',
         'description': '',
         'label': 'Destination FQDN contains',
         'exp_type': 'string'
@@ -255,49 +233,51 @@ QUERY_EVENT_SUBQUERY = {
 
     # Classification
     'classification-taxonomy_is': {
-        'sql': '"classification.taxonomy" = %s',
+        'sql': 'events."classification.taxonomy" ILIKE %s',
         'description': '',
         'label': 'Classification Taxonomy',
         'exp_type': 'string'
     },
     'classification-taxonomy_icontains': {
-        'sql': '"classification.taxonomy" ILIKE %s',
+        'sql': 'events."classification.taxonomy" '
+               'ILIKE concat(\'%%\', %s, \'%%\')',
         'description': '',
         'label': 'Classification Taxonomy contains',
         'exp_type': 'string'
     },
     'classification-type_is': {
-        'sql': '"classification.type" = %s',
+        'sql': 'events."classification.type" ILIKE %s',
         'description': '',
         'label': 'Classification Type',
         'exp_type': 'string'
     },
     'classification-type_icontains': {
-        'sql': '"classification.type" ILIKE %s',
+        'sql': 'events."classification.type" ILIKE concat(\'%%\', %s, \'%%\')',
         'description': '',
         'label': 'Classification Type contains',
         'exp_type': 'string'
     },
     'classification-identifier_is': {
-        'sql': '"classification.identifier" = %s',
+        'sql': 'events."classification.identifier" ILIKE %s',
         'description': '',
         'label': 'Classification Identifier',
         'exp_type': 'string'
     },
     'classification-identifier_icontains': {
-        'sql': '"classification.identifier" ILIKE %s',
+        'sql': 'events."classification.identifier" '
+               'ILIKE concat(\'%%\', %s, \'%%\')',
         'description': '',
         'label': 'Classification Identifier contains',
         'exp_type': 'string'
     },
     'malware-name_is': {
-        'sql': '"malware.name" = %s',
+        'sql': 'events."malware.name" ILIKE %s',
         'description': '',
         'label': 'Malware Name',
         'exp_type': 'string'
     },
     'malware-name_icontains': {
-        'sql': '"malware.name" ILIKE %s',
+        'sql': 'events."malware.name" ILIKE concat(\'%%\', %s, \'%%\')',
         'description': '',
         'label': 'Malware Name contains',
         'exp_type': 'string'
@@ -305,73 +285,80 @@ QUERY_EVENT_SUBQUERY = {
 
     # Feed
     'feed-provider_is': {
-        'sql': '"feed.provider" = %s',
+        'sql': 'events."feed.provider" ILIKE %s',
         'description': '',
         'label': 'Feed Provider',
         'exp_type': 'string'
     },
     'feed-provider_icontains': {
-        'sql': '"feed.provider" ILIKE %s',
+        'sql': 'events."feed.provider" ILIKE concat(\'%%\', %s, \'%%\')',
         'description': '',
         'label': 'Feed Provider contains',
         'exp_type': 'string'
     },
     'feed-name_is': {
-        'sql': '"feed.name" = %s',
+        'sql': 'events."feed.name" ILIKE %s',
         'description': '',
         'label': 'Feed Name',
         'exp_type': 'string'
     },
     'feed-name_icontains': {
-        'sql': '"feed.name" ILIKE %s',
+        'sql': 'events."feed.name" ILIKE concat(\'%%\', %s, \'%%\')',
         'description': '',
         'label': 'Feed Name contains',
         'exp_type': 'string'
     },
 
-    # TODO END OF EVENTS-API COPY
+    # queries that need the intelmq-cb-mailgen extra tables
 
     # Ticket-Related-Stuff
     'ticketnumber': {
-        'sql': 'sent.intelmq_ticket = %s',
+        'sql': 'sent."intelmq_ticket" = %s',
         'description': '',
         'label': 'Ticketnumber',
         'exp_type': 'string'
     },
     'sent-at_before': {
-        'sql': 'sent.sent_at < %s',
+        'sql': 'sent."sent_at" < %s',
         'description': '',
         'label': 'Sent before',
         'exp_type': 'datetime'
     },
-    'sent-at_before_encl': {
-        'sql': 'sent.sent_at <= %s',
-        'description': '',
-        'label': 'Sent before, including',
-        'exp_type': 'datetime'
-    },
     'sent-at_after': {
-        'sql': 'sent.sent_at > %s',
+        'sql': 'sent."sent_at" > %s',
         'description': '',
         'label': 'Sent after',
         'exp_type': 'datetime'
     },
-    'sent-at_after_encl': {
-        'sql': 'sent.sent_at > %s',
-        'description': '',
-        'label': 'Sent after, including',
-        'exp_type': 'datetime'
-    },
 
     # Directive-Related-Stuff
+    'recipient_group': {
+        'sql': 'json_object('
+               '  directives."aggregate_identifier")->> \'recipient_group\' '
+               'ILIKE %s',
+        'description': 'Value for recipient_group tag'
+                       'as set by the rule expert.',
+        'label': 'Recipient Group',
+        'exp_type': 'string',
+    },
+    'recipient_group_icontains': {
+        'sql': 'json_object('
+               '  directives."aggregate_identifier")->> \'recipient_group\' '
+               'ILIKE concat(\'%%\', %s, \'%%\')',
+        'description': 'Value for recipient_group tag'
+                       'as set by the rule expert - substring match.',
+        'label': 'Recipient Group contains',
+        'exp_type': 'string',
+    },
     'recipient-address_is': {
-        'sql': 'directives.recipient_address = %s',
+        'sql': 'directives."recipient_address" ILIKE %s',
         'description': '',
         'label': 'Recipient Email Address',
         'exp_type': 'email'
     },
     'recipient-address_icontains': {
-        'sql': 'directives.recipient_address ILIKE %s',
+        'sql':
+            'directives."recipient_address" ILIKE concat(\'%%\', %s, \'%%\')',
         'description': '',
         'label': 'Recipient Email Address contains',
         'exp_type': 'string'
@@ -381,7 +368,7 @@ QUERY_EVENT_SUBQUERY = {
 
 # TODO DUPLICATE OF EVENTS-API
 def query_get_subquery(q: str):
-    """ Return the query-Statement from the QUERY_EVENT_SUBQUERY
+    """Return the query-Statement from the QUERY_EVENT_SUBQUERY
 
     Basically this is a getter for the dict...
 
@@ -398,7 +385,7 @@ def query_get_subquery(q: str):
     if s:
         return s
     else:
-        raise ValueError('The query-parameter you asked for is not supported.')
+        raise ValueError('The query parameter you asked for is not supported.')
 
 
 # TODO DUPLICATE OF EVENTS-API
@@ -558,7 +545,7 @@ def query(prepared_query):
     """ Queries the Database for Events
 
     Args:
-        prepared_query: A QueryString, Paramater pair created
+        prepared_query: A QueryString, Parameter pair created
                         with query_prepare
 
     Returns: The results of the databasequery in JSON-Format.
@@ -587,10 +574,44 @@ def setup(api):
     if "logging_level" in config:
         log.setLevel(config["logging_level"])
     open_db_connection(config["libpg conninfo"])
-    log.debug("Initialised DB connection for events_api.")
+    log.debug("Initialised DB connection for tickets_api.")
+
+    # Copy of section in events_api/events_api/serve.py.
+    # Change there there and update it here.
+    global DB_TIMEZONE
+    DB_TIMEZONE = _db_get_timezone()
+    log.debug("Database says it operates in timezone =`" + DB_TIMEZONE + "`.")
+    if DB_TIMEZONE == "localtime":
+        # this means a postgresql db initialized before 9.5.19 [1] or a system
+        # where initdb could not easily determine the system's full timezone.
+        # But if postgres could not, we also shouldn't try.
+        # [1] since https://www.postgresql.org/docs/9.5/release-9-5-19.html
+        # initdb tries to determine the timezone (search for `TimeZone`).
+        log.error("Could not determine database's timezone. Exiting.")
+        sys.exit("""
+Please set timezone of the database to a full timezone name explicitly.
+Usually this is done in `postgresql.conf`. See PostgreSQL's docs.
+On GNU/Linux systems you can try to replace the timezone= value with that of
+    `timedatectl show --property=Timezone`
+or use the last two elements of where `/etc/localtime` links to.
+""")
 
 
-@hug.get(ENDPOINT_PREFIX, examples="ticketnumber=20191018-10000289")
+def _db_get_timezone():
+    """Query the database for its timezone setting."""
+    # Copy of function in events_api/events_api/serve.py.
+    # Change there there and update it here.
+    global eventdb_conn
+
+    # psycopgy2.4 does not offer 'with' for cursor()
+    # FUTURE: use with
+    cur = eventdb_conn.cursor(cursor_factory=RealDictCursor)
+
+    cur.execute("SHOW timezone")
+    return cur.fetchone()['TimeZone']
+
+
+@hug.get(ENDPOINT_PREFIX, examples="ticketnumber=20191018-10000289", requires=session.token_authentication)
 def getTicket(response,
               ticketnumber: hug.types.length(17, 18)):
     """Return events and directives associated with a ticketnumber.
@@ -609,7 +630,7 @@ def getTicket(response,
     result = query(prep)
 
     # Hug v2.2.0 cannot serialize datetime.timedelta objects.
-    # Therefor we need to do it on our own... until we have v2.3.0
+    # Therefore we need to do it on our own... until we have v2.3.0
     # See: https://github.com/timothycrosley/hug/issues/468
     for elem in result:
         if not elem.get("notification_interval") is None:
@@ -626,9 +647,9 @@ def getTicket(response,
         return {"error": "The query could not be processed."}
 
 
-@hug.get(ENDPOINT_PREFIX + '/subqueries')
+@hug.get(ENDPOINT_PREFIX + '/subqueries', requires=session.token_authentication)
 def showSubqueries():
-    """Returns the valid subqueries."""
+    """Return what's necessary to do queries, e.g subqueries and db timezone."""
     subquery_copy = copy.deepcopy(QUERY_EVENT_SUBQUERY)
 
     # Remove the SQL Statement from the SQ Object.
@@ -636,11 +657,11 @@ def showSubqueries():
         if 'sql' in v:
             del(v['sql'])
 
-    return subquery_copy
+    return {"subqueries": subquery_copy, "timezone": DB_TIMEZONE}
 
 
 @hug.get(ENDPOINT_PREFIX + '/search',
-         examples="sent-at_after=2017-03-01&sent-at_before=2017-03-01")
+         examples="sent-at_after=2017-03-01&sent-at_before=2017-03-01", requires=session.token_authentication)
 def search(response, **params):
     """Search for events and tickets.
 
@@ -679,7 +700,7 @@ def search(response, **params):
 
 @hug.get(ENDPOINT_PREFIX + '/stats',
          examples="malware-name_is=nymaim&" +
-         "recipient-address_icontains=%telekom%&timeres=day")
+         "recipient-address_icontains=%telekom%&timeres=day", requires=session.token_authentication)
 def stats(response, **params):
     """Return a statistic of all tickets matching the query parameters.
 
@@ -711,6 +732,11 @@ def stats(response, **params):
     # for the default: it is okay to go more in the future
     time_before = params.get(
         "sent-at_before", now + datetime.timedelta(days=1))
+
+    if type(time_after) == list or type(time_before) == list:
+        response.status = HTTP_BAD_REQUEST
+        return {"reason":
+                "Either time_after or time_before given more than once."}
 
     # Convert to datetime....
     if type(time_after) == str:
@@ -809,7 +835,7 @@ def stats(response, **params):
     return {'timeres': timeres, 'total': totalcount, 'results': results}
 
 
-@hug.get(ENDPOINT_PREFIX + '/getRecipient')
+@hug.get(ENDPOINT_PREFIX + '/getRecipient', requires=session.token_authentication)
 def getDirective(response, ticketnumber: hug.types.length(17, 18)):
 
     result = None
@@ -828,7 +854,7 @@ def getDirective(response, ticketnumber: hug.types.length(17, 18)):
         return {"error": "The query could not be processed."}
 
     # Hug v2.2.0 cannot serialize datetime.timedelta objects.
-    # Therefor we need to do it on our own... until we have v2.3.0
+    # Therefore we need to do it on our own... until we have v2.3.0
     # See: https://github.com/timothycrosley/hug/issues/468
     for elem in result:
         if not elem.get("notification_interval") is None:
@@ -847,7 +873,7 @@ def main():
     """
     if len(sys.argv) > 1 and sys.argv[1] == '--example-conf':
         print(EXAMPLE_CONF_FILE)
-        exit()
+        sys.exit()
 
     config = read_configuration()
     print("config = {}".format(config,))

@@ -33,12 +33,12 @@ Design rationale:
     the checkticket endpoints.
 
     We need location and credentials for the database holding the contactdb.
-    serve.py [1] (a hug based backend) solves this problem by reusing
+    The checkticket_api module [1] solves this problem by reusing
     the intelmq-mailgen configuration to access the 'intelmq-events' database.
     This serving part need to access a different database 'contactdb', thus
     we start with our on configuration.
 
-    [1] https://github.com/Intevation/intelmq-mailgen/blob/master/extras/checkticket_api/serve.py # noqa
+    [1] https://github.com/Intevation/intelmq-fody-backend/tree/master/checkticket_api # noqa
 
 """
 import json
@@ -52,6 +52,7 @@ import hug
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
+from session import session
 
 # FUTURE if we are reading to raise the requirements to psycopg2 v>=2.5
 # we could rely only on psycopg2's json support and simplify by removing
@@ -168,7 +169,7 @@ def __rollback_transaction():
 
 
 def _db_query(operation: str,
-              parameters: Union[dict, list]=None) -> Tuple[list, list]:
+              parameters: Union[dict, list] = None) -> Tuple[list, list]:
     """Does an database query.
 
     Creates a cursor from the global database connection, runs
@@ -182,7 +183,7 @@ def _db_query(operation: str,
     from psycopg2 docs section: Basic module usage->Transaction control
     http://initd.org/psycopg/docs/usage.html?#transactions-control
 
-    Thus each endpoint must make sure explicitely call __commit_transaction()
+    Thus each endpoint must make sure explicitly call __commit_transaction()
     or __rollback_transaction() when done with all db operations.
     In case of a command failure __rollback_transaction() must be called
     until new commands will be executed.
@@ -612,10 +613,10 @@ def __fix_ntms_to_org(ntms_should: list, ntms_are: list,
                 entry_should = entry
                 break
 
-        # update comment (as the colum is already the one we wanted)
+        # update comment (as the column is already the one we wanted)
         op_str = """
             UPDATE {0}
-                SET (comment) = (%s)
+                SET (comment) = row(%s)
                 WHERE {1} = %s
             """.format(table_name, id_column_name)
         _db_manipulate(op_str,
@@ -738,7 +739,7 @@ def _update_org(org):
     """Update a contactdb entry.
 
     First updates or creates the linked entries.
-    There is no need to check if other linked entries are similiar,
+    There is no need to check if other linked entries are similar,
     because we use the contactdb in a way that each org as its own
     linked entries.
 
@@ -846,12 +847,12 @@ def setup(api):
     log.debug("Initialised DB connection for contactdb_api.")
 
 
-@hug.get(ENDPOINT_PREFIX + '/ping')
+@hug.get(ENDPOINT_PREFIX + '/ping', requires=session.token_authentication)
 def pong():
     return ["pong"]
 
 
-@hug.get(ENDPOINT_PREFIX + '/searchasn')
+@hug.get(ENDPOINT_PREFIX + '/searchasn', requires=session.token_authentication)
 def searchasn(asn: int):
     try:
         # as an asn can only be associated once with an org_id,
@@ -869,7 +870,7 @@ def searchasn(asn: int):
     return query_results
 
 
-@hug.get(ENDPOINT_PREFIX + '/searchorg')
+@hug.get(ENDPOINT_PREFIX + '/searchorg', requires=session.token_authentication)
 def searchorg(name: str):
     """Search for an entry with the given name.
 
@@ -890,7 +891,7 @@ def searchorg(name: str):
     return query_results
 
 
-@hug.get(ENDPOINT_PREFIX + '/searchcontact')
+@hug.get(ENDPOINT_PREFIX + '/searchcontact', requires=session.token_authentication)
 def searchcontact(email: str):
     """Search for an entry with the given email address.
 
@@ -910,7 +911,7 @@ def searchcontact(email: str):
     return query_results
 
 
-@hug.get(ENDPOINT_PREFIX + '/searchdisabledcontact')
+@hug.get(ENDPOINT_PREFIX + '/searchdisabledcontact', requires=session.token_authentication)
 def searchdisabledcontact(email: str):
     """Search for entries where string is part of a disabled email address.
 
@@ -931,7 +932,7 @@ def searchdisabledcontact(email: str):
     return query_results
 
 
-@hug.get(ENDPOINT_PREFIX + '/searchcidr')
+@hug.get(ENDPOINT_PREFIX + '/searchcidr', requires=session.token_authentication)
 def searchcidr(address: str, response):
     """Search for orgs related to the cidr.
 
@@ -968,7 +969,7 @@ def searchcidr(address: str, response):
     return query_results
 
 
-@hug.get(ENDPOINT_PREFIX + '/searchfqdn')
+@hug.get(ENDPOINT_PREFIX + '/searchfqdn', requires=session.token_authentication)
 def searchfqdn(domain: str):
     """Search orgs that are responsible for a hostname in the domain.
 
@@ -993,7 +994,7 @@ def searchfqdn(domain: str):
     return query_results
 
 
-@hug.get(ENDPOINT_PREFIX + '/searchnational')
+@hug.get(ENDPOINT_PREFIX + '/searchnational', requires=session.token_authentication)
 def searchnational(countrycode: hug.types.length(2, 3)):
     """Search for orgs that are responsible for the given country.
     """
@@ -1027,7 +1028,7 @@ def join_org_ids(q1: list, q2: list):
     return new_query_results
 
 
-@hug.get(ENDPOINT_PREFIX + '/annotation/search')
+@hug.get(ENDPOINT_PREFIX + '/annotation/search', requires=session.token_authentication)
 def search_annotation(tag: str):
     """Search for orgs that are attached to a matching annotation.
 
@@ -1103,7 +1104,7 @@ def search_annotation(tag: str):
     return query_results
 
 
-@hug.get(ENDPOINT_PREFIX + '/org/manual/{id}')
+@hug.get(ENDPOINT_PREFIX + '/org/manual/{id}', requires=session.token_authentication)
 def get_manual_org_details(id: int):
     try:
         query_results = __db_query_org(id, "")
@@ -1115,7 +1116,7 @@ def get_manual_org_details(id: int):
     return query_results
 
 
-@hug.get(ENDPOINT_PREFIX + '/org/auto/{id}')
+@hug.get(ENDPOINT_PREFIX + '/org/auto/{id}', requires=session.token_authentication)
 def get_auto_org_details(id: int):
     try:
         query_results = __db_query_org(id, "_automatic")
@@ -1127,7 +1128,7 @@ def get_auto_org_details(id: int):
     return query_results
 
 
-@hug.get(ENDPOINT_PREFIX + '/asn/manual/{number}')
+@hug.get(ENDPOINT_PREFIX + '/asn/manual/{number}', requires=session.token_authentication)
 def get_manual_asn_details(number: int, response):
     try:
         asn = __db_query_asn(number, "")
@@ -1165,7 +1166,7 @@ def _load_known_email_tags():
             for row in all_tags]
 
 
-@hug.get(ENDPOINT_PREFIX + '/annotation/hints')
+@hug.get(ENDPOINT_PREFIX + '/annotation/hints', requires=session.token_authentication)
 def get_annotation_hints():
     """Return all hints helpful to build a good interface to annotations.
     """
@@ -1192,10 +1193,10 @@ def get_annotation_hints():
     return hints
 
 
-# a way to test this is similiar to
+# a way to test this is similar to
 #   import requests
 #   requests.post('http://localhost:8000/api/contactdb/org/manual/commit', json={'one': 'two'}, auth=('user', 'pass')).json() # noqa
-@hug.post(ENDPOINT_PREFIX + '/org/manual/commit')
+@hug.post(ENDPOINT_PREFIX + '/org/manual/commit', requires=session.token_authentication)
 def commit_pending_org_changes(body, request, response):
     remote_user = request.env.get("REMOTE_USER")
 
@@ -1229,7 +1230,7 @@ def commit_pending_org_changes(body, request, response):
     try:
         for command, org in zip(commands, orgs):
             results.append((command, known_commands[command](org)))
-    except Exception as err:
+    except Exception:
         __rollback_transaction()
         log.info("Commit failed '%s' with '%r' by remote_user = '%s'",
                  command, org, remote_user, exc_info=True)
@@ -1243,7 +1244,7 @@ def commit_pending_org_changes(body, request, response):
     return results
 
 
-@hug.get(ENDPOINT_PREFIX + '/email/{email}')
+@hug.get(ENDPOINT_PREFIX + '/email/{email}', requires=session.token_authentication)
 def get_email_details(email: str):
     """Lookup status/tags of an email address.
 
@@ -1319,7 +1320,7 @@ def _set_email_tags(email, tags):
     return total_rows_changed
 
 
-@hug.put(ENDPOINT_PREFIX + '/email/{email}')
+@hug.put(ENDPOINT_PREFIX + '/email/{email}', requires=session.token_authentication)
 def put_email(email: str, body, request, response):
     """Updates status and/or tags of email.
 
@@ -1379,7 +1380,7 @@ def put_email(email: str, body, request, response):
 def main():
     if len(sys.argv) > 1 and sys.argv[1] == '--example-conf':
         print(EXAMPLE_CONF_FILE)
-        exit()
+        sys.exit()
 
     config = read_configuration()
     print("config = {}".format(config,))

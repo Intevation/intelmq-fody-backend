@@ -1,6 +1,12 @@
 #!/bin/sh
 set -e
 
+if [ -f /usr/share/debconf/confmodule -a \
+     -f /usr/share/dbconfig-common/dpkg/prerm.sqlite3 ]; then
+    . /usr/share/debconf/confmodule
+    . /usr/share/dbconfig-common/dpkg/prerm.sqlite3
+    dbc_go intelmq-fody-backend "$@"
+fi
 if [ "$1" = "remove" ] ; then
     . /usr/share/apache2/apache2-maintscript-helper
     apache2_invoke dissite 001-fody.conf

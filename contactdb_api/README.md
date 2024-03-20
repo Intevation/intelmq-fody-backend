@@ -36,6 +36,6 @@ python3 -m unittest
 ```
 
 ## Installation
-For a production setup `checkticket.py` has to be installed
+For a production setup `intelmq_fody_backend` has to be installed
 with a webserver running `wsgi.multithread == False` and will try
 to import the `contactdb\_api` module.

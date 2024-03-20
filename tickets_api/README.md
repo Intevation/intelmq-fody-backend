@@ -1,4 +1,4 @@
-Server side API of eventdb interface for intelmq-fody.
+Server side eventdb interface for intelmq-fody.
 
 ## Configuration
 Uses environment variable ```TICKETS_SERVE_CONF_FILE``` to read
@@ -20,13 +20,16 @@ psql -c "GRANT SELECT ON  ALL TABLES IN SCHEMA public TO eventapiuser;" \
     intelmq-events
 ```
 
+The database must know its full timezone name, otherwise the backend bails out.
+
+
 ### LogLevel DDEBUG
 
 There is an additional loglevel `DDEBUG`
 for more details than `DEBUG`.
 
 ## Installation
-For a production setup `intelmq_fody_backend.py` has to be installed
+For a production setup `intelmq_fody_backend` has to be installed
 with a webserver running `wsgi.multithread == False` and will try
 to import the `tickets\_api` module.
 

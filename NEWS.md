@@ -1,5 +1,52 @@
-## 0.7.1 to 0.7.2 (unreleased)
-**todo**
+## 0.9.1 to 0.9.2
+ 
+ * Fixed compatibility of contactdb_api with PostsgreSQL >= 10.0.
+ 
+## 0.9.0 to 0.9.1
+
+ * Added authorization and session handling.
+ * Added script to add users to the database.
+
+## 0.8.1 to 0.9.0
+
+ * Tickets and Events:
+   * Send the timezone of the database via the /subqueries endpoint
+     to allow the front end to display how values are interpreted in queries.
+
+### Upgrade
+
+ * Check that `SHOW timezone;` in the database gives a full timezone name,
+   otherwise set it explicitly (find more details in `setup()` of
+   `events_apt/events_api/serve.py).
+
+
+## 0.8.0 to 0.8.1
+
+ * Tickets and Events:
+   * Indicate a client problem, if stats? endpoints are called with their main
+     range selection parameters given more than once.
+   * Small text improvement delete `Tag` from `Recipient Group Tag` subqueries.
+ * config/apache-example:
+   Add LogFormat to log time taken to serve the request to the LogFormat.
+
+
+## 0.7.2 to 0.8.0
+
+ * Tickets and Events:
+   * Improve frontend usability by automatically searching for substrings
+     in case of `_icontains` subqueries and by searching case-insensitive
+     for strings in general.
+   * Remove `_encl` subqueries as they are not needed.
+   * Make subqueries similar (and equal in case of `intelmq-cb-mailgen`
+     setups) between Tickets and Events.
+ * Events: Add default subqueries for recipient email addresses.
+
+
+## 0.7.1 to 0.7.2
+
+ * Events: Fix endpoints that use queries with mailgen tables to also
+   include events that have not been sent yet.
+
 
 ## 0.7.0 to 0.7.1
 
@@ -44,7 +91,7 @@
 ## 0.6.3 to 0.6.3.1
 
  * Contactdb:
-   * Fix handling of email tags, by returing the correct default tags.
+   * Fix handling of email tags, by returning the correct default tags.
 
 
 ## 0.6.2 to 0.6.3
@@ -90,7 +137,7 @@
 
 ## 0.5.2 to 0.5.3
 
- * Events: Changes /search endpoint to return complete events (similiar to
+ * Events: Changes /search endpoint to return complete events (similar to
      checkticket's /getEvents)
  * Events: Enhances subqueries:
    * New subqueries can be added in the config file, see example configuration.

@@ -90,7 +90,7 @@ def add_info_from_row(orgs_by_name, line_number, row, tag):
     email_addresses = getaddresses([row["contact"]])
     if len(email_addresses) < 1:
         log.error("No email addresses found in line %d", line_number)
-        raise ValueError("is no list email addressses", row["contact"])
+        raise ValueError("is no list email addresses", row["contact"])
 
     # use the name combined with the plain email addresses
     # as keys to a dictionary

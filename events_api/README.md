@@ -1,4 +1,4 @@
-Server side API of eventdb interface for intelmq-fody.
+Server side eventdb interface for intelmq-fody.
 
 The module can be used on an events table created by an
 `intelmq/bots/outputs/postgresql/`.
@@ -6,16 +6,25 @@ The module can be used on an events table created by an
 If there are additional tables from running a `intelmq-cb-mailgen` setup,
 additional features are offered.
 
-## Usage Hint for endpoint `./stats?`
 
-In an `intelmq-cb-mailgen` setup one event can have several directives
+## Usage hints
+
+In an `intelmq-cb-mailgen` setup, one event can have several directives
 which each potentially leads to an outgoing email.
 Each email will be sent at a different datetime.
+
+### for endpoint `./stats?`
+
 As a consequence it is possible that the same event is counted in different
 sending-time periods. Or to state this more general: if subqueries
 are used to restrict the results by columns from the `directives`
 or `sent` tables, the summary count of several of those queries maybe larger
 than the total number of events.
+
+### for endpoint `/search?`
+
+To give all available information, the returned JSON array will
+have the same event several times, if it has several matching directives.
 
 
 ## Configuration
@@ -36,13 +45,16 @@ psql -c "GRANT SELECT ON  ALL TABLES IN SCHEMA public TO eventapiuser;" \
     intelmq-events
 ```
 
+The database must know its full timezone name, otherwise the backend bails out.
+
+
 ### LogLevel DDEBUG
 
 There is an additional loglevel `DDEBUG`
 for more details than `DEBUG`.
 
 ## Installation
-For a production setup `intelmq-fody-backend` has to be installed
+For a production setup `intelmq_fody_backend` has to be installed
 with a webserver running `wsgi.multithread == False` and will try
 to import the `eventdb\_api` module.
 
