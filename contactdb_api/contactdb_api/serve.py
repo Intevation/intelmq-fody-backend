@@ -113,8 +113,10 @@ def read_configuration() -> dict:
 
 EXAMPLE_CONF_FILE = r"""
 {
-  "common_tags": [ "whitelist-opendns",
-                   "whitelist-malware",
+  "common_tags": [ "Whitelist:Malware",
+                   "Whitelist:DNS-Open-Resolver",
+                   "Whitelist:Shadowserver",
+                   "Whitelist:All",
                    "de-provider-xarf",
                    "cert.at-realtime-xmpp",
                    "erhalte-de"],
