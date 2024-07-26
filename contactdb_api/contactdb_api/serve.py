@@ -54,21 +54,12 @@ from psycopg2.extras import RealDictCursor
 
 from session import session
 
-# FUTURE if we are reading to raise the requirements to psycopg2 v>=2.5
-# we could rely only on psycopg2's json support and simplify by removing
-# to_Json(), see use of Json() to_Json() within the module.
-try:
-    from psycopg2.extras import Json
-    # The Json adaption will automatically convert to objects when reading
+from psycopg2.extras import Json
+from psycopg2.extensions import register_adapter
 
-    def to_Json(obj: object):
-        return obj
-except ImportError:
-    def Json(obj):
-        return json.dumps(obj)
+register_adapter(dict, Json)
+# The Json adaption will automatically convert to objects when reading
 
-    def to_Json(string: str):
-        return json.loads(string)
 
 log = logging.getLogger(__name__)
 # adding a custom log level for even more details when diagnosing
@@ -412,7 +403,7 @@ def __db_query_annotations(table: str, column_name: str,
     """.format(table, column_name)
     description, results = _db_query(operation_str, (column_value,))
     annos = results[0]["json_agg"]
-    return to_Json(annos) if annos is not None else []
+    return annos if annos is not None else []
 
 
 def __db_query_asn(asn: int, table_variant: str) -> dict:
@@ -463,14 +454,13 @@ def __fix_annotations_to_table(
     if mode != "add":
         # remove superfluous annotations
         for anno in [a for a in annos_are if a not in annos_should]:
-            # because postgresql (at least in 9.3) is unable to do
-            # a comparison between json types, we need to do the comparison
-            # in python and delete the exact string that postgresql saved
             op_str = """
-                SELECT annotation::text from {0}_annotation
+                DELETE FROM {0}_annotation
                     WHERE {1} = %s
+                    AND annotation = %s::jsonb
+                    RETURNING created, annotation
                 """.format(table_pre, column_name)
-            desc, results = _db_query(op_str, (column_value,))
+            desc, results = _db_query(op_str, (column_value, anno))
             for result in results:
                 if json.loads(result["annotation"]) == anno:
                     operation_str = """
@@ -1163,7 +1153,7 @@ def _load_known_email_tags():
           FROM tag_name JOIN tag ON tag.tag_name_id = tag_name.tag_name_id
       GROUP BY tag_name, tag_name_order
       ORDER BY tag_name_order""")[1]
-    return [(row["tag_name"], dict(tags=to_Json(row["tags"]),
+    return [(row["tag_name"], dict(tags=row["tags"],
                                    default_tag=row["default_tag"]))
             for row in all_tags]
 
