@@ -560,7 +560,16 @@ def query(prepared_query):
     operation = prepared_query[0]
     parameters = prepared_query[1]
     log.info(cur.mogrify(operation, parameters))
-    cur.execute(operation, parameters)
+    try:
+        cur.execute(operation, parameters)
+    except psycopg2.InterfaceError as err:
+        if 'connection already closed' in str(err):
+            log.error(repr(err))
+            log.exception('Database Connection terminated unexectedly. Restoring the connection now.')
+            eventdb_conn = open_db_connection(read_configuration()["libpg conninfo"])
+            cur = eventdb_conn.cursor(cursor_factory=RealDictCursor)
+        else:
+            raise
     log.log(DD, "Ran query={}".format(repr(cur.query.decode('utf-8'))))
     # description = cur.description
     results = cur.fetchall()

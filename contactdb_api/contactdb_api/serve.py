@@ -199,7 +199,17 @@ def _db_query(operation: str,
     # FUTURE use with
     cur = contactdb_conn.cursor(cursor_factory=RealDictCursor)
 
-    cur.execute(operation, parameters)
+    try:
+        cur.execute(operation, parameters)
+    except psycopg2.InterfaceError as err:
+        if 'connection already closed' in str(err) or 'terminating connection due to administrator command' in str(err):
+            log.error(repr(err))
+            log.exception('Database Connection terminated unexectedly. Restoring the connection now.')
+            eventdb_conn = open_db_connection(read_configuration()["libpg conninfo"])
+            cur = eventdb_conn.cursor(cursor_factory=RealDictCursor)
+        else:
+            raise
+
     log.log(DD, "Ran query={}".format(repr(cur.query.decode('utf-8'))))
     description = cur.description
     results = cur.fetchall()
