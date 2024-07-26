@@ -1,4 +1,4 @@
-intelmq-fody-backend (0.9.5-1) stable; urgency=medium
+intelmq-fody-backend (0.9.3-1) stable; urgency=medium
 
   * Tag expiry date
    * Dashboard
@@ -16,6 +16,8 @@ intelmq-fody-backend (0.9.5-1) stable; urgency=medium
     * add screenshots to README
    * Dependencies
     * re-resolve packages
+ * `intelmq-certbund-contact` version 0.9.5 is
+   required for the `audit_log` database table.
 
  -- Sebastian Wagner <swagner@intevation.de>  Wed, 24 Jul 2024 16:25:21 +0200
 

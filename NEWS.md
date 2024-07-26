@@ -1,3 +1,8 @@
+## 0.9.2 to 0.9.3
+
+ * For the Audit log `intelmq-certbund-contact` version 0.9.5 is
+   required for the `audit_log` database table.
+
 ## 0.9.1 to 0.9.2
  
  * Fixed compatibility of contactdb_api with PostsgreSQL >= 10.0.
