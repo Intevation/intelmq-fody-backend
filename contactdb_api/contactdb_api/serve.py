@@ -46,6 +46,7 @@ import logging
 import os
 import sys
 from typing import List, Tuple, Union
+from warnings import warn
 
 from falcon import HTTP_BAD_REQUEST, HTTP_NOT_FOUND
 import hug
@@ -119,6 +120,7 @@ EXAMPLE_CONF_FILE = r"""
 
 ENDPOINT_PREFIX = '/api/contactdb'
 ENDPOINT_NAME = 'ContactDB'
+ANNOTATION_DIFF_MAX = 20
 
 
 class Error(Exception):
@@ -448,6 +450,101 @@ def __get_name_to_object(object_type: str, object_value: int) -> str:
                      (object_value, ))[1][0][TABLE_TO_NAME_COLUMN[object_type]]
 
 
+class Hashabledict(dict):
+    """ Required for using dicts in a set"""
+
+    def __hash__(self):
+        return hash((frozenset(self.items())))
+
+    def __lt__(self, other):
+        """Make comparisons & sorting possible in a consistent way by using the annotation content in a specific order"""
+        return f"{self.get('tag')}{self.get('expires')}{self.get('inhibtion')}" < f"{other.get('tag')}{other.get('expires')}{other.get('inhibtion')}"
+
+    def __setitem__(self, key, value) -> None:
+        raise RuntimeError('Unhashabledict cannot be changed')
+
+
+def hashable_annotation(anno: dict) -> Hashabledict:
+    """ Convert a annotation to a hashable annotation with tuples """
+    anno_c = anno.copy()
+    if 'condition' in anno_c:
+        anno_c['condition'][1] = tuple(anno_c['condition'][1])
+        anno_c['condition'] = tuple(anno_c['condition'])
+    return Hashabledict(anno_c)
+
+
+def unhashable_annotation(anno: dict) -> Hashabledict:
+    """ Convert a hashable annotation to a normal annotation with lists """
+    anno_c = anno.copy()
+    if 'condition' in anno_c:
+        anno_c['condition'] = list(anno_c['condition'])
+        anno_c['condition'][1] = list(anno_c['condition'][1])
+    return dict(anno_c)
+
+
+def _annotation_diff(annos_are: List[dict], annos_should: List[dict],
+                     detect_modifications: bool = True) -> List[dict]:
+    """
+    Compare two lists of annotations. Identify new and removed annotations.
+    Main feature is to optionally detect modifications. Only changed expiry dates are detected at the moment.
+
+    The speed implications are low, as the number of annotations are usually < 5 and annotation changes don't happen that often.
+    For more than ANNOTATION_DIFF_MAX annotations, modification detection is disabled.
+    """
+    total_annotations = len(annos_are) + len(annos_should)
+    if total_annotations >= ANNOTATION_DIFF_MAX:
+        detect_modifications = False
+        warn(f"_annotation_diff: Modification detection disabled for performance reasons, "
+             f"got {total_annotations} annotations in total (>= {ANNOTATION_DIFF_MAX})")
+
+    if detect_modifications:
+        add = []
+        remove = []
+        change = []
+
+        are = set([hashable_annotation(e) for e in annos_are])
+        should = set([hashable_annotation(e) for e in annos_should])
+        to_remove = sorted(are - should)
+        to_add = sorted(should - are)
+
+        for anno in to_remove.copy():
+            anno_never = dict(anno)
+            anno_never.pop('expires', None)
+            for compare_anno in to_add.copy():  # compare with annos to add ignoring the expiry date
+                compare_anno_never = dict(compare_anno)
+                compare_anno_never.pop('expires', None)
+                if anno_never == compare_anno_never:
+                    remove.append({'data': unhashable_annotation(anno), 'log': False})
+                    add.append({'data': unhashable_annotation(compare_anno), 'log': False})
+                    change.append({'before': unhashable_annotation(anno), 'after': unhashable_annotation(compare_anno)})
+                    to_add.remove(compare_anno)  # remove the processed annos from the two lists
+                    to_remove.remove(anno)
+                    break
+            else:
+                remove.append({'data': unhashable_annotation(anno), 'log': True})
+
+        for anno in to_add:
+            anno_never = dict(anno)
+            anno_never.pop('expires', None)
+            for compare_anno in to_remove.copy():
+                compare_anno_never = dict(compare_anno)
+                compare_anno_never.pop('expires', None)
+                if anno_never == compare_anno_never:
+                    add.append({'data': unhashable_annotation(anno), 'log': False})
+                    remove.append({'data': unhashable_annotation(compare_anno), 'log': False})
+                    change.append({'after': unhashable_annotation(anno), 'before': unhashable_annotation(compare_anno)})
+                    to_remove.remove(compare_anno)
+                    break
+            else:
+                add.append({'data': unhashable_annotation(anno), 'log': True})
+
+        return {'add': add, 'remove': remove, 'change': change}
+    else:
+        return {'add': [{'data': a, 'log': True} for a in annos_should if a not in annos_are],
+                'remove': [{'data': a, 'log': True} for a in annos_are if a not in annos_should],
+                'change': []}
+
+
 def __fix_annotations_to_table(
         annos_should: list, mode: str,
         table_pre: str, column_name: str, column_value: int,
@@ -464,40 +561,50 @@ def __fix_annotations_to_table(
     """
 
     annos_are = __db_query_annotations(table_pre, column_name, column_value)
+    anno_diff = _annotation_diff(annos_are, annos_should, detect_modifications=mode == 'cut')
+    log.debug('Annotation Diff for %s is %r', table_pre, anno_diff)
+    log.log(DD, "annos_should = {}; annos_are = {}"
+                "".format(annos_should, annos_are))
 
     # Query the name of the affected object (organisation name, fqdn, domain or AS number)
     affected_object = __get_name_to_object(table_pre, column_value)
 
-    log.log(DD, "annos_should = {}; annos_are = {}"
-                "".format(annos_should, annos_are))
-
     # add missing annotations
-    for anno in [a for a in annos_should if a not in annos_are]:
+    for anno in anno_diff['add']:
         operation_str = """
             INSERT INTO {0}_annotation
                 ({1}, annotation) VALUES (%s, %s::json)
         """.format(table_pre, column_name)
-        _db_manipulate(f"""
-                       INSERT INTO audit_log ("table", "user", "operation", "object_type", "object_value", "after")
-                       VALUES ('{table_pre}_annotation', %s, 'add', %s, %s, %s::jsonb)
-                       """, (username, table_pre, affected_object, anno,))
-        _db_manipulate(operation_str, (column_value, anno))
+        if anno['log']:
+            _db_manipulate(f"""
+                        INSERT INTO audit_log ("table", "user", "operation", "object_type", "object_value", "after")
+                        VALUES ('{table_pre}_annotation', %s, 'add', %s, %s, %s::jsonb)
+                        """, (username, table_pre, affected_object, anno['data'],))
+        _db_manipulate(operation_str, (column_value, anno['data']))
 
-    if mode != "add":
+    if mode == "cut":
         # remove superfluous annotations
-        for anno in [a for a in annos_are if a not in annos_should]:
+        for anno in anno_diff['remove']:
             op_str = """
                 DELETE FROM {0}_annotation
                     WHERE {1} = %s
                     AND annotation = %s::jsonb
                     RETURNING created, annotation
                 """.format(table_pre, column_name)
-            desc, results = _db_query(op_str, (column_value, anno))
-            for result in results:
-                _db_manipulate(f"""
-                                INSERT INTO audit_log ("table", "user", "created", "operation", "object_type", "object_value", "before")
-                                VALUES ('{table_pre}_annotation', %s, %s, 'remove', %s, %s, %s::jsonb)
-                                """, (username, result['created'], table_pre, affected_object, result['annotation'],))
+            results = _db_query(op_str, (column_value, anno['data']))[1]
+            if anno['log']:
+                for result in results:
+                    _db_manipulate(f"""
+                                    INSERT INTO audit_log ("table", "user", "created", "operation", "object_type", "object_value", "before")
+                                    VALUES ('{table_pre}_annotation', %s, %s, 'remove', %s, %s, %s::jsonb)
+                                    """, (username, result['created'], table_pre, affected_object, result['annotation'],))
+
+    # add audit_log entries for all annotations with changes expiry date
+    for anno in anno_diff['change']:
+        _db_manipulate(f"""
+                    INSERT INTO audit_log ("table", "user", "operation", "object_type", "object_value", "before", "after")
+                    VALUES ('{table_pre}_annotation', %s, 'change', %s, %s, %s::jsonb, %s::jsonb)
+                    """, (username, table_pre, affected_object, anno['before'], anno['after']))
 
 
 def __fix_asns_to_org(asns: list, mode: str, org_id: int, username: str) -> None:
@@ -755,7 +862,7 @@ def _create_org(org: dict, username: str) -> int:
     __fix_ntms_to_org(org["networks"], [], "network", "address", new_org_id, username=username)
     __fix_ntms_to_org(org["fqdns"], [], "fqdn", "fqdn", new_org_id, username=username)
 
-    return(new_org_id)
+    return new_org_id
 
 
 def _update_org(org, username: str):
