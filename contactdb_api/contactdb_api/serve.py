@@ -46,11 +46,13 @@ import logging
 import os
 import sys
 from typing import List, Tuple, Union
+from operator import attrgetter
 
-from falcon import HTTP_BAD_REQUEST, HTTP_NOT_FOUND
+from falcon import HTTP_BAD_REQUEST, HTTP_NOT_FOUND, HTTP_UNPROCESSABLE_ENTITY
 import hug
 import psycopg2
 from psycopg2.extras import RealDictCursor
+import jsonschema
 
 from session import session
 
@@ -143,6 +145,10 @@ class UnknownTagError(Error):
     """Exception raised when the client supplies an unknown tag."""
     pass
 
+
+class ValidationError(Error):
+    def __init__(self, errors):
+        self.errors = errors
 
 # Using a global object for the database connection
 # must be initialised once
@@ -677,6 +683,124 @@ def __fix_leafnodes_to_org(leafs: List[dict], table: str,
         _db_manipulate(op_str, leaf)
 
 
+annotation_schema = {
+    "type": "object",
+    "properties": {
+        "tag": {"type": "string", "minLength": 1},
+        "condition": {"type": "array"},
+    },
+    "required": ["tag"],
+}
+
+asn_schema = {
+    "type": "object",
+    "properties": {
+        "asn": {"type": "integer", "minimum": 0},
+        "annotations": {
+            "type": "array",
+            "items": annotation_schema,
+        },
+    },
+    "required": ["asn"],
+}
+
+contact_schema = {
+    "type": "object",
+    "properties": {
+        "firstname": {"type": "string"},
+        "lastname": {"type": "string"},
+        "email": {"type": "string", "minLength": 1},
+        "tel": {"type": "string"},
+        "comment": {"type": "string"},
+        "openpgp_fpr": {"type": "string"},
+    },
+    "required": [
+        "firstname",
+        "lastname",
+        "tel",
+        "openpgp_fpr",
+        "email",
+        "comment"
+    ],
+}
+
+national_cert_schema = {
+    "type": "object",
+    "properties": {
+        "address": {"type": "string"},
+        "comment": {"type": "string"},
+        "country_code": {"type": "string"},
+        "annotations": {
+            "type": "array",
+            "items": annotation_schema,
+        },
+    },
+    "required": ["address"],
+}
+
+network_schema = {
+    "type": "object",
+    "properties": {
+        "address": {"type": "string"},
+        "comment": {"type": "string"},
+        "annotations": {
+            "type": "array",
+            "items": annotation_schema,
+        },
+    },
+    "required": ["address"],
+}
+
+fqdn_schema = {
+    "type": "object",
+    "properties": {
+        "address": {"type": "string"},
+        "comment": {"type": "string"},
+        "annotations": {
+            "type": "array",
+            "items": annotation_schema,
+        },
+    },
+    "required": ["address"]
+}
+
+create_org_schema = {
+    "type": "object",
+    "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "comment": {"type": "string"},
+        "ripe_org_hdl": {"type": "string"},
+        "ti_handle": {"type": "string"},
+        "first_handle": {"type": "string"},
+        "annotations": {
+            "type": "array",
+            "items": annotation_schema,
+        },
+        "asns": {
+            "type": "array",
+            "items": asn_schema,
+        },
+        "contacts": {
+            "type": "array",
+            "items": contact_schema,
+        },
+        "fqdns": {
+            "type": "array",
+            "items": fqdn_schema,
+        },
+        "networks": {
+            "type": "array",
+            "items": network_schema,
+        },
+        "national_certs": {
+            "type": "array",
+            "items": national_cert_schema,
+        },
+    },
+    "required": ["name"],
+}
+
+
 def _create_org(org: dict) -> int:
     """Insert an new contactdb entry.
 
@@ -691,6 +815,14 @@ def _create_org(org: dict) -> int:
         Database ID of the organisation that was created.
     """
     # log.debug("_create_org called with " + repr(org))
+
+    validator = jsonschema.Draft202012Validator(create_org_schema)
+    error_list = []
+    errors = sorted(validator.iter_errors(org), key=attrgetter("path"))
+    for error in errors:
+        error_list.append((list(error.absolute_path), error.message))
+    if error_list:
+        raise ValidationError(error_list)
 
     needed_attribs = ['name', 'comment', 'ripe_org_hdl',
                       'ti_handle', 'first_handle']
@@ -1228,8 +1360,14 @@ def commit_pending_org_changes(body, request, response):
 
     results = []
     try:
-        for command, org in zip(commands, orgs):
+        for i, (command, org) in enumerate(zip(commands, orgs)):
             results.append((command, known_commands[command](org)))
+    except ValidationError as e:
+        response.status = HTTP_UNPROCESSABLE_ENTITY
+        return {
+            "reason": "JSON validation failed",
+            "details": {"create": [(i, e.errors)]}
+        }
     except Exception:
         __rollback_transaction()
         log.info("Commit failed '%s' with '%r' by remote_user = '%s'",
