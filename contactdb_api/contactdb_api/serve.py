@@ -589,17 +589,15 @@ def __fix_annotations_to_table(
                 DELETE FROM {0}_annotation
                     WHERE {1} = %s
                     AND annotation = %s::jsonb
-                    RETURNING created, annotation
                 """.format(table_pre, column_name)
-            results = _db_query(op_str, (column_value, anno['data']))[1]
+            _db_manipulate(op_str, (column_value, anno['data']))
             if anno['log']:
-                for result in results:
-                    _db_manipulate(f"""
-                                    INSERT INTO audit_log ("table", "user", "created", "operation", "object_type", "object_value", "before")
-                                    VALUES ('{table_pre}_annotation', %s, %s, 'remove', %s, %s, %s::jsonb)
-                                    """, (username, result['created'], table_pre, affected_object, result['annotation'],))
+                _db_manipulate(f"""
+                                INSERT INTO audit_log ("table", "user", "operation", "object_type", "object_value", "before")
+                                VALUES ('{table_pre}_annotation', %s, 'remove', %s, %s, %s::jsonb)
+                                """, (username, table_pre, affected_object, anno['data']))
 
-    # add audit_log entries for all annotations with changes expiry date
+    # add audit_log entries for all annotations with changed expiry date
     for anno in anno_diff['change']:
         _db_manipulate(f"""
                     INSERT INTO audit_log ("table", "user", "operation", "object_type", "object_value", "before", "after")
