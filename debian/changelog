@@ -1,3 +1,34 @@
+intelmq-fody-backend (0.10.0-1) stable; urgency=medium
+
+  * contactdb: audit log for all annotation changes
+    * also queries the username from hug
+    * table audit_log is provided by intelmq-certbund-contact
+    * annotation diffing: detect changed annotations for a shorter audit log
+    * make database connections more stable, addresses https://github.com/Intevation/intelmq-fody-backend/issues/12
+    * the logging now contains the fody username, not the http basic authentication user (which is not used)
+    * psycopg2: use current method for passing JSON to DB
+      psycopg2 can now handle JSON directly, no workarounds needed anymore
+    * minor style: fix indentation in contactdb __main__
+    * rename whitelist tags to "Whitelist:" in the examples
+  * documentation:
+    * update readme section on commit logging
+  * Previous changes of 0.9.3:
+    * Apache example: exclude intelmq-webinput from rewrite condition
+    * use sys.exit
+      exit() is only available if the module site is present (imported by
+      other components)
+      that's often the case, but not always
+    * packaging:
+      add python3-dateutil dependency
+      add NEWS.md to docs
+    * documentation: add required locale in readme
+      otherwise backend exits with
+      [Thu Jul 21 14:07:52.281580 2022] [wsgi:error] [pid 11:tid 140030832015104] 2022-07-21 14:07:52,281 intelmqmail.cb CRITICAL - The preferred encoding of your locale setting is not UTF-8 but "ANSI_X3.4-1968". Exiting.
+    * fix various typos in all files
+    * add more common gitignores
+
+ -- Sebastian Wagner <swagner@intevation.de>  Wed, 14 Aug 2024 14:00:56 +0200
+
 intelmq-fody-backend (0.9.3-1) stable; urgency=medium
 
   * Tag expiry date
