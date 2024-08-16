@@ -27,6 +27,9 @@ import os
 import tempfile
 import unittest
 
+from psycopg2.extras import RealDictRow
+from copy import deepcopy
+
 from contactdb_api import serve
 
 
@@ -127,3 +130,56 @@ class AnnotationsTests(unittest.TestCase):
     def test_annotation_diff_warn(self):
         with self.assertWarnsRegex(UserWarning, '^_annotation_diff: Modification detection disabled for performance reasons'):
             serve._annotation_diff([self.TAG_1] * 30, [], False)
+
+
+ORG_DB_SIMPLE = RealDictRow([('organisation_id', 11), ('name', 'delete me'), ('sector_id', None), ('comment', ''), ('ripe_org_hdl', ''), ('ti_handle', ''), ('first_handle', ''), ('asns', []), ('contacts', []), ('national_certs', []), ('networks', []), ('fqdns', []), ('annotations', [])])
+ORG_PY_SIMPLE = {'organisation_id': 11, 'name': 'delete me', 'sector_id': None, 'comment': '', 'ripe_org_hdl': '', 'ti_handle': '', 'first_handle': '', 'asns': [], 'contacts': [], 'national_certs': [], 'networks': [], 'fqdns': [], 'annotations': []}
+
+ORG_DB_CONTACT = RealDictRow([('organisation_id', 12), ('name', 'delete me'), ('sector_id', None), ('comment', ''), ('ripe_org_hdl', ''), ('ti_handle', ''), ('first_handle', ''), ('asns', []), ('contacts', [RealDictRow([('contact_id', 58), ('firstname', ''), ('lastname', ''), ('tel', ''), ('openpgp_fpr', ''), ('email', 'abuse@example.com'), ('comment', ''), ('organisation_id', 12)])]), ('national_certs', []), ('networks', []), ('fqdns', []), ('annotations', [])])
+ORG_PY_CONTACT = {'organisation_id': 12, 'name': 'delete me', 'sector_id': None, 'comment': '', 'ripe_org_hdl': '', 'ti_handle': '', 'first_handle': '', 'asns': [], 'contacts': [{'contact_id': 58, 'firstname': '', 'lastname': '', 'tel': '', 'openpgp_fpr': '', 'email': 'abuse@example.com', 'comment': '', 'organisation_id': 12}], 'national_certs': [], 'networks': [], 'fqdns': [], 'annotations': []}
+
+ORG_DB_NETWORK_TAG = RealDictRow([('organisation_id', 13), ('name', 'delete me'), ('sector_id', None), ('comment', ''), ('ripe_org_hdl', ''), ('ti_handle', ''), ('first_handle', ''), ('asns', []), ('contacts', []), ('national_certs', []), ('networks', [RealDictRow([('network_id', 10), ('address', '10.0.0.1/32'), ('comment', ''), ('annotations', [{'tag': 'example_tag', 'expires': ''}])])]), ('fqdns', []), ('annotations', [])])
+ORG_PY_NETWORK_TAG = {'organisation_id': 13, 'name': 'delete me', 'sector_id': None, 'comment': '', 'ripe_org_hdl': '', 'ti_handle': '', 'first_handle': '', 'asns': [], 'contacts': [], 'national_certs': [], 'networks': [{'network_id': 10, 'address': '10.0.0.1/32', 'comment': '', 'annotations': [{'tag': 'example_tag', 'expires': ''}]}], 'fqdns': [], 'annotations': []}
+ORG_DB_NETWORK_TAG_EXPIRES = RealDictRow([('organisation_id', 13), ('name', 'delete me'), ('sector_id', None), ('comment', ''), ('ripe_org_hdl', ''), ('ti_handle', ''), ('first_handle', ''), ('asns', []), ('contacts', []), ('national_certs', []), ('networks', [RealDictRow([('network_id', 10), ('address', '10.0.0.1/32'), ('comment', ''), ('annotations', [{'tag': 'example_tag', 'expires': '2024-01-01'}])])]), ('fqdns', []), ('annotations', [])])
+ORG_PY_NETWORK_TAG_EXPIRES = {'organisation_id': 13, 'name': 'delete me', 'sector_id': None, 'comment': '', 'ripe_org_hdl': '', 'ti_handle': '', 'first_handle': '', 'asns': [], 'contacts': [], 'national_certs': [], 'networks': [{'network_id': 10, 'address': '10.0.0.1/32', 'comment': '', 'annotations': [{'tag': 'example_tag', 'expires': '2024-01-01'}]}], 'fqdns': [], 'annotations': []}
+
+ORG_DB = RealDictRow([('organisation_id', 14), ('name', 'delete me'), ('sector_id', None), ('comment', ''), ('ripe_org_hdl', ''), ('ti_handle', ''), ('first_handle', ''), ('asns', []), ('contacts', []), ('national_certs', []),
+                      ('asns', [RealDictRow([('asn', 1), ('annotations', [{'tag': 'else'}])])]),
+                      ('networks', [RealDictRow([('network_id', 11), ('address', '10.0.0.1/32'), ('comment', 'because'), ('annotations', [{'tag': 'Whitelist:Malware'}])])]),
+                      ('fqdns', [RealDictRow([('fqdn_id', 4), ('fqdn', 'example.com'), ('comment', ''), ('annotations', [{'tag': 'inhibition', 'condition': ['eq', ['event_field', 'foo'], 'bar']}])])]),
+                      ('annotations', [{'tag': 'Whitelist:All'}])])
+ORG_PY = {'organisation_id': 14, 'name': 'delete me', 'sector_id': None, 'comment': '', 'ripe_org_hdl': '', 'ti_handle': '', 'first_handle': '',
+          'asns': [{'annotations': [{'tag': 'else'}], 'asn': 1}],
+          'contacts': [],
+          'national_certs': [],
+          'networks': [{'network_id': 11, 'address': '10.0.0.1/32', 'comment': 'because', 'annotations': [{'tag': 'Whitelist:Malware'}]}],
+          'fqdns': [{'fqdn_id': 4, 'fqdn': 'example.com', 'comment': '', 'annotations': [{'tag': 'inhibition', 'condition': ['eq', ['event_field', 'foo'], 'bar']}]}],
+          'annotations': [{'tag': 'Whitelist:All'}]}
+
+ORG_PY_ASN_EXPIRES = deepcopy(ORG_PY)
+ORG_PY_ASN_EXPIRES['asns'][0]['annotations'][0]['expires'] = ''
+ORG_PY_FQDN_EXPIRES = deepcopy(ORG_PY)
+ORG_PY_FQDN_EXPIRES['fqdns'][0]['annotations'][0]['expires'] = ''
+ORG_PY_NET_EXPIRES = deepcopy(ORG_PY)
+ORG_PY_NET_EXPIRES['networks'][0]['annotations'][0]['expires'] = ''
+ORG_PY_ORG_EXPIRES = deepcopy(ORG_PY)
+ORG_PY_ORG_EXPIRES['annotations'][0]['expires'] = ''
+
+
+class TestOrgComparison(unittest.TestCase):
+    maxDiff = None
+
+    def test_org_equal(self):
+        "Simple comparisons, nothing special"
+        self.assertTrue(serve._compare_org(ORG_DB_SIMPLE, ORG_PY_SIMPLE))
+        self.assertTrue(serve._compare_org(ORG_DB_CONTACT, ORG_PY_CONTACT))
+        self.assertTrue(serve._compare_org(ORG_DB_NETWORK_TAG, ORG_PY_NETWORK_TAG))
+        self.assertTrue(serve._compare_org(ORG_DB_NETWORK_TAG_EXPIRES, ORG_PY_NETWORK_TAG_EXPIRES))
+        self.assertTrue(serve._compare_org(ORG_DB, ORG_PY))
+
+    def test_org_equal_expires(self):
+        "Tests with empty expire fields in each category"
+        self.assertTrue(serve._compare_org(ORG_DB, ORG_PY_ASN_EXPIRES))
+        self.assertTrue(serve._compare_org(ORG_DB, ORG_PY_FQDN_EXPIRES))
+        self.assertTrue(serve._compare_org(ORG_DB, ORG_PY_NET_EXPIRES))
+        self.assertTrue(serve._compare_org(ORG_DB, ORG_PY_ORG_EXPIRES))

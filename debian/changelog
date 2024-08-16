@@ -1,3 +1,12 @@
+intelmq-fody-backend (0.10.1) stable; urgency=medium
+
+  * ContactDB: Deleting organisations:
+    The comparison of the organisation data stored in the database and the
+    organisation data provided by the frontend now ignores empty 'expires'
+    entries in all annotation types.
+
+ -- Sebastian Wagner <swagner@intevation.de>  Fri, 16 Aug 2024 14:06:07 +0200
+
 intelmq-fody-backend (0.10.0-1) stable; urgency=medium
 
   * contactdb: audit log for all annotation changes

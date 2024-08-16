@@ -1,4 +1,11 @@
-## 0.9.2 to 0.9.3
+## 0.10.0 to 0.10.1
+
+ * ContactDB: Deleting organisations:
+   The comparison of the organisation data stored in the database and the
+   organisation data provided by the frontend now ignores empty 'expires'
+   entries in all annotation types.
+
+## 0.9.2 to 0.10.0
 
  * For the Audit log `intelmq-certbund-contact` version 0.9.5 is
    required for the `audit_log` database table.

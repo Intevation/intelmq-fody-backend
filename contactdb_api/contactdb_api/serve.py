@@ -45,13 +45,14 @@ import json
 import logging
 import os
 import sys
+from copy import deepcopy
 from typing import List, Tuple, Union
 from warnings import warn
 
 from falcon import HTTP_BAD_REQUEST, HTTP_NOT_FOUND
 import hug
 import psycopg2
-from psycopg2.extras import RealDictCursor
+from psycopg2.extras import RealDictCursor, RealDictRow
 
 from session import session
 
@@ -923,6 +924,33 @@ def _update_org(org, username: str):
     return org_id
 
 
+def _compare_org(org_a: dict, org_b: dict) -> bool:
+    """ Compare two organisation objects for equality.
+
+    Ignores empty expire fields.
+    Can be extended to other fields (emtpy conditions of inhibitions, empty network objects etc)
+
+    Returns True if both organisation objects are equal,
+        False otherwise"""
+    a = deepcopy(org_a)
+    b = deepcopy(org_b)
+    for org in (a, b):
+        if isinstance(org, RealDictRow):
+            org = dict(org)
+        for obj_type in ('asns', 'fqdns', 'networks'):
+            for obj_id, obj in enumerate(org[obj_type]):
+                for anno_id, anno in enumerate(org[obj_type][obj_id]['annotations']):
+                    if anno.get('expires', None) == '':
+                        print(f'{obj_type} anno empty expires')
+                        del org[obj_type][obj_id]['annotations'][anno_id]['expires']
+        for anno_id, anno in enumerate(org['annotations']):
+            if anno.get('expires', None) == '':
+                print('org anno empty expires')
+                del org['annotations'][anno_id]['expires']
+
+    return a == b
+
+
 def _delete_org(org, username: str) -> int:
     """Delete an manual org from the contactdb.
 
@@ -936,7 +964,7 @@ def _delete_org(org, username: str) -> int:
 
     org_in_db = __db_query_org(org_id_rm, "")
 
-    if not org_in_db == org:
+    if not _compare_org(org_in_db, org):
         log.warn("org_in_db = %r; org = %r", org_in_db, org)
         raise CommitError("Org to be deleted differs from db entry.")
 
