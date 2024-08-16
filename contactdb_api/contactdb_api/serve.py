@@ -937,8 +937,7 @@ def _delete_org(org, username: str) -> int:
     org_in_db = __db_query_org(org_id_rm, "")
 
     if not org_in_db == org:
-        log.debug("org_in_db = {}; org = {}".format(repr(org_in_db),
-                                                    repr(org)))
+        log.warn("org_in_db = %r; org = %r", org_in_db, org)
         raise CommitError("Org to be deleted differs from db entry.")
 
     __fix_asns_to_org([], "cut", org_id_rm, username=username)
