@@ -1,6 +1,6 @@
 # Documentation
 A backend to serve
-[intelmq-cb-mailgen](https://github.com/Intevation/intelmq-mailgen-release)
+[intelmq-mailgen](https://github.com/Intevation/intelmq-mailgen)
 data or just events from an IntelMQ PostgreSQL database
 for the webapp [Fody](https://github.com/intevation/intelmq-fody).
 
