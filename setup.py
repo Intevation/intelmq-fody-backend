@@ -18,5 +18,6 @@ setup(
     author='Intevation GmbH',
     author_email='info@intevation.de',
     description=' A backend to serve intelmq-cb-mailgen data for the webapp fody. ',
-    scripts = ['fody-adduser']
+    scripts = ['fody-adduser'],
+    python_requires='<3.13',  # Dependency falcon requires Python module cgi
 )

@@ -15,5 +15,5 @@ setup(
     packages=find_packages(),
 
     install_requires=['hug', 'psycopg2', 'python-dateutil'],
-
+    python_requires='<3.13',  # Dependency falcon requires Python module cgi
 )

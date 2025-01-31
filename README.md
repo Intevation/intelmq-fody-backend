@@ -8,6 +8,7 @@ for the webapp [Fody](https://github.com/intevation/intelmq-fody).
 Each contained module has an additional `README.md` to follow.
 
 # Requirements
+ * Python < 3.13
  * hug
  * psycopg2 >=2.4.5
  * intelmq-mailgen
