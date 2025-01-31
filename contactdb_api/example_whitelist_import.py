@@ -57,7 +57,7 @@ logging.basicConfig(format='%(levelname)s:%(message)s',
                     level=logging.INFO)
 #                    level=logging.DEBUG)
 
-TAG_WHITELIST_MALWARE = "whitelist-malware"
+TAG_WHITELIST_MALWARE = "Whitelist:Malware"
 
 with open(sys.argv[1]) as csvfile:
     # guess the csv file data format "dialect"
@@ -168,7 +168,7 @@ with open(sys.argv[1]) as csvfile:
                 # /!\ we assume that we have an identifier instead
                 if row["identifier"] == 'opendns':
                     network_inhib["annotations"] = [
-                        {"tag": "whitelist-opendns"}]
+                        {"tag": "Whitelist:DNS-Open-Resolver"}]
                 else:
                     network_inhib["annotations"] = [{
                         "tag": "inhibition",

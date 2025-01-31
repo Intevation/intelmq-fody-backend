@@ -1,6 +1,6 @@
 # Documentation
 A backend to serve
-[intelmq-cb-mailgen](https://github.com/Intevation/intelmq-mailgen-release)
+[intelmq-mailgen](https://github.com/Intevation/intelmq-mailgen)
 data or just events from an IntelMQ PostgreSQL database
 for the webapp [Fody](https://github.com/intevation/intelmq-fody).
 
@@ -74,20 +74,19 @@ fody-adduser --user <username> --password <password>
 # Track db changes by user
 Only the module `contactdb_api` exposes the ability to write changes to the db.
 
-If you want to be able to find out which user did which particular change:
- 1. Use basic authentication and maintain one userid and password per user.
-    (For apache2 this can be done with the `htpasswd` tool.)
- 2. Keep logs of the wsgi application at least at the INFO level.
+If you want to be able to find out which user (see section above) did which particular change:
+ 1. Set the logging level to at least INFO.
+ 2. Keep the error logs of the wsgi application. In the default Apache configuration for fody, the file is `/var/log/apache2/fody-backend-error.log`
 
 Log entries will show the requested change
-together with the authenticated userid, search for
-`remote_user =`. Example for apache2:
+together with the username, search for
+`user =`. Example for Apache2:
 
 ```sh
 pushd /var/log/apache2/
-grep 'remote_user =' *
-error.log:[Fri May 05 14:19:26.882299 2017] [:error] [pid 2075] 2017-05-05 14:19:26,882 contactdb_api.contactdb_api.serve INFO - Got commit_object = {'orgs': [{'comment': 'Testing', 'first_handle': '', 'name': 'Intevation', 'sector_id': None, 'contacts': [], 'ti_handle': '', 'ripe_org_hdl': '', 'asns': []}], 'commands': ['create']}; remote_user = 'bernhard.reiter'
-error.log:[Fri May 05 14:19:26.882299 2017] [:error] [pid 2075] 2017-05-05 14:19274,179 contactdb_api.contactdb_api.serve INFO - Commit successful, results = [('create', 126)]; remote_user = 'bernhard.reiter'
+zgrep 'user =' fody-backend-error.log*
+fody-backend-error.log:[Fri May 05 14:19:26.882299 2017] [:error] [pid 2075] 2017-05-05 14:19:26,882 contactdb_api.contactdb_api.serve INFO - Got commit_object = {'orgs': [{'comment': 'Testing', 'first_handle': '', 'name': 'Intevation', 'sector_id': None, 'contacts': [], 'ti_handle': '', 'ripe_org_hdl': '', 'asns': []}], 'commands': ['create']}; user = 'bernhard.reiter'
+fody-backend-error.log:[Fri May 05 14:19:26.882299 2017] [:error] [pid 2075] 2017-05-05 14:19274,179 contactdb_api.contactdb_api.serve INFO - Commit successful, results = [('create', 126)]; user = 'bernhard.reiter'
 ```
 
 # Links

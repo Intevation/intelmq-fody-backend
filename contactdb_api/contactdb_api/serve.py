@@ -45,32 +45,25 @@ import json
 import logging
 import os
 import sys
+from copy import deepcopy
 from typing import List, Tuple, Union
 from operator import attrgetter
+from warnings import warn
 
 from falcon import HTTP_BAD_REQUEST, HTTP_NOT_FOUND, HTTP_UNPROCESSABLE_ENTITY
 import hug
 import psycopg2
-from psycopg2.extras import RealDictCursor
+from psycopg2.extras import RealDictCursor, RealDictRow
 import jsonschema
 
 from session import session
 
-# FUTURE if we are reading to raise the requirements to psycopg2 v>=2.5
-# we could rely only on psycopg2's json support and simplify by removing
-# to_Json(), see use of Json() to_Json() within the module.
-try:
-    from psycopg2.extras import Json
-    # The Json adaption will automatically convert to objects when reading
+from psycopg2.extras import Json
+from psycopg2.extensions import register_adapter
 
-    def to_Json(obj: object):
-        return obj
-except ImportError:
-    def Json(obj):
-        return json.dumps(obj)
+register_adapter(dict, Json)
+# The Json adaption will automatically convert to objects when reading
 
-    def to_Json(string: str):
-        return json.loads(string)
 
 log = logging.getLogger(__name__)
 # adding a custom log level for even more details when diagnosing
@@ -115,8 +108,10 @@ def read_configuration() -> dict:
 
 EXAMPLE_CONF_FILE = r"""
 {
-  "common_tags": [ "whitelist-opendns",
-                   "whitelist-malware",
+  "common_tags": [ "Whitelist:Malware",
+                   "Whitelist:DNS-Open-Resolver",
+                   "Whitelist:Shadowserver",
+                   "Whitelist:All",
                    "de-provider-xarf",
                    "cert.at-realtime-xmpp",
                    "erhalte-de"],
@@ -128,6 +123,7 @@ EXAMPLE_CONF_FILE = r"""
 
 ENDPOINT_PREFIX = '/api/contactdb'
 ENDPOINT_NAME = 'ContactDB'
+ANNOTATION_DIFF_MAX = 20
 
 
 class Error(Exception):
@@ -212,7 +208,17 @@ def _db_query(operation: str,
     # FUTURE use with
     cur = contactdb_conn.cursor(cursor_factory=RealDictCursor)
 
-    cur.execute(operation, parameters)
+    try:
+        cur.execute(operation, parameters)
+    except psycopg2.InterfaceError as err:
+        if 'connection already closed' in str(err) or 'terminating connection due to administrator command' in str(err):
+            log.error(repr(err))
+            log.exception('Database Connection terminated unexectedly. Restoring the connection now.')
+            eventdb_conn = open_db_connection(read_configuration()["libpg conninfo"])
+            cur = eventdb_conn.cursor(cursor_factory=RealDictCursor)
+        else:
+            raise
+
     log.log(DD, "Ran query={}".format(repr(cur.query.decode('utf-8'))))
     description = cur.description
     results = cur.fetchall()
@@ -416,7 +422,7 @@ def __db_query_annotations(table: str, column_name: str,
     """.format(table, column_name)
     description, results = _db_query(operation_str, (column_value,))
     annos = results[0]["json_agg"]
-    return to_Json(annos) if annos is not None else []
+    return annos if annos is not None else []
 
 
 def __db_query_asn(asn: int, table_variant: str) -> dict:
@@ -437,9 +443,119 @@ def __db_query_asn(asn: int, table_variant: str) -> dict:
         return None
 
 
+TABLE_TO_NAME_COLUMN = {
+    'organisation': 'name',
+    'fqdn': 'fqdn',
+    'network': 'address'
+}
+
+
+def __get_name_to_object(object_type: str, object_value: int) -> str:
+    if object_type == 'autonomous_system':
+        return object_value
+    return _db_query("""SELECT {0} FROM {1} WHERE {1}_id = %s""".format(TABLE_TO_NAME_COLUMN[object_type], object_type),
+                     (object_value, ))[1][0][TABLE_TO_NAME_COLUMN[object_type]]
+
+
+class Hashabledict(dict):
+    """ Required for using dicts in a set"""
+
+    def __hash__(self):
+        return hash((frozenset(self.items())))
+
+    def __lt__(self, other):
+        """Make comparisons & sorting possible in a consistent way by using the annotation content in a specific order"""
+        return f"{self.get('tag')}{self.get('expires')}{self.get('inhibtion')}" < f"{other.get('tag')}{other.get('expires')}{other.get('inhibtion')}"
+
+    def __setitem__(self, key, value) -> None:
+        raise RuntimeError('Unhashabledict cannot be changed')
+
+
+def hashable_annotation(anno: dict) -> Hashabledict:
+    """ Convert a annotation to a hashable annotation with tuples """
+    anno_c = anno.copy()
+    if 'condition' in anno_c:
+        anno_c['condition'][1] = tuple(anno_c['condition'][1])
+        anno_c['condition'] = tuple(anno_c['condition'])
+    return Hashabledict(anno_c)
+
+
+def unhashable_annotation(anno: dict) -> Hashabledict:
+    """ Convert a hashable annotation to a normal annotation with lists """
+    anno_c = anno.copy()
+    if 'condition' in anno_c:
+        anno_c['condition'] = list(anno_c['condition'])
+        anno_c['condition'][1] = list(anno_c['condition'][1])
+    return dict(anno_c)
+
+
+def _annotation_diff(annos_are: List[dict], annos_should: List[dict],
+                     detect_modifications: bool = True) -> List[dict]:
+    """
+    Compare two lists of annotations. Identify new and removed annotations.
+    Main feature is to optionally detect modifications. Only changed expiry dates are detected at the moment.
+
+    The speed implications are low, as the number of annotations are usually < 5 and annotation changes don't happen that often.
+    For more than ANNOTATION_DIFF_MAX annotations, modification detection is disabled.
+    """
+    total_annotations = len(annos_are) + len(annos_should)
+    if total_annotations >= ANNOTATION_DIFF_MAX:
+        detect_modifications = False
+        warn(f"_annotation_diff: Modification detection disabled for performance reasons, "
+             f"got {total_annotations} annotations in total (>= {ANNOTATION_DIFF_MAX})")
+
+    if detect_modifications:
+        add = []
+        remove = []
+        change = []
+
+        are = set([hashable_annotation(e) for e in annos_are])
+        should = set([hashable_annotation(e) for e in annos_should])
+        to_remove = sorted(are - should)
+        to_add = sorted(should - are)
+
+        for anno in to_remove.copy():
+            anno_never = dict(anno)
+            anno_never.pop('expires', None)
+            for compare_anno in to_add.copy():  # compare with annos to add ignoring the expiry date
+                compare_anno_never = dict(compare_anno)
+                compare_anno_never.pop('expires', None)
+                if anno_never == compare_anno_never:
+                    remove.append({'data': unhashable_annotation(anno), 'log': False})
+                    add.append({'data': unhashable_annotation(compare_anno), 'log': False})
+                    change.append({'before': unhashable_annotation(anno), 'after': unhashable_annotation(compare_anno)})
+                    to_add.remove(compare_anno)  # remove the processed annos from the two lists
+                    to_remove.remove(anno)
+                    break
+            else:
+                remove.append({'data': unhashable_annotation(anno), 'log': True})
+
+        for anno in to_add:
+            anno_never = dict(anno)
+            anno_never.pop('expires', None)
+            for compare_anno in to_remove.copy():
+                compare_anno_never = dict(compare_anno)
+                compare_anno_never.pop('expires', None)
+                if anno_never == compare_anno_never:
+                    add.append({'data': unhashable_annotation(anno), 'log': False})
+                    remove.append({'data': unhashable_annotation(compare_anno), 'log': False})
+                    change.append({'after': unhashable_annotation(anno), 'before': unhashable_annotation(compare_anno)})
+                    to_remove.remove(compare_anno)
+                    break
+            else:
+                add.append({'data': unhashable_annotation(anno), 'log': True})
+
+        return {'add': add, 'remove': remove, 'change': change}
+    else:
+        return {'add': [{'data': a, 'log': True} for a in annos_should if a not in annos_are],
+                'remove': [{'data': a, 'log': True} for a in annos_are if a not in annos_should],
+                'change': []}
+
+
 def __fix_annotations_to_table(
         annos_should: list, mode: str,
-        table_pre: str, column_name: str, column_value: int) -> None:
+        table_pre: str, column_name: str, column_value: int,
+        username: str) -> None:
     """Make sure that only these annotations exist to the given table.
 
     Parameters:
@@ -452,40 +568,51 @@ def __fix_annotations_to_table(
     """
 
     annos_are = __db_query_annotations(table_pre, column_name, column_value)
-
+    anno_diff = _annotation_diff(annos_are, annos_should, detect_modifications=mode == 'cut')
+    log.debug('Annotation Diff for %s is %r', table_pre, anno_diff)
     log.log(DD, "annos_should = {}; annos_are = {}"
                 "".format(annos_should, annos_are))
 
+    # Query the name of the affected object (organisation name, fqdn, domain or AS number)
+    affected_object = __get_name_to_object(table_pre, column_value)
+
     # add missing annotations
-    for anno in [a for a in annos_should if a not in annos_are]:
+    for anno in anno_diff['add']:
         operation_str = """
             INSERT INTO {0}_annotation
                 ({1}, annotation) VALUES (%s, %s::json)
         """.format(table_pre, column_name)
-        _db_manipulate(operation_str, (column_value, Json(anno),))
+        if anno['log']:
+            _db_manipulate(f"""
+                        INSERT INTO audit_log ("table", "user", "operation", "object_type", "object_value", "after")
+                        VALUES ('{table_pre}_annotation', %s, 'add', %s, %s, %s::jsonb)
+                        """, (username, table_pre, affected_object, anno['data'],))
+        _db_manipulate(operation_str, (column_value, anno['data']))
 
-    if mode != "add":
+    if mode == "cut":
         # remove superfluous annotations
-        for anno in [a for a in annos_are if a not in annos_should]:
-            # because postgresql (at least in 9.3) is unable to do
-            # a comparison between json types, we need to do the comparison
-            # in python and delete the exact string that postgresql saved
+        for anno in anno_diff['remove']:
             op_str = """
-                SELECT annotation::text from {0}_annotation
+                DELETE FROM {0}_annotation
                     WHERE {1} = %s
+                    AND annotation = %s::jsonb
                 """.format(table_pre, column_name)
-            desc, results = _db_query(op_str, (column_value,))
-            for result in results:
-                if json.loads(result["annotation"]) == anno:
-                    operation_str = """
-                        DELETE FROM {0}_annotation
-                            WHERE  {1} = %s AND annotation::text = %s
-                        """.format(table_pre, column_name)
-                    _db_manipulate(operation_str,
-                                   (column_value, result["annotation"],))
+            _db_manipulate(op_str, (column_value, anno['data']))
+            if anno['log']:
+                _db_manipulate(f"""
+                                INSERT INTO audit_log ("table", "user", "operation", "object_type", "object_value", "before")
+                                VALUES ('{table_pre}_annotation', %s, 'remove', %s, %s, %s::jsonb)
+                                """, (username, table_pre, affected_object, anno['data']))
+
+    # add audit_log entries for all annotations with changed expiry date
+    for anno in anno_diff['change']:
+        _db_manipulate(f"""
+                    INSERT INTO audit_log ("table", "user", "operation", "object_type", "object_value", "before", "after")
+                    VALUES ('{table_pre}_annotation', %s, 'change', %s, %s, %s::jsonb, %s::jsonb)
+                    """, (username, table_pre, affected_object, anno['before'], anno['after']))
 
 
-def __fix_asns_to_org(asns: list, mode: str, org_id: int) -> None:
+def __fix_asns_to_org(asns: list, mode: str, org_id: int, username: str) -> None:
     """Make sure that exactly this asns with annotations exits and are linked.
 
     For each asn:
@@ -504,7 +631,7 @@ def __fix_asns_to_org(asns: list, mode: str, org_id: int) -> None:
 
         annos_should = asn["annotations"] if "annotations" in asn else []
         __fix_annotations_to_table(annos_should, mode,
-                                   "autonomous_system", "asn", asn_id)
+                                   "autonomous_system", "asn", asn_id, username=username)
 
         # check linking to the org
         operation_str = """
@@ -538,7 +665,7 @@ def __fix_asns_to_org(asns: list, mode: str, org_id: int) -> None:
 
 def __fix_ntms_to_org(ntms_should: list, ntms_are: list,
                       table_name: str, column_name: str,
-                      org_id: int) -> None:
+                      org_id: int, username: str) -> None:
     """Make sure that these ntm entries are there and linked from the org.
 
     In the certbund_contact db schema useful for entries that are linked
@@ -567,7 +694,8 @@ def __fix_ntms_to_org(ntms_should: list, ntms_are: list,
     for entry_shouldnt in superfluous:
         __fix_annotations_to_table([], "cut", table_name,
                                    id_column_name,
-                                   entry_shouldnt[id_column_name])
+                                   entry_shouldnt[id_column_name],
+                                   username=username)
         operation_str = """
             DELETE FROM organisation_to_{0}
                 WHERE organisation_id = %s
@@ -599,7 +727,7 @@ def __fix_ntms_to_org(ntms_should: list, ntms_are: list,
         new_entry_id = results[0][id_column_name]
 
         __fix_annotations_to_table(entry["annotations"], "add",
-                                   table_name, id_column_name, new_entry_id)
+                                   table_name, id_column_name, new_entry_id, username=username)
 
         # link it to the org
         operation_str = """
@@ -631,7 +759,7 @@ def __fix_ntms_to_org(ntms_should: list, ntms_are: list,
         # update annotations
         __fix_annotations_to_table(entry_should["annotations"], "cut",
                                    table_name, id_column_name,
-                                   entry_is[id_column_name])
+                                   entry_is[id_column_name], username=username)
 
     # delete entries that are not linked anymore
     operation_str = """
@@ -801,7 +929,7 @@ create_org_schema = {
 }
 
 
-def _create_org(org: dict) -> int:
+def _create_org(org: dict, username: str) -> int:
     """Insert an new contactdb entry.
 
     Makes sure that the contactdb entry expressed by the org dict
@@ -849,9 +977,10 @@ def _create_org(org: dict) -> int:
     new_org_id = results[0]["organisation_id"]
 
     __fix_annotations_to_table(org["annotations"], "add",
-                               "organisation", "organisation_id", new_org_id)
+                               "organisation", "organisation_id", new_org_id,
+                               username=username)
 
-    __fix_asns_to_org(org['asns'], "add", new_org_id)
+    __fix_asns_to_org(org['asns'], "add", new_org_id, username=username)
 
     __fix_leafnodes_to_org(org['contacts'], 'contact',
                            ['firstname', 'lastname', 'tel',
@@ -861,13 +990,13 @@ def _create_org(org: dict) -> int:
                            ["country_code", "comment"], new_org_id)
 
     # as this is a new org object, there is nothing linked to it yet
-    __fix_ntms_to_org(org["networks"], [], "network", "address", new_org_id)
-    __fix_ntms_to_org(org["fqdns"], [], "fqdn", "fqdn", new_org_id)
+    __fix_ntms_to_org(org["networks"], [], "network", "address", new_org_id, username=username)
+    __fix_ntms_to_org(org["fqdns"], [], "fqdn", "fqdn", new_org_id, username=username)
 
-    return(new_org_id)
+    return new_org_id
 
 
-def _update_org(org):
+def _update_org(org, username: str):
     """Update a contactdb entry.
 
     First updates or creates the linked entries.
@@ -896,9 +1025,9 @@ def _update_org(org):
         org["sector_id"] = None
 
     __fix_annotations_to_table(org["annotations"], "cut",
-                               "organisation", "organisation_id", org_id)
+                               "organisation", "organisation_id", org_id, username=username)
 
-    __fix_asns_to_org(org["asns"], "cut", org_id)
+    __fix_asns_to_org(org["asns"], "cut", org_id, username=username)
     __fix_leafnodes_to_org(org['contacts'], 'contact',
                            ['firstname', 'lastname', 'tel',
                             'openpgp_fpr', 'email', 'comment'], org_id)
@@ -908,10 +1037,10 @@ def _update_org(org):
     org_so_far = __db_query_org(org_id, "")
     networks_are = org_so_far["networks"] if "networks" in org_so_far else []
     __fix_ntms_to_org(org["networks"], networks_are,
-                      "network", "address", org_id)
+                      "network", "address", org_id, username=username)
 
     fqdns_are = org_so_far["fqdns"] if "fqdns" in org_so_far else []
-    __fix_ntms_to_org(org["fqdns"], fqdns_are, "fqdn", "fqdn", org_id)
+    __fix_ntms_to_org(org["fqdns"], fqdns_are, "fqdn", "fqdn", org_id, username=username)
 
     # linking other tables has been done, only update is left to do
     operation_str = """
@@ -927,7 +1056,34 @@ def _update_org(org):
     return org_id
 
 
-def _delete_org(org) -> int:
+def _compare_org(org_a: dict, org_b: dict) -> bool:
+    """ Compare two organisation objects for equality.
+
+    Ignores empty expire fields.
+    Can be extended to other fields (emtpy conditions of inhibitions, empty network objects etc)
+
+    Returns True if both organisation objects are equal,
+        False otherwise"""
+    a = deepcopy(org_a)
+    b = deepcopy(org_b)
+    for org in (a, b):
+        if isinstance(org, RealDictRow):
+            org = dict(org)
+        for obj_type in ('asns', 'fqdns', 'networks'):
+            for obj_id, obj in enumerate(org[obj_type]):
+                for anno_id, anno in enumerate(org[obj_type][obj_id]['annotations']):
+                    if anno.get('expires', None) == '':
+                        print(f'{obj_type} anno empty expires')
+                        del org[obj_type][obj_id]['annotations'][anno_id]['expires']
+        for anno_id, anno in enumerate(org['annotations']):
+            if anno.get('expires', None) == '':
+                print('org anno empty expires')
+                del org['annotations'][anno_id]['expires']
+
+    return a == b
+
+
+def _delete_org(org, username: str) -> int:
     """Delete an manual org from the contactdb.
 
     Also delete the attached entries, if they are not used elsewhere.
@@ -940,26 +1096,25 @@ def _delete_org(org) -> int:
 
     org_in_db = __db_query_org(org_id_rm, "")
 
-    if not org_in_db == org:
-        log.debug("org_in_db = {}; org = {}".format(repr(org_in_db),
-                                                    repr(org)))
+    if not _compare_org(org_in_db, org):
+        log.warn("org_in_db = %r; org = %r", org_in_db, org)
         raise CommitError("Org to be deleted differs from db entry.")
 
-    __fix_asns_to_org([], "cut", org_id_rm)
+    __fix_asns_to_org([], "cut", org_id_rm, username=username)
     __fix_leafnodes_to_org([], "contact", [], org_id_rm)
 
     org_is = __db_query_org(org_id_rm, "")
 
     networks_are = org_is["networks"] if "networks" in org_is else []
-    __fix_ntms_to_org([], networks_are, "network", "address", org_id_rm)
+    __fix_ntms_to_org([], networks_are, "network", "address", org_id_rm, username=username)
 
     fqdns_are = org_is["fqdns"] if "fqdns" in org_is else []
-    __fix_ntms_to_org([], fqdns_are, "fqdn", "fqdn", org_id_rm)
+    __fix_ntms_to_org([], fqdns_are, "fqdn", "fqdn", org_id_rm, username=username)
 
     __fix_leafnodes_to_org([], "national_cert", [], org_id_rm)
 
     __fix_annotations_to_table([], "cut",
-                               "organisation", "organisation_id", org_id_rm)
+                               "organisation", "organisation_id", org_id_rm, username=username)
 
     # remove org itself
     operation_str = "DELETE FROM organisation WHERE organisation_id = %s"
@@ -1293,7 +1448,7 @@ def _load_known_email_tags():
           FROM tag_name JOIN tag ON tag.tag_name_id = tag_name.tag_name_id
       GROUP BY tag_name, tag_name_order
       ORDER BY tag_name_order""")[1]
-    return [(row["tag_name"], dict(tags=to_Json(row["tags"]),
+    return [(row["tag_name"], dict(tags=row["tags"],
                                    default_tag=row["default_tag"]))
             for row in all_tags]
 
@@ -1329,11 +1484,8 @@ def get_annotation_hints():
 #   import requests
 #   requests.post('http://localhost:8000/api/contactdb/org/manual/commit', json={'one': 'two'}, auth=('user', 'pass')).json() # noqa
 @hug.post(ENDPOINT_PREFIX + '/org/manual/commit', requires=session.token_authentication)
-def commit_pending_org_changes(body, request, response):
-    remote_user = request.env.get("REMOTE_USER")
-
-    log.info("Got commit_object = " + repr(body)
-             + "; remote_user = " + repr(remote_user))
+def commit_pending_org_changes(body, request, response, user: hug.directives.user):
+    log.info("Got commit_object = %r; user = %r.", body, user['username'])
     if not (body
             and 'commands' in body
             and len(body['commands']) > 0
@@ -1361,7 +1513,7 @@ def commit_pending_org_changes(body, request, response):
     results = []
     try:
         for i, (command, org) in enumerate(zip(commands, orgs)):
-            results.append((command, known_commands[command](org)))
+            results.append((command, known_commands[command](org, username = user['username'])))
     except ValidationError as e:
         response.status = HTTP_UNPROCESSABLE_ENTITY
         return {
@@ -1370,15 +1522,15 @@ def commit_pending_org_changes(body, request, response):
         }
     except Exception:
         __rollback_transaction()
-        log.info("Commit failed '%s' with '%r' by remote_user = '%s'",
-                 command, org, remote_user, exc_info=True)
+        log.info("Commit failed %r with %r by username = %r",
+                 command, org, user['username'], exc_info=True)
         response.status = HTTP_BAD_REQUEST
         return {"reason": "Commit failed, see server logs."}
     else:
         __commit_transaction()
 
-    log.info("Commit successful, results = {}; "
-             "remote_user = {}".format(results, remote_user))
+    log.info("Commit successful, results = %r; username = %r",
+             results, user['username'])
     return results
 
 
@@ -1459,7 +1611,7 @@ def _set_email_tags(email, tags):
 
 
 @hug.put(ENDPOINT_PREFIX + '/email/{email}', requires=session.token_authentication)
-def put_email(email: str, body, request, response):
+def put_email(email: str, body, request, response, user: hug.directives.user):
     """Updates status and/or tags of email.
 
     The body should be a JSON object with one or both of the following
@@ -1472,10 +1624,8 @@ def put_email(email: str, body, request, response):
              will be removed from set of tags associated with the email
              address.
     """
-    remote_user = request.env.get("REMOTE_USER")
-    log.info("Got new status for email = " + repr(email)
-             + "; body = " + repr(body)
-             + "; remote_user = " + repr(remote_user))
+    log.info("Got new status for email = %r; body = %r; username = %r",
+             email, body, user['username'])
 
     if not body:
         response.status = HTTP_BAD_REQUEST
