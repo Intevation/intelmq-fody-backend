@@ -4,6 +4,7 @@
 *.pyc
 *.log
 *.*~
+.vscode/
 # packaging build files
 dist/
 intelmq_fody_backend.egg-info/
