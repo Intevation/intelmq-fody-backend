@@ -1,3 +1,9 @@
+intelmq-fody-backend (0.11.0-1) UNRELEASED; urgency=medium
+
+  * ContacDB and EventDB: Database connection pooling and healthcheck to handle broken connections (#12, #18, #35).
+
+ -- Sebastian Wagner <sebix@sebix.at>  Fri, 14 Feb 2025 18:50:54 +0100
+
 intelmq-fody-backend (0.10.1) stable; urgency=medium
 
   * ContactDB: Deleting organisations:
