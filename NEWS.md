@@ -1,3 +1,8 @@
+## 0.10.0 to 0.11.0
+
+* ContactDB and EventDB (Stats API):
+  Added a database connection pooling and healthchecks to handle broken connections (#12, #18, #35).
+
 ## 0.10.0 to 0.10.1
 
  * ContactDB: Deleting organisations:
@@ -11,9 +16,9 @@
    required for the `audit_log` database table.
 
 ## 0.9.1 to 0.9.2
- 
+
  * Fixed compatibility of contactdb_api with PostsgreSQL >= 10.0.
- 
+
 ## 0.9.0 to 0.9.1
 
  * Added authorization and session handling.

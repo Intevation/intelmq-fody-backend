@@ -8,6 +8,7 @@ for the webapp [Fody](https://github.com/intevation/intelmq-fody).
 Each contained module has an additional `README.md` to follow.
 
 # Requirements
+ * Python < 3.13
  * hug
  * psycopg2 >=2.4.5
  * intelmq-mailgen
@@ -34,11 +35,18 @@ Because of https://github.com/Intevation/intelmq-fody-backend/issues/12
 make sure to restart the serving process(es) each time you have
 restarted postgresql.
 
-## Run with hug
-```
+## Run with hug interactively
+
+For development purposes it is possible to run the backend interactively. The intelmq-fody frontend expects the backend at port 8002.
+
+```bash
 hug -f intelmq_fody_backend/serve.py -p 8002
 ```
 
+It is also possible to only run a single backend, for example the events API:
+```bash
+hug -f events_api/events_api/serve.py -p 8002
+```
 
 ## Run with Apache and WSGI
 ```
@@ -93,39 +101,6 @@ fody-backend-error.log:[Fri May 05 14:19:26.882299 2017] [:error] [pid 2075] 201
 * [python-imqfody](https://github.com/3c7/python-imqfody) a python3 module
   to ease accessing the Fody backend.
 
-# Development
-## How to release
-
-Update the `NEWS.md` file and (usually) all `setup.py` files.
-Note the versioning scheme remark in the toplevel `setup.py` file.
-
-### Version number
-Originally fody-backend had been designed with sub-modules
-that could potentially also be used separately.
-Example how to change all version numbers:
-```sh
-grep -r "^    version=" .
-grep -rl "^    version=" . | xargs sed -i 's/0.4.4.dev0/0.5.0.dev0/'
-```
-
-### debian/package
-Update `debian/changelog`, e.g.
-```sh
-dch --newversion 0.7.0  --check-dirname-level 0 --distribution stable
-```
-
-### Tag version
-example
-```sh
-git tag -s v0.7.0 -m "Release v0.7.0"
-git push origin v0.7.0
-```
-
-### Prepare for following development
-In the mentioned files above, set the version number to the following
-number as pre-version number for development, e.g. `0.7.1.dev0`.
-
-
-## History
+# History
 Most of the files within this repository originated from:
 https://github.com/Intevation/intelmq-mailgen/tree/master/extras

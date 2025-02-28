@@ -58,8 +58,10 @@ import jsonschema
 
 from session import session
 
+from contextlib import contextmanager
 from psycopg2.extras import Json
 from psycopg2.extensions import register_adapter
+from psycopg2 import pool
 
 register_adapter(dict, Json)
 # The Json adaption will automatically convert to objects when reading
@@ -146,28 +148,44 @@ class ValidationError(Error):
     def __init__(self, errors):
         self.errors = errors
 
+contactdb_pool = None
 # Using a global object for the database connection
 # must be initialised once
-contactdb_conn = None
+MAX_POOL_CONNECTIONS = 4
+
+def open_db_pool(dsn: str):
+    """Open the Connection pool to the ContactDB and saves in global obj
+
+    Args:
+        dsn: a Connection - String
+    """
+    global contactdb_pool
+
+    contactdb_pool = pool.ThreadedConnectionPool(1, MAX_POOL_CONNECTIONS, dsn=dsn)
+    return contactdb_pool
 
 
-def open_db_connection(dsn: str):
-    global contactdb_conn
+@contextmanager
+def db_connection():
 
-    contactdb_conn = psycopg2.connect(dsn=dsn)
-    return contactdb_conn
+    # Pool doesn't check the connection automatically
+    # Iterate max_connection+1 ensures that we either get a refreshed connection,
+    # or the problem isn't solvable that way
+    for _ in range(MAX_POOL_CONNECTIONS + 1):
+        connection = contactdb_pool.getconn()
+        try:
+            connection.cursor().execute("SELECT 1;")
+            break
+        except psycopg2.Error as exc:
+            log.info("Healthcheck connection failed: %s", repr(exc))
+            contactdb_pool.putconn(connection, close=True)
+    else:
+        raise RuntimeError(f"Cannot get a healthy connection")
 
-
-def __commit_transaction():
-    global contactdb_conn
-    log.log(DD, "Calling commit()")
-    contactdb_conn.commit()
-
-
-def __rollback_transaction():
-    global contactdb_conn
-    log.log(DD, "Calling rollback()")
-    contactdb_conn.rollback()
+    try:
+        yield connection
+    finally:
+        contactdb_pool.putconn(connection)
 
 
 def _db_query(operation: str,
@@ -198,34 +216,26 @@ def _db_query(operation: str,
         Tuple[list, List[psycopg2.extras.RealDictRow]]:
             description and results.
     """
-    global contactdb_conn
-    # log.log(DD, "_db_query({}, {})"
-    #            "".format(operation, parameters))
+    with db_connection() as conn:
+        # psycopgy2.4 does not offer 'with' for cursor()
+        # FUTURE: use with
+        cur = conn.cursor(cursor_factory=RealDictCursor)
 
-    description = None
-
-    # pscopgy2.4 does not offer 'with' for cursor()
-    # FUTURE use with
-    cur = contactdb_conn.cursor(cursor_factory=RealDictCursor)
-
-    try:
-        cur.execute(operation, parameters)
-    except psycopg2.InterfaceError as err:
-        if 'connection already closed' in str(err) or 'terminating connection due to administrator command' in str(err):
-            log.error(repr(err))
-            log.exception('Database Connection terminated unexectedly. Restoring the connection now.')
-            eventdb_conn = open_db_connection(read_configuration()["libpg conninfo"])
-            cur = eventdb_conn.cursor(cursor_factory=RealDictCursor)
-        else:
+        try:
+            cur.execute(operation, parameters)
+            results = cur.fetchall()
+        except (psycopg2.Error, AttributeError):
+            log.log(DD, "Calling rollback()")
+            conn.rollback()
             raise
+        else:
+            conn.commit()
 
-    log.log(DD, "Ran query={}".format(repr(cur.query.decode('utf-8'))))
-    description = cur.description
-    results = cur.fetchall()
+        log.log(DD, "Ran query={}".format(repr(cur.query.decode('utf-8'))))
+        description = cur.description
+        cur.close()
 
-    cur.close()
-
-    return (description, results)
+        return (description, results)
 
 
 def _db_manipulate(operation: str, parameters=None) -> int:
@@ -241,17 +251,18 @@ def _db_manipulate(operation: str, parameters=None) -> int:
     Returns:
         Number of affected rows.
     """
-    global contactdb_conn
     #  log.log(DD, "_db_manipulate({}, {})"
     #          "".format(operation, parameters))
 
-    # pscopgy2.4 does not offer 'with' for cursor()
-    # FUTURE use with
-    cur = contactdb_conn.cursor(cursor_factory=RealDictCursor)
-    cur.execute(operation, parameters)
-    log.log(DD, "Ran query={}".format(cur.query.decode('utf-8')))
+    with db_connection() as conn:
+        # pscopgy2.4 does not offer 'with' for cursor()
+        # FUTURE use with
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute(operation, parameters)
+        log.log(DD, "Ran query={}".format(cur.query.decode('utf-8')))
+        conn.commit()
 
-    return cur.rowcount
+        return cur.rowcount
 
 
 def __db_query_organisation_ids(operation_str: str,  parameters=None):
@@ -1130,7 +1141,7 @@ def setup(api):
     config = read_configuration()
     if "logging_level" in config:
         log.setLevel(config["logging_level"])
-    open_db_connection(config["libpg conninfo"])
+    open_db_pool(config["libpg conninfo"])
     log.debug("Initialised DB connection for contactdb_api.")
 
 
@@ -1141,19 +1152,13 @@ def pong():
 
 @hug.get(ENDPOINT_PREFIX + '/searchasn', requires=session.token_authentication)
 def searchasn(asn: int):
-    try:
-        # as an asn can only be associated once with an org_id,
-        # we do not need DISTINCT
-        query_results = __db_query_organisation_ids("""
-            SELECT array_agg(organisation{0}_id) as organisation_ids
-                FROM organisation_to_asn{0}
-                WHERE asn=%s
-            """, (asn,))
-    except psycopg2.DatabaseError:
-        __rollback_transaction()
-        raise
-    finally:
-        __commit_transaction()
+    # as an asn can only be associated once with an org_id,
+    # we do not need DISTINCT
+    query_results = __db_query_organisation_ids("""
+        SELECT array_agg(organisation{0}_id) as organisation_ids
+            FROM organisation_to_asn{0}
+            WHERE asn=%s
+        """, (asn,))
     return query_results
 
 
@@ -1163,19 +1168,12 @@ def searchorg(name: str):
 
     Search is an case-insensitive substring search.
     """
-    try:
-        # each org_id only has one name, so we do not need DISTINCT
-        query_results = __db_query_organisation_ids("""
-            SELECT array_agg(o.organisation{0}_id) AS organisation_ids
-                FROM organisation{0} AS o
-                WHERE name ILIKE %s
-            """, ("%"+name+"%",))
-    except psycopg2.DatabaseError:
-        __rollback_transaction()
-        raise
-    finally:
-        __commit_transaction()
-    return query_results
+    # each org_id only has one name, so we do not need DISTINCT
+    return __db_query_organisation_ids("""
+        SELECT array_agg(o.organisation{0}_id) AS organisation_ids
+            FROM organisation{0} AS o
+            WHERE name ILIKE %s
+        """, ("%"+name+"%",))
 
 
 @hug.get(ENDPOINT_PREFIX + '/searchcontact', requires=session.token_authentication)
@@ -1184,17 +1182,11 @@ def searchcontact(email: str):
 
     Uses a case-insensitive substring search.
     """
-    try:
-        query_results = __db_query_organisation_ids("""
-            SELECT array_agg(DISTINCT c.organisation{0}_id) AS organisation_ids
-                FROM contact{0} AS c
-                WHERE c.email ILIKE %s
-            """, ("%"+email+"%",))
-    except psycopg2.DatabaseError:
-        __rollback_transaction()
-        raise
-    finally:
-        __commit_transaction()
+    query_results = __db_query_organisation_ids("""
+        SELECT array_agg(DISTINCT c.organisation{0}_id) AS organisation_ids
+            FROM contact{0} AS c
+            WHERE c.email ILIKE %s
+        """, ("%"+email+"%",))
     return query_results
 
 
@@ -1204,18 +1196,12 @@ def searchdisabledcontact(email: str):
 
     Uses a case-insensitive substring search.
     """
-    try:
-        query_results = __db_query_organisation_ids("""
-            SELECT array_agg(DISTINCT c.organisation{0}_id) AS organisation_ids
-                FROM contact{0} AS c
-                LEFT OUTER JOIN email_status es ON c.email = es.email
-                WHERE c.email ILIKE %s AND es.enabled = false
-            """, ("%"+email+"%",))
-    except psycopg2.DatabaseError:
-        __rollback_transaction()
-        raise
-    finally:
-        __commit_transaction()
+    query_results = __db_query_organisation_ids("""
+        SELECT array_agg(DISTINCT c.organisation{0}_id) AS organisation_ids
+            FROM contact{0} AS c
+            LEFT OUTER JOIN email_status es ON c.email = es.email
+            WHERE c.email ILIKE %s AND es.enabled = false
+        """, ("%"+email+"%",))
     return query_results
 
 
@@ -1243,15 +1229,9 @@ def searchcidr(address: str, response):
             """, (address, address))
     except psycopg2.DataError:
         # catching psycopg2.DataError: invalid input syntax for type inet
-        __rollback_transaction()
         log.info("searchcidr?address=%s failed with DataError", address)
         response.status = HTTP_BAD_REQUEST
         return {"reason": "DataError, probably not in cidr style."}
-    except psycopg2.DatabaseError:
-        __rollback_transaction()
-        raise
-    finally:
-        __commit_transaction()
 
     return query_results
 
@@ -1263,21 +1243,13 @@ def searchfqdn(domain: str):
     Strips whitespace.
     """
     domain = domain.strip()
-    try:
-        query_results = __db_query_organisation_ids("""
-            SELECT array_agg(DISTINCT otf.organisation{0}_id)
-                    AS organisation_ids
-                FROM organisation_to_fqdn{0} AS otf
-                JOIN fqdn{0} AS f ON f.fqdn{0}_id = otf.fqdn{0}_id
-                WHERE f.fqdn ILIKE %s OR f.fqdn ILIKE %s
-            """, (domain, "%."+domain))
-
-    except psycopg2.DatabaseError:
-        __rollback_transaction()
-        raise
-    finally:
-        __commit_transaction()
-
+    query_results = __db_query_organisation_ids("""
+        SELECT array_agg(DISTINCT otf.organisation{0}_id)
+                AS organisation_ids
+            FROM organisation_to_fqdn{0} AS otf
+            JOIN fqdn{0} AS f ON f.fqdn{0}_id = otf.fqdn{0}_id
+            WHERE f.fqdn ILIKE %s OR f.fqdn ILIKE %s
+        """, (domain, "%."+domain))
     return query_results
 
 
@@ -1285,18 +1257,11 @@ def searchfqdn(domain: str):
 def searchnational(countrycode: hug.types.length(2, 3)):
     """Search for orgs that are responsible for the given country.
     """
-    try:
-        query_results = __db_query_organisation_ids("""
-            SELECT array_agg(DISTINCT organisation{0}_id) AS organisation_ids
-                FROM national_cert{0}
-                WHERE country_code ILIKE %s
-            """, (countrycode,))
-    except psycopg2.DatabaseError:
-        __rollback_transaction()
-        raise
-    finally:
-        __commit_transaction()
-
+    query_results = __db_query_organisation_ids("""
+        SELECT array_agg(DISTINCT organisation{0}_id) AS organisation_ids
+            FROM national_cert{0}
+            WHERE country_code ILIKE %s
+        """, (countrycode,))
     return query_results
 
 
@@ -1321,109 +1286,81 @@ def search_annotation(tag: str):
 
     Searches both annotations in manual entries and email 'tags'.
     """
-    try:
-        # we only have the manual tables with annotations, thus we
-        # cannot use  __db_query_organisation_ids() and do it manually
-        query_results = {"auto": [], "manual": []}
+    # we only have the manual tables with annotations, thus we
+    # cannot use  __db_query_organisation_ids() and do it manually
+    query_results = {"auto": [], "manual": []}
 
-        op_str = """
-            SELECT array_agg(organisation_id) AS organisation_ids FROM (
+    op_str = """
+        SELECT array_agg(organisation_id) AS organisation_ids FROM (
 
-                -- 1. orgs
-                SELECT organisation_id FROM organisation_annotation
-                    WHERE annotation::json->>'tag' ILIKE %s
+            -- 1. orgs
+            SELECT organisation_id FROM organisation_annotation
+                WHERE annotation::json->>'tag' ILIKE %s
 
-                UNION DISTINCT
+            UNION DISTINCT
 
-                -- 2. asns
-                SELECT organisation_id FROM organisation_to_asn AS ota
-                    JOIN autonomous_system_annotation AS asa
-                        ON ota.asn = asa.asn
-                    WHERE asa.annotation->>'tag' ILIKE %s
+            -- 2. asns
+            SELECT organisation_id FROM organisation_to_asn AS ota
+                JOIN autonomous_system_annotation AS asa
+                    ON ota.asn = asa.asn
+                WHERE asa.annotation->>'tag' ILIKE %s
 
-                UNION DISTINCT
+            UNION DISTINCT
 
-                -- 3. networks
-                SELECT organisation_id FROM organisation_to_network AS otn
-                    JOIN network AS n
-                        ON otn.network_id = n.network_id
-                    JOIN network_annotation AS na
-                        ON n.network_id = na.network_id
-                    WHERE na.annotation->>'tag' ILIKE %s
+            -- 3. networks
+            SELECT organisation_id FROM organisation_to_network AS otn
+                JOIN network AS n
+                    ON otn.network_id = n.network_id
+                JOIN network_annotation AS na
+                    ON n.network_id = na.network_id
+                WHERE na.annotation->>'tag' ILIKE %s
 
-                UNION DISTINCT
+            UNION DISTINCT
 
-                -- 4. fqdns
-                SELECT organisation_id FROM organisation_to_fqdn AS otf
-                    JOIN fqdn AS f
-                        ON otf.fqdn_id = f.fqdn_id
-                    JOIN fqdn_annotation AS fa
-                        ON f.fqdn_id = fa.fqdn_id
-                    WHERE fa.annotation->>'tag' ILIKE %s
+            -- 4. fqdns
+            SELECT organisation_id FROM organisation_to_fqdn AS otf
+                JOIN fqdn AS f
+                    ON otf.fqdn_id = f.fqdn_id
+                JOIN fqdn_annotation AS fa
+                    ON f.fqdn_id = fa.fqdn_id
+                WHERE fa.annotation->>'tag' ILIKE %s
 
-                ) AS foo
-            """
-        desc, results = _db_query(op_str, ("%" + tag + "%",)*4)
+            ) AS foo
+        """
+    desc, results = _db_query(op_str, ("%" + tag + "%",)*4)
 
-        if len(results) == 1 and results[0]["organisation_ids"] is not None:
-            query_results["manual"] = results[0]["organisation_ids"]
+    if len(results) == 1 and results[0]["organisation_ids"] is not None:
+        query_results["manual"] = results[0]["organisation_ids"]
 
-        # search for email tags
-        op_str = """
-            SELECT email from email_tag
-             WHERE tag_id IN (
-                 SELECT tag_id from tag where tag_description ILIKE %s
-                 )
-            """
-        desc, results = _db_query(op_str, ("%" + tag + "%",))
+    # search for email tags
+    op_str = """
+        SELECT email from email_tag
+            WHERE tag_id IN (
+                SELECT tag_id from tag where tag_description ILIKE %s
+                )
+        """
+    desc, results = _db_query(op_str, ("%" + tag + "%",))
 
-        # find org ids for each email address and join them
-        for result in results:
-            additional_org_ids = searchcontact(result["email"])
-            query_results = join_org_ids(query_results, additional_org_ids)
-
-    except psycopg2.DatabaseError:
-        __rollback_transaction()
-        raise
-    finally:
-        __commit_transaction()
-
+    # find org ids for each email address and join them
+    for result in results:
+        additional_org_ids = searchcontact(result["email"])
+        query_results = join_org_ids(query_results, additional_org_ids)
     return query_results
 
 
 @hug.get(ENDPOINT_PREFIX + '/org/manual/{id}', requires=session.token_authentication)
 def get_manual_org_details(id: int):
-    try:
-        query_results = __db_query_org(id, "")
-    except psycopg2.DatabaseError:
-        __rollback_transaction()
-        raise
-    finally:
-        __commit_transaction()
-    return query_results
+    return __db_query_org(id, "")
 
 
 @hug.get(ENDPOINT_PREFIX + '/org/auto/{id}', requires=session.token_authentication)
 def get_auto_org_details(id: int):
-    try:
-        query_results = __db_query_org(id, "_automatic")
-    except psycopg2.DatabaseError:
-        __rollback_transaction()
-        raise
-    finally:
-        __commit_transaction()
-    return query_results
+    return __db_query_org(id, "_automatic")
 
 
 @hug.get(ENDPOINT_PREFIX + '/asn/manual/{number}', requires=session.token_authentication)
 def get_manual_asn_details(number: int, response):
-    try:
-        asn = __db_query_asn(number, "")
-    except psycopg2.DatabaseError:
-        __rollback_transaction()
-        raise
-    finally:
-        __commit_transaction()
+    asn = __db_query_asn(number, "")
 
     if asn is None:
         response.status = HTTP_NOT_FOUND
@@ -1521,13 +1458,10 @@ def commit_pending_org_changes(body, request, response, user: hug.directives.use
             "details": {"create": [(i, e.errors)]}
         }
     except Exception:
-        __rollback_transaction()
         log.info("Commit failed %r with %r by username = %r",
                  command, org, user['username'], exc_info=True)
         response.status = HTTP_BAD_REQUEST
         return {"reason": "Commit failed, see server logs."}
-    else:
-        __commit_transaction()
 
     log.info("Commit successful, results = %r; username = %r",
              results, user['username'])
@@ -1560,14 +1494,8 @@ def get_email_details(email: str):
                       JOIN tag_name USING (tag_name_id)
                      WHERE email = %s"""
 
-    try:
-        statuses = _db_query(op_str, (email,))[1]
-        tags = _db_query(tags_query, (email,))[1]
-    except psycopg2.DatabaseError:
-        __rollback_transaction()
-        raise
-    finally:
-        __commit_transaction()
+    statuses = _db_query(op_str, (email,))[1]
+    tags = _db_query(tags_query, (email,))[1]
 
     if len(statuses) > 0:
         result = statuses[0]
@@ -1653,14 +1581,8 @@ def put_email(email: str, body, request, response, user: hug.directives.user):
         if tags is not None:
             n_rows_changed += _set_email_tags(email, tags)
     except UnknownTagError:
-        __rollback_transaction()
         response.status = HTTP_BAD_REQUEST
         return
-    except psycopg2.DatabaseError:
-        __rollback_transaction()
-        raise
-    finally:
-        __commit_transaction()
 
     return n_rows_changed
 
@@ -1679,24 +1601,27 @@ def main():
     print("log effective level = \"{}\"".format(
         logging.getLevelName(log.getEffectiveLevel())))
 
-    cur = open_db_connection(config["libpg conninfo"]).cursor()
+    open_db_pool(config["libpg conninfo"])
 
-    for count in [
-            "organisation_automatic",
-            "organisation",
-            "contact_automatic",
-            "contact",
-            "organisation_to_asn_automatic",
-            "organisation_to_asn",
-            "national_cert_automatic",
-            "national_cert",
-            "network_automatic",
-            "network",
-            "fqdn_automatic",
-            "fqdn",
-            ]:
-        cur.execute("SELECT count(*) FROM {}".format(count))
-        result = cur.fetchone()
-        print("count_{} = {}".format(count, result[0]))
+    with db_connection() as conn:
+        cur = conn.cursor()
 
-    cur.connection.commit()  # end transaction
+        for count in [
+                "organisation_automatic",
+                "organisation",
+                "contact_automatic",
+                "contact",
+                "organisation_to_asn_automatic",
+                "organisation_to_asn",
+                "national_cert_automatic",
+                "national_cert",
+                "network_automatic",
+                "network",
+                "fqdn_automatic",
+                "fqdn",
+                ]:
+            cur.execute("SELECT count(*) FROM {}".format(count))
+            result = cur.fetchone()
+            print("count_{} = {}".format(count, result[0]))
+
+        cur.connection.commit()  # end transaction
