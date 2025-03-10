@@ -14,6 +14,6 @@ setup(
 
     packages=find_packages(),
 
-    install_requires=['hug', 'psycopg2', 'typing'],
+    install_requires=['hug', 'psycopg2', 'typing', 'jsonschema'],
     python_requires='<3.13',  # Dependency falcon requires Python module cgi
 )
