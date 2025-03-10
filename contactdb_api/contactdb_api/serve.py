@@ -822,88 +822,20 @@ def __fix_leafnodes_to_org(leafs: List[dict], table: str,
         _db_manipulate(op_str, leaf)
 
 
-annotation_schema = {
-    "type": "object",
-    "properties": {
-        "tag": {"type": "string", "minLength": 1},
-        "condition": {"type": "array"},
-    },
-    "required": ["tag"],
-}
-
-asn_schema = {
-    "type": "object",
-    "properties": {
-        "asn": {"type": "integer", "minimum": 0},
-        "annotations": {
-            "type": "array",
-            "items": annotation_schema,
-        },
-    },
-    "required": ["asn"],
-}
-
-contact_schema = {
-    "type": "object",
-    "properties": {
-        "firstname": {"type": "string"},
-        "lastname": {"type": "string"},
-        "email": {"type": "string", "minLength": 1},
-        "tel": {"type": "string"},
-        "comment": {"type": "string"},
-        "openpgp_fpr": {"type": "string"},
-    },
-    "required": [
-        "firstname",
-        "lastname",
-        "tel",
-        "openpgp_fpr",
-        "email",
-        "comment"
-    ],
-}
-
-national_cert_schema = {
-    "type": "object",
-    "properties": {
-        "address": {"type": "string"},
-        "comment": {"type": "string"},
-        "country_code": {"type": "string"},
-        "annotations": {
-            "type": "array",
-            "items": annotation_schema,
-        },
-    },
-    "required": ["address"],
-}
-
-network_schema = {
-    "type": "object",
-    "properties": {
-        "address": {"type": "string"},
-        "comment": {"type": "string"},
-        "annotations": {
-            "type": "array",
-            "items": annotation_schema,
-        },
-    },
-    "required": ["address"],
-}
-
-fqdn_schema = {
-    "type": "object",
-    "properties": {
-        "address": {"type": "string"},
-        "comment": {"type": "string"},
-        "annotations": {
-            "type": "array",
-            "items": annotation_schema,
-        },
-    },
-    "required": ["address"]
-}
-
 create_org_schema = {
+    "$defs": {
+        "annotations": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "tag": {"type": "string", "minLength": 1},
+                    "condition": {"type": "array"}
+                },
+                "required": ["tag"]
+            }
+        }
+    },
     "type": "object",
     "properties": {
         "name": {"type": "string", "minLength": 1},
@@ -911,32 +843,71 @@ create_org_schema = {
         "ripe_org_hdl": {"type": "string"},
         "ti_handle": {"type": "string"},
         "first_handle": {"type": "string"},
-        "annotations": {
-            "type": "array",
-            "items": annotation_schema,
-        },
+        "annotations": {"$ref": "#/$defs/annotations"},
         "asns": {
             "type": "array",
-            "items": asn_schema,
+            "items": {
+                "type": "object",
+                "properties": {
+                    "asn": {"type": "integer", "minimum": 0},
+                    "annotations": {"$ref": "#/$defs/annotations"}
+                },
+                "required": ["asn"]
+            }
         },
         "contacts": {
             "type": "array",
-            "items": contact_schema,
+            "items": {
+                "type": "object",
+                "properties": {
+                    "firstname": {"type": "string"},
+                    "lastname": {"type": "string"},
+                    "email": {"type": "string", "minLength": 1},
+                    "tel": {"type": "string"},
+                    "comment": {"type": "string"},
+                    "openpgp_fpr": {"type": "string"}
+                },
+                "required": ["firstname", "lastname", "email", "tel", "comment", "openpgp_fpr"]
+            }
         },
         "fqdns": {
             "type": "array",
-            "items": fqdn_schema,
+            "items": {
+                "type": "object",
+                "properties": {
+                    "fqdn": {"type": "string", "minLength": 1},
+                    "comment": {"type": "string"},
+                    "annotations": {"$ref": "#/$defs/annotations"}
+                },
+                "required": ["fqdn"]
+            }
         },
         "networks": {
             "type": "array",
-            "items": network_schema,
+            "items": {
+                "type": "object",
+                "properties": {
+                    "address": {"type": "string", "minLength": 1, "format": "cidr"},
+                    "comment": {"type": "string"},
+                    "annotations": {"$ref": "#/$defs/annotations"}
+                },
+                "required": ["address"]
+            }
         },
         "national_certs": {
             "type": "array",
-            "items": national_cert_schema,
-        },
+            "items": {
+                "type": "object",
+                "properties": {
+                    "address": {"type": "string"},
+                    "comment": {"type": "string"},
+                    "country_code": {"type": "string", "pattern": "^[a-zA-Z]{2}$"}
+                },
+                "required": ["address"]
+            }
+        }
     },
-    "required": ["name"],
+    "required": ["name"]
 }
 
 
@@ -1356,6 +1327,11 @@ def get_manual_org_details(id: int):
 @hug.get(ENDPOINT_PREFIX + '/org/auto/{id}', requires=session.token_authentication)
 def get_auto_org_details(id: int):
     return __db_query_org(id, "_automatic")
+
+
+@hug.get(ENDPOINT_PREFIX + '/org/schema.json')
+def get_org_schema():
+    return create_org_schema
 
 
 @hug.get(ENDPOINT_PREFIX + '/asn/manual/{number}', requires=session.token_authentication)
