@@ -45,6 +45,7 @@ import json
 import logging
 import os
 import sys
+import traceback
 from copy import deepcopy
 from typing import List, Tuple, Union
 from operator import attrgetter
@@ -1433,11 +1434,14 @@ def commit_pending_org_changes(body, request, response, user: hug.directives.use
             "reason": "JSON validation failed",
             "details": {"create": [(i, e.errors)]}
         }
-    except Exception:
+    except Exception as e:
         log.info("Commit failed %r with %r by username = %r",
-                 command, org, user['username'], exc_info=True)
+                 command, org, user['username'], exc_info=e)
         response.status = HTTP_BAD_REQUEST
-        return {"reason": "Commit failed, see server logs."}
+        return {
+            "reason": "Commit failed",
+            "details": "".join(traceback.format_exception(e)).rstrip()
+        }
 
     log.info("Commit successful, results = %r; username = %r",
              results, user['username'])
