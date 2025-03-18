@@ -1434,13 +1434,13 @@ def commit_pending_org_changes(body, request, response, user: hug.directives.use
             "reason": "JSON validation failed",
             "details": {"create": [(i, e.errors)]}
         }
-    except Exception as e:
+    except Exception as exc:
         log.info("Commit failed %r with %r by username = %r",
-                 command, org, user['username'], exc_info=e)
+                 command, org, user['username'], exc_info=exc)
         response.status = HTTP_BAD_REQUEST
         return {
             "reason": "Commit failed",
-            "details": "".join(traceback.format_exception(e)).rstrip()
+            "details": "{}".format(repr(exc).replace('\n', ' '))
         }
 
     log.info("Commit successful, results = %r; username = %r",
