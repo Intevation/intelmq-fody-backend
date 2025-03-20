@@ -2,7 +2,7 @@ Source: intelmq-fody-backend
 Maintainer: Sascha Wilde <wilde@intevation.de>
 Section: net
 Priority: optional
-Build-Depends: dh-exec, dh-python, python3-setuptools, python3-all,
+Build-Depends: dh-exec, dh-python, python3-setuptools, python3 (<< 3.13),
  debhelper (>= 9), python3-psycopg2
 Standards-Version: 3.9.5.0
 
