@@ -45,7 +45,6 @@ import json
 import logging
 import os
 import sys
-import traceback
 from copy import deepcopy
 from typing import List, Tuple, Union
 from operator import attrgetter
@@ -831,7 +830,7 @@ create_org_schema = {
                 "type": "object",
                 "properties": {
                     "tag": {"type": "string", "minLength": 1},
-                    "condition": {"type": "array"}
+                    "condition": {"type": ["array", "boolean"], "minItems": 2, "maxItems": 3}
                 },
                 "required": ["tag"]
             }
