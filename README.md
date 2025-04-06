@@ -60,7 +60,7 @@ You might want to use an Apache-Config similar to the example included as
 # Authentication
 Authentication for the endpoints exposed by the fody-backend is configured in a json formatted file. The fody-backend tires to load the configuration file `/etc/intelmq/fody-session.conf` and `${PREFIX}/etc/intelmq/fody-session.conf`. To override these paths set the environment variable `FODY_SESSION_CONFIG` to the path pointing to the config file.
 
-If the config file is not found in the given locations the authenticion is disabled.
+If the config file is not found in the given locations the authentication is disabled.
 
 ## Example configuration
 
@@ -78,6 +78,14 @@ If you enable the session_store you will have to create user accounts to be able
 ```
 fody-adduser --user <username> --password <password>
 ```
+
+## Same authentication as IntelMQ Manager
+
+You can use the same authentication for IntelMQ Fody as for the IntelMQ Manager.
+
+1. From `/etc/intelmq/api-config.json` copy the value of the field `session_store` (on Debian/Ubuntu it is likely `/var/lib/dbconfig-common/sqlite3/intelmq-api/intelmqapi`). Short command: `jq -r .session_store /etc/intelmq/api-config.json`
+2. In `/etc/intelmq/fody-session.conf` set this value for the field `session_store`.
+3. Run `sudo systemctl restart apache2` to make the change effective, restarting IntelMQ Fody's Backend.
 
 # Track db changes by user
 Only the module `contactdb_api` exposes the ability to write changes to the db.
