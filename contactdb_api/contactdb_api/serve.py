@@ -899,11 +899,10 @@ create_org_schema = {
             "items": {
                 "type": "object",
                 "properties": {
-                    "address": {"type": "string"},
-                    "comment": {"type": "string"},
-                    "country_code": {"type": "string", "pattern": "^[a-zA-Z]{2}$"}
+                    "country_code": {"type": "string", "pattern": "^[a-zA-Z]{2}$"},
+                    "comment": {"type": "string"}
                 },
-                "required": ["address"]
+                "required": ["country_code"]
             }
         }
     },
