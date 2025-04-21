@@ -862,7 +862,7 @@ create_org_schema = {
                 "properties": {
                     "firstname": {"type": "string"},
                     "lastname": {"type": "string"},
-                    "email": {"type": "string", "minLength": 1},
+                    "email": {"type": "string", "pattern": "^[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"},
                     "tel": {"type": "string"},
                     "comment": {"type": "string"},
                     "openpgp_fpr": {"type": "string"}
