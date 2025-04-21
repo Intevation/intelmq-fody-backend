@@ -862,7 +862,7 @@ create_org_schema = {
                 "properties": {
                     "firstname": {"type": "string"},
                     "lastname": {"type": "string"},
-                    "email": {"type": "string", "pattern": "^[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"},
+                    "email": {"type": "string", "pattern": "^[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\\.)+[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?$"},
                     "tel": {"type": "string"},
                     "comment": {"type": "string"},
                     "openpgp_fpr": {"type": "string"}
@@ -875,7 +875,7 @@ create_org_schema = {
             "items": {
                 "type": "object",
                 "properties": {
-                    "fqdn": {"type": "string", "pattern": "^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"},
+                    "fqdn": {"type": "string", "pattern": "^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\\.)+[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?$"},
                     "comment": {"type": "string"},
                     "annotations": {"$ref": "#/$defs/annotations"}
                 },
