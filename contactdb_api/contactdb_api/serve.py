@@ -875,7 +875,7 @@ create_org_schema = {
             "items": {
                 "type": "object",
                 "properties": {
-                    "fqdn": {"type": "string", "minLength": 1},
+                    "fqdn": {"type": "string", "pattern": "^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"},
                     "comment": {"type": "string"},
                     "annotations": {"$ref": "#/$defs/annotations"}
                 },
