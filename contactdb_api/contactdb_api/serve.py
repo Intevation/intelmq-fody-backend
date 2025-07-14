@@ -875,7 +875,7 @@ create_org_schema = {
             "items": {
                 "type": "object",
                 "properties": {
-                    "fqdn": {"type": "string", "pattern": "^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\\.)+[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?$"},
+                    "fqdn": {"type": "string", "pattern": "^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)*(?:[0-9]*[a-z](?:[a-z0-9-]*[a-z0-9])?|[0-9]+-+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)$"},
                     "comment": {"type": "string"},
                     "annotations": {"$ref": "#/$defs/annotations"}
                 },
