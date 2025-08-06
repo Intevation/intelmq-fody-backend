@@ -47,12 +47,14 @@ import os
 import sys
 from copy import deepcopy
 from typing import List, Tuple, Union
+from operator import attrgetter
 from warnings import warn
 
-from falcon import HTTP_BAD_REQUEST, HTTP_NOT_FOUND
+from falcon import HTTP_BAD_REQUEST, HTTP_NOT_FOUND, HTTP_UNPROCESSABLE_ENTITY
 import hug
 import psycopg2
 from psycopg2.extras import RealDictCursor, RealDictRow
+import jsonschema
 
 from session import session
 
@@ -141,6 +143,10 @@ class UnknownTagError(Error):
     """Exception raised when the client supplies an unknown tag."""
     pass
 
+
+class ValidationError(Error):
+    def __init__(self, errors):
+        self.errors = errors
 
 contactdb_pool = None
 # Using a global object for the database connection
@@ -816,6 +822,94 @@ def __fix_leafnodes_to_org(leafs: List[dict], table: str,
         _db_manipulate(op_str, leaf)
 
 
+create_org_schema = {
+    "$defs": {
+        "annotations": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "tag": {"type": "string", "minLength": 1},
+                    "condition": {"type": ["array", "boolean"], "minItems": 2, "maxItems": 3}
+                },
+                "required": ["tag"]
+            }
+        }
+    },
+    "type": "object",
+    "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "comment": {"type": "string"},
+        "ripe_org_hdl": {"type": "string"},
+        "ti_handle": {"type": "string"},
+        "first_handle": {"type": "string"},
+        "annotations": {"$ref": "#/$defs/annotations"},
+        "asns": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "asn": {"type": "integer", "minimum": 0},
+                    "annotations": {"$ref": "#/$defs/annotations"}
+                },
+                "required": ["asn"]
+            }
+        },
+        "contacts": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "firstname": {"type": "string"},
+                    "lastname": {"type": "string"},
+                    "email": {"type": "string", "pattern": "^[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"},
+                    "tel": {"type": "string"},
+                    "comment": {"type": "string"},
+                    "openpgp_fpr": {"type": "string"}
+                },
+                "required": ["firstname", "lastname", "email", "tel", "comment", "openpgp_fpr"]
+            }
+        },
+        "fqdns": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "fqdn": {"type": "string", "pattern": "^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)*(?:[0-9]*[a-z](?:[a-z0-9-]*[a-z0-9])?|[0-9]+-+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)$"},
+                    "comment": {"type": "string"},
+                    "annotations": {"$ref": "#/$defs/annotations"}
+                },
+                "required": ["fqdn"]
+            }
+        },
+        "networks": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "address": {"type": "string", "minLength": 1, "format": "cidr"},
+                    "comment": {"type": "string"},
+                    "annotations": {"$ref": "#/$defs/annotations"}
+                },
+                "required": ["address"]
+            }
+        },
+        "national_certs": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "country_code": {"type": "string", "pattern": "^[a-zA-Z]{2}$"},
+                    "comment": {"type": "string"}
+                },
+                "required": ["country_code"]
+            }
+        }
+    },
+    "required": ["name"]
+}
+
+
 def _create_org(org: dict, username: str) -> int:
     """Insert an new contactdb entry.
 
@@ -830,6 +924,14 @@ def _create_org(org: dict, username: str) -> int:
         Database ID of the organisation that was created.
     """
     # log.debug("_create_org called with " + repr(org))
+
+    validator = jsonschema.Draft202012Validator(create_org_schema)
+    error_list = []
+    errors = sorted(validator.iter_errors(org), key=attrgetter("path"))
+    for error in errors:
+        error_list.append((list(error.absolute_path), error.message))
+    if error_list:
+        raise ValidationError(error_list)
 
     needed_attribs = ['name', 'comment', 'ripe_org_hdl',
                       'ti_handle', 'first_handle']
@@ -1226,6 +1328,11 @@ def get_auto_org_details(id: int):
     return __db_query_org(id, "_automatic")
 
 
+@hug.get(ENDPOINT_PREFIX + '/org/schema.json')
+def get_org_schema():
+    return create_org_schema
+
+
 @hug.get(ENDPOINT_PREFIX + '/asn/manual/{number}', requires=session.token_authentication)
 def get_manual_asn_details(number: int, response):
     asn = __db_query_asn(number, "")
@@ -1317,13 +1424,22 @@ def commit_pending_org_changes(body, request, response, user: hug.directives.use
 
     results = []
     try:
-        for command, org in zip(commands, orgs):
+        for i, (command, org) in enumerate(zip(commands, orgs)):
             results.append((command, known_commands[command](org, username = user['username'])))
-    except Exception:
+    except ValidationError as e:
+        response.status = HTTP_UNPROCESSABLE_ENTITY
+        return {
+            "reason": "JSON validation failed",
+            "details": {"create": [(i, e.errors)]}
+        }
+    except Exception as exc:
         log.info("Commit failed %r with %r by username = %r",
-                 command, org, user['username'], exc_info=True)
+                 command, org, user['username'], exc_info=exc)
         response.status = HTTP_BAD_REQUEST
-        return {"reason": "Commit failed, see server logs."}
+        return {
+            "reason": "Commit failed",
+            "details": "{}".format(repr(exc).replace('\n', ' '))
+        }
 
     log.info("Commit successful, results = %r; username = %r",
              results, user['username'])
