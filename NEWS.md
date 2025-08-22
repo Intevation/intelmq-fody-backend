@@ -1,7 +1,14 @@
-## 0.10.0 to 0.11.0
+## 0.10.1 to 0.11.0
 
 * ContactDB and EventDB (Stats API):
   Added a database connection pooling and healthchecks to handle broken connections (#12, #18, #35).
+* ContactDB: Use JSON Schema to validate all user inputs.
+* Documentation:
+  How to use the same authentication as the IntelMQ Manager (#40).
+  How to run with hug (#23).
+* Logs: Shorten the user representation of tracebacks to the useful parts (#38).
+* Packaging: Use quilt.
+* Tests: Add workflows to build the application, run the tests and check for print-statements.
 
 ## 0.10.0 to 0.10.1
 

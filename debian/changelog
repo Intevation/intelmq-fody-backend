@@ -1,8 +1,17 @@
-intelmq-fody-backend (0.11.0-1) UNRELEASED; urgency=medium
+intelmq-fody-backend (0.11.0-1) stable; urgency=medium
 
   * ContacDB and EventDB: Database connection pooling and healthcheck to handle broken connections (#12, #18, #35).
+  * ContactDB and EventDB (Stats API):
+    Added a database connection pooling and healthchecks to handle broken connections (#12, #18, #35).
+  * ContactDB: Use JSON Schema to validate all user inputs.
+  * Documentation:
+    How to use the same authentication as the IntelMQ Manager (#40).
+    How to run with hug (#23).
+  * Logs: Shorten the user representation of tracebacks to the useful parts (#38).
+  * Packaging: Use quilt.
+  * Tests: Add workflows to build the application, run the tests and check for print-statements.
 
- -- Sebastian Wagner <sebix@sebix.at>  Fri, 14 Feb 2025 18:50:54 +0100
+ -- Sebastian Wagner <swagner@intevation.de>  Thu, 21 Aug 2025 21:15:30 +0200
 
 intelmq-fody-backend (0.10.1) stable; urgency=medium
 
