@@ -114,7 +114,7 @@ EXAMPLE_CONF_FILE = r"""
                    "Whitelist:DNS-Open-Resolver",
                    "Whitelist:Open-Telnet",
                    "Whitelist:Shadowserver",
-                   "Whitelist:All",
+                   "Whitelist:All"
                    ],
   "libpg conninfo":
     "host=localhost dbname=contactdb user=apiuser password='USER\\'s DB PASSWORD'",
