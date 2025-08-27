@@ -112,11 +112,10 @@ EXAMPLE_CONF_FILE = r"""
 {
   "common_tags": [ "Whitelist:Malware",
                    "Whitelist:DNS-Open-Resolver",
+                   "Whitelist:Open-Telnet",
                    "Whitelist:Shadowserver",
                    "Whitelist:All",
-                   "de-provider-xarf",
-                   "cert.at-realtime-xmpp",
-                   "erhalte-de"],
+                   ],
   "libpg conninfo":
     "host=localhost dbname=contactdb user=apiuser password='USER\\'s DB PASSWORD'",
   "logging_level": "INFO"
