@@ -24,14 +24,23 @@ When the version of fody compatible with the backend changed, also
 update the dependency in `debian/control`.
 
 ### Tag version
-example
 ```sh
 git tag -s v0.7.0
 git push origin v0.7.0
 ```
+And go to GitHub to create a release from the tag.
 
-### build
-(whatever is necessary, see toplevel Readme)
+### Build
+```bash
+rm -r build
+python3 setup.py sdist bdist_wheel
+```
+
+### Upload to PyPI
+```bash
+twine upload dist/..
+```
+Twine will prompt for the login credentials (API key) if no `~/.pypirc` exists.
 
 ### Prepare for following development
 In the mentioned files above, set the version number to the following
