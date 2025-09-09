@@ -822,7 +822,7 @@ def __fix_leafnodes_to_org(leafs: List[dict], table: str,
 
 
 create_org_schema = {
-    "$defs": {
+    "definitions": {
         "annotations": {
             "type": "array",
             "items": {
@@ -842,14 +842,14 @@ create_org_schema = {
         "ripe_org_hdl": {"type": "string"},
         "ti_handle": {"type": "string"},
         "first_handle": {"type": "string"},
-        "annotations": {"$ref": "#/$defs/annotations"},
+        "annotations": {"$ref": "#/definitions/annotations"},
         "asns": {
             "type": "array",
             "items": {
                 "type": "object",
                 "properties": {
                     "asn": {"type": "integer", "minimum": 0},
-                    "annotations": {"$ref": "#/$defs/annotations"}
+                    "annotations": {"$ref": "#/definitions/annotations"}
                 },
                 "required": ["asn"]
             }
@@ -876,7 +876,7 @@ create_org_schema = {
                 "properties": {
                     "fqdn": {"type": "string", "pattern": "^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)*(?:[0-9]*[a-z](?:[a-z0-9-]*[a-z0-9])?|[0-9]+-+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)$"},
                     "comment": {"type": "string"},
-                    "annotations": {"$ref": "#/$defs/annotations"}
+                    "annotations": {"$ref": "#/definitions/annotations"}
                 },
                 "required": ["fqdn"]
             }
@@ -888,7 +888,7 @@ create_org_schema = {
                 "properties": {
                     "address": {"type": "string", "minLength": 1, "format": "cidr"},
                     "comment": {"type": "string"},
-                    "annotations": {"$ref": "#/$defs/annotations"}
+                    "annotations": {"$ref": "#/definitions/annotations"}
                 },
                 "required": ["address"]
             }
@@ -909,6 +909,18 @@ create_org_schema = {
 }
 
 
+create_org_checker = jsonschema.FormatChecker()
+
+
+@create_org_checker.checks('cidr')
+def validate_cidr(cidr):
+    # Currently only validated in front-end
+    return True
+
+
+create_org_validator = jsonschema.Draft7Validator(create_org_schema, format_checker=create_org_checker)
+
+
 def _create_org(org: dict, username: str) -> int:
     """Insert an new contactdb entry.
 
@@ -924,9 +936,9 @@ def _create_org(org: dict, username: str) -> int:
     """
     # log.debug("_create_org called with " + repr(org))
 
-    validator = jsonschema.Draft202012Validator(create_org_schema)
     error_list = []
-    errors = sorted(validator.iter_errors(org), key=attrgetter("path"))
+    errors = sorted(create_org_validator.iter_errors(org),
+                    key=attrgetter("path"))
     for error in errors:
         error_list.append((list(error.absolute_path), error.message))
     if error_list:
