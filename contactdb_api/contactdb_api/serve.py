@@ -1354,7 +1354,7 @@ def get_auto_org_details(id: int):
 
 @hug.get(ENDPOINT_PREFIX + '/org/schema.json')
 def get_org_schema():
-    return create_org_schema
+    return org_schema
 
 
 @hug.get(ENDPOINT_PREFIX + '/asn/manual/{number}', requires=session.token_authentication)
