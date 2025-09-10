@@ -10,7 +10,7 @@ Originally fody-backend had been designed with sub-modules
 that could potentially also be used separately.
 Example how to change all version numbers:
 ```sh
-sed -i -r "s/version='[^']+'/version='NEW_VERSION'/" *_api/setup.py
+sed -i -r "s/version='[^']+'/version='NEW_VERSION'/" setup.py *_api/setup.py
 ```
 
 #### DEB packaging
