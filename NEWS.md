@@ -1,3 +1,12 @@
+## 0.11.0 to 0.11.1
+
+* ContactDB:
+  * For compatibility with `jsonschema` version 3.2.0 available in Ubuntu 22.04, use JSON Schema Draft 07 instead of Draft 202012
+  * Also validate organisations against the schema on update and deletion, not only creation.
+* Release Documentation:
+  Add missing steps for building and publishing to PyPI
+  Further small improbements
+
 ## 0.10.1 to 0.11.0
 
 * ContactDB and EventDB (Stats API):
