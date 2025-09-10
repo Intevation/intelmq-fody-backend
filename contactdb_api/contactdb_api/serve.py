@@ -821,7 +821,7 @@ def __fix_leafnodes_to_org(leafs: List[dict], table: str,
         _db_manipulate(op_str, leaf)
 
 
-create_org_schema = {
+org_schema = {
     "definitions": {
         "annotations": {
             "type": "array",
@@ -909,16 +909,30 @@ create_org_schema = {
 }
 
 
-create_org_checker = jsonschema.FormatChecker()
+org_checker = jsonschema.FormatChecker()
 
 
-@create_org_checker.checks('cidr')
+@org_checker.checks('cidr')
 def validate_cidr(cidr):
     # Currently only validated in front-end
     return True
 
 
-create_org_validator = jsonschema.Draft7Validator(create_org_schema, format_checker=create_org_checker)
+org_validator = jsonschema.Draft7Validator(org_schema, format_checker=org_checker)
+
+
+def validate_org(org: dict) -> None:
+    """Validate org, raise if invalid
+
+    Validate the org against the schema. If it is invalid, raise
+    ValidationError.
+    """
+    error_list = []
+    errors = sorted(org_validator.iter_errors(org), key=attrgetter("path"))
+    for error in errors:
+        error_list.append((list(error.absolute_path), error.message))
+    if error_list:
+        raise ValidationError(error_list)
 
 
 def _create_org(org: dict, username: str) -> int:
@@ -936,13 +950,7 @@ def _create_org(org: dict, username: str) -> int:
     """
     # log.debug("_create_org called with " + repr(org))
 
-    error_list = []
-    errors = sorted(create_org_validator.iter_errors(org),
-                    key=attrgetter("path"))
-    for error in errors:
-        error_list.append((list(error.absolute_path), error.message))
-    if error_list:
-        raise ValidationError(error_list)
+    validate_org(org)
 
     needed_attribs = ['name', 'comment', 'ripe_org_hdl',
                       'ti_handle', 'first_handle']
@@ -1002,6 +1010,8 @@ def _update_org(org, username: str):
         Database ID of the updated organisation.
     """
     # log.debug("_update_org called with " + repr(org))
+
+    validate_org(org)
 
     org_id = org["organisation_id"]
     org_in_db = __db_query_org(org_id, "")
@@ -1084,6 +1094,9 @@ def _delete_org(org, username: str) -> int:
         Database ID of the organisation that has been deleted.
     """
     # log.debug("_delete_org called with " + repr(org))
+
+    validate_org(org)
+
     org_id_rm = org["organisation_id"]
 
     org_in_db = __db_query_org(org_id_rm, "")
