@@ -927,10 +927,9 @@ def validate_org(org: dict) -> None:
     Validate the org against the schema. If it is invalid, raise
     ValidationError.
     """
-    error_list = []
-    errors = sorted(org_validator.iter_errors(org), key=attrgetter("path"))
-    for error in errors:
-        error_list.append((list(error.absolute_path), error.message))
+    error_list = [(list(error.absolute_path), error.message)
+                  for error in sorted(org_validator.iter_errors(org),
+                                      key=attrgetter("path"))]
     if error_list:
         raise ValidationError(error_list)
 
