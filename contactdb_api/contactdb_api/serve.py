@@ -45,6 +45,8 @@ import json
 import logging
 import os
 import sys
+import re
+import ipaddress
 from copy import deepcopy
 from typing import List, Tuple, Union
 from operator import attrgetter
@@ -912,9 +914,21 @@ org_schema = {
 org_checker = jsonschema.FormatChecker()
 
 
-@org_checker.checks('cidr')
+@org_checker.checks('cidr', (TypeError, ValueError))
 def validate_cidr(cidr):
-    # Currently only validated in front-end
+    if not isinstance(cidr, str):
+        raise TypeError(f'cidr must be str, not {type(cidr).__name__}')
+    # The ipaddress module permits the following:
+    # - netmasks of the form '10.11.12.0/255.255.255.0',
+    # - scope zone IDs: '::1%1',
+    # - leading zeros in the netmask: ::1/0128
+    #   ('1.2.3.04' is forbidden, though).
+    # We want to exclude all of that, so perform a superficial format check
+    # first:
+    if not re.fullmatch('(?:[0-9.]+|[0-9a-fA-F:]+)(?:/[1-9][0-9]*)?', cidr):
+        raise ValueError(f'cidr {cidr!r} has invalid format')
+    # This raises ValueError on invalid format or if host bits are set
+    net = ipaddress.ip_network(cidr)
     return True
 
 
