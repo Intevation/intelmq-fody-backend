@@ -914,6 +914,9 @@ org_schema = {
 org_checker = jsonschema.FormatChecker()
 
 
+ip_network_pattern = re.compile('(?:[0-9.]+|[0-9a-fA-F:]+)(?:/[1-9][0-9]*)?')
+
+
 @org_checker.checks('cidr', (TypeError, ValueError))
 def validate_cidr(cidr):
     if not isinstance(cidr, str):
@@ -925,7 +928,7 @@ def validate_cidr(cidr):
     #   ('1.2.3.04' is forbidden, though).
     # We want to exclude all of that, so perform a superficial format check
     # first:
-    if not re.fullmatch('(?:[0-9.]+|[0-9a-fA-F:]+)(?:/[1-9][0-9]*)?', cidr):
+    if not ip_network_pattern.fullmatch(cidr):
         raise ValueError(f'cidr {cidr!r} has invalid format')
     # This raises ValueError on invalid format or if host bits are set
     net = ipaddress.ip_network(cidr)
